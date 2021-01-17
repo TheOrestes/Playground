@@ -3,6 +3,9 @@
 #include "PlaygroundHeaders.h"
 #include "Application.h"
 
+#include "Engine/Renderer/IRenderer.h"
+#include "Engine/Renderer/VulkanRenderer.h"
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Application::Application(const std::string& _title, uint16_t _width, uint16_t _height)
@@ -11,6 +14,7 @@ Application::Application(const std::string& _title, uint16_t _width, uint16_t _h
         m_uiWindowHeight(_height)
 {
     m_pWindow = nullptr;
+    m_pRenderer = nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,6 +34,7 @@ bool Application::Initialize()
     }
 
     // GLFW Window parameters/settings
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     // Create Window
@@ -57,6 +62,10 @@ bool Application::Initialize()
     glfwSetMouseButtonCallback(m_pWindow, EventMouseButtonCallback);
     glfwSetScrollCallback(m_pWindow, EventMouseScrollCallback);
 
+    // Create Vulkan Renderer
+    m_pRenderer = new VulkanRenderer();
+    m_pRenderer->Initialize(m_pWindow);
+
     return true;
 }
 
@@ -82,6 +91,9 @@ void Application::MainLoop()
         float currTime = glfwGetTime();
         delta = currTime - lastTime;
         lastTime = currTime;
+
+        m_pRenderer->Update(delta);
+        m_pRenderer->Render();
     }
 }
 
@@ -89,6 +101,9 @@ void Application::MainLoop()
 void Application::Shutdown()
 {
     glfwDestroyWindow(m_pWindow);
+
+    m_pRenderer->Cleanup();
+    SAFE_DELETE(m_pRenderer);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
