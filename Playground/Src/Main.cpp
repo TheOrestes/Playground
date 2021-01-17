@@ -1,6 +1,8 @@
 
 #include "PlaygroundPCH.h"
-#include "Playground.h"
+#include "PlaygroundHeaders.h"
+
+#include "Application.h"
 
 int main(int argc, char** argv)
 {
@@ -9,6 +11,9 @@ int main(int argc, char** argv)
 	LOG_DEBUG("Debug Log");
 	LOG_INFO("Info Log");
 	LOG_WARNING("Warning Log");
+
+	Application mainApp("Vulkan Playground", 1280, 800);
+	mainApp.Run();
 
 	return 0;
 }

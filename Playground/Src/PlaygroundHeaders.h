@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Log.h"
+#include "Engine/Helpers/Log.h"
 
 //--- MACROS! 
 #define LOG_CRITICAL(...)	Log::getInstance().Logger()->critical(__VA_ARGS__);
@@ -8,3 +8,5 @@
 #define LOG_WARNING(...)	Log::getInstance().Logger()->warn(__VA_ARGS__);
 #define LOG_INFO(...)		Log::getInstance().Logger()->info(__VA_ARGS__);
 #define LOG_DEBUG(...)		Log::getInstance().Logger()->debug(__VA_ARGS__);
+
+#define SAFE_DELETE(x)		if(x) { delete x; x = nullptr; }
