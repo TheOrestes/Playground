@@ -1,3 +1,6 @@
 [submodule "Playground/ThirdParty/spdlog"]
 	path = Playground/ThirdParty/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "Playground/ThirdParty/glfw"]
+	path = Playground/ThirdParty/glfw
+	url = https://github.com/glfw/glfw.git
