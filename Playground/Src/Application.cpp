@@ -47,7 +47,15 @@ bool Application::Initialize()
     }
 
     // Set 
-    glfwGetWindowUserPointer(m_pWindow);
+    glfwSetWindowUserPointer(m_pWindow, this);
+
+    // Register Events! 
+    glfwSetWindowCloseCallback(m_pWindow, EventWindowClosedCallback);
+    glfwSetWindowSizeCallback(m_pWindow, EventWindowResizedCallback);
+    glfwSetKeyCallback(m_pWindow, EventKeyHandlerCallback);
+    glfwSetCursorPosCallback(m_pWindow, EventMousePositionCallback);
+    glfwSetMouseButtonCallback(m_pWindow, EventMouseButtonCallback);
+    glfwSetScrollCallback(m_pWindow, EventMouseScrollCallback);
 
     return true;
 }
@@ -81,5 +89,38 @@ void Application::MainLoop()
 void Application::Shutdown()
 {
     glfwDestroyWindow(m_pWindow);
-    SAFE_DELETE(m_pWindow);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Application::EventWindowClosedCallback(GLFWwindow* pWindow)
+{
+    LOG_DEBUG("Window Closed");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Application::EventWindowResizedCallback(GLFWwindow* pWindow, int width, int height)
+{
+    LOG_DEBUG("Window Resized ({0},{1})", width, height);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Application::EventKeyHandlerCallback(GLFWwindow* pWindow, int key, int scancode, int action, int mods)
+{
+    
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Application::EventMousePositionCallback(GLFWwindow* pWindow, double xPos, double yPos)
+{
+    
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Application::EventMouseButtonCallback(GLFWwindow* pWindow, int button, int action, int mods)
+{
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Application::EventMouseScrollCallback(GLFWwindow* pWindow, double xOffset, double yOffset)
+{
 }
