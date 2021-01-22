@@ -1,6 +1,7 @@
 
 #include "PlaygroundPCH.h"
 #include "Engine/Helpers/Utility.h"
+#include "Engine/Renderer/VulkanDevice.h"
 
 #include "Model.h"
 
@@ -51,8 +52,7 @@ std::vector<std::string> Model::LoadMaterials(const aiScene* scene)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-std::vector<Mesh> Model::LoadNode(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkQueue transferQueue,
-	VkCommandPool transferPool, aiNode* node, const aiScene* scene,
+std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, VkDevice logicalDevice, aiNode* node, const aiScene* scene, 
 	std::vector<int> vecMatToTexture)
 {
 	std::vector<Mesh> vecMesh;
@@ -60,15 +60,17 @@ std::vector<Mesh> Model::LoadNode(VkPhysicalDevice physicalDevice, VkDevice logi
 	// Go through each mesh at this node & create it, then add it to our mesh list
 	for (uint64_t i = 0; i < node->mNumMeshes; i++)
 	{
-		vecMesh.push_back(
-			LoadMesh(physicalDevice, logicalDevice, transferQueue, transferPool, scene->mMeshes[node->mMeshes[i]], scene, vecMatToTexture)
-		);
+		vecMesh.push_back(LoadMesh(device,
+								logicalDevice,
+								scene->mMeshes[node->mMeshes[i]],
+								scene,
+								vecMatToTexture));
 	}
 
 	// Go through each node attached to this node & load it, then append their meshes to this node's mesh list
 	for (uint64_t i = 0; i < node->mNumChildren; i++)
 	{
-		std::vector<Mesh> newList = LoadNode(physicalDevice, logicalDevice, transferQueue, transferPool, node->mChildren[i], scene, vecMatToTexture);
+		std::vector<Mesh> newList = LoadNode(device, logicalDevice, node->mChildren[i], scene, vecMatToTexture);
 		vecMesh.insert(vecMesh.end(), newList.begin(), newList.end());
 	}
 
@@ -76,8 +78,7 @@ std::vector<Mesh> Model::LoadNode(VkPhysicalDevice physicalDevice, VkDevice logi
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Mesh Model::LoadMesh(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkQueue transferQueue, VkCommandPool transferPool,
-	aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture)
+Mesh Model::LoadMesh(const VulkanDevice* device, VkDevice logicalDevice, aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture)
 {
 	std::vector<Helper::App::VertexPCT>  vertices;
 	std::vector<uint32_t>				indices;
@@ -117,7 +118,7 @@ Mesh Model::LoadMesh(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, Vk
 	}
 
 	// Create new mesh with details & return it!
-	Mesh newMesh(physicalDevice, logicalDevice, transferQueue, transferPool, vertices, indices, vecMatToTexture[mesh->mMaterialIndex]);
+	Mesh newMesh(device, logicalDevice, vertices, indices, vecMatToTexture[mesh->mMaterialIndex]);
 	return newMesh;
 }
 

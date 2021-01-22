@@ -15,21 +15,10 @@
 
 #include "Engine\RenderObjects\Mesh.h"
 #include "Engine\RenderObjects\Model.h"
+
+#include "VulkanDevice.h"
+
 #include "IRenderer.h"
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Almost every operation in Vulkan, from drawing to uploading textures requires commands to be submitted to Queue. 
-// There are different types of queues from different families. Each family allows only subset of commands! 
-// We need to check which queue families are supported by the device & which one of these supports the command we 
-// want to use. 
-// Struct below keeps track of all such queues based on their types...
-struct QueueFamilyIndices
-{
-	std::optional<uint32_t> m_uiGraphicsFamily;
-	std::optional<uint32_t>	m_uiPresentFamily;
-
-	bool isComplete() { return m_uiGraphicsFamily.has_value() && m_uiPresentFamily.has_value(); }
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Once we know that swap-chains are available, we need to check its compatibility with our window surface. 
@@ -66,11 +55,6 @@ private:
 
 	void							CreateSurface();
 
-	void							PickPhysicalDevice();
-	bool							IsDeviceSuitable(VkPhysicalDevice device);
-	bool							CheckDeviceExtensionSupport(VkPhysicalDevice device);
-	QueueFamilyIndices				FindQueueFamilies(VkPhysicalDevice device);
-
 	void							CreateLogicalDevice();
 
 	SwapChainSupportDetails			QuerySwapChainSupport(VkPhysicalDevice device);
@@ -90,15 +74,13 @@ private:
 	void							CreateDepthBufferImage();
 	void							CreateRenderPass();
 	void							CreateFramebuffers();
-	void							CreateCommandPool();
-	void							CreateCommandBuffers();
 	void							CreateSyncObjects();
 	void							CreateUniformBuffers();
 	void							CreateDescriptorPool();
 	void							CreateDescriptorSets();
 	void							CreateInputDescriptorSets();
 
-	unsigned char* LoadTextureFile(std::string fileName, int* width, int* height, VkDeviceSize* imageSize);
+	unsigned char*					LoadTextureFile(std::string fileName, int* width, int* height, VkDeviceSize* imageSize);
 	int								CreateTextureImage(std::string fileName);
 	int								CreateTexture(std::string fileName);
 	void							CreateTextureSampler();
@@ -116,16 +98,15 @@ private:
 private:
 	GLFWwindow* m_pWindow;
 
+	VulkanDevice*					m_pDevice;
+
 	VkInstance						m_vkInstance;
 	QueueFamilyIndices				m_QueueFamilyIndices;
 
 	VkDebugUtilsMessengerEXT		m_vkDebugMessenger;
 	VkSurfaceKHR					m_vkSurface;
 
-	VkPhysicalDevice				m_vkPhysicalDevice;
 	VkDevice						m_vkDevice;
-	VkQueue							m_vkQueueGraphics;
-	VkQueue							m_vkQueuePresent;
 
 	VkSwapchainKHR					m_vkSwapchain;
 	std::vector<VkImage>			m_vecSwapchainImages;
@@ -153,8 +134,6 @@ private:
 	std::vector<VkImage>			m_vecColorBufferImage;
 	std::vector<VkImageView>		m_vecColorBufferImageView;
 	std::vector<VkDeviceMemory>		m_vecColorBufferImageMemory;
-
-	VkCommandPool					m_vkCommandPoolGraphics;
 
 	std::vector<VkSemaphore>		m_vecSemaphoreImageAvailable;
 	std::vector<VkSemaphore>		m_vecSemaphoreRenderFinished;

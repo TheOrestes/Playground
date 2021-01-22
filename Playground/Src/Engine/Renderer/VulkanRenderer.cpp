@@ -13,7 +13,8 @@ VulkanRenderer::VulkanRenderer()
 {
 	m_pWindow = nullptr;
 
-	m_vkPhysicalDevice = VK_NULL_HANDLE;
+	m_pDevice = nullptr;
+	
 	m_uiCurrentFrame = 0;
 	m_bFramebufferResized = false;
 
@@ -22,8 +23,6 @@ VulkanRenderer::VulkanRenderer()
 	m_vkSurface = VK_NULL_HANDLE;
 
 	m_vkDevice = VK_NULL_HANDLE;
-	m_vkQueueGraphics = VK_NULL_HANDLE;
-	m_vkQueuePresent = VK_NULL_HANDLE;
 
 	m_vkSwapchain = VK_NULL_HANDLE;
 	m_vecSwapchainImages.clear();
@@ -34,9 +33,8 @@ VulkanRenderer::VulkanRenderer()
 
 	m_vecFramebuffers.clear();
 	m_vecSwapchainImageViews.clear();
+	
 	m_vecCommandBuffer.clear();
-
-	m_vkCommandPoolGraphics = VK_NULL_HANDLE;
 
 	m_vecSemaphoreImageAvailable.clear();
 	m_vecSemaphoreRenderFinished.clear();
@@ -64,7 +62,10 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		CreateInstance();
 		SetupDebugMessenger();
 		CreateSurface();
-		PickPhysicalDevice();
+
+		m_pDevice = new VulkanDevice(m_vkInstance, m_vkSurface);
+		m_pDevice->PickPhysicalDevice();
+		
 		CreateLogicalDevice();
 		CreateSwapChain();
 		CreateImageViews();
@@ -75,8 +76,12 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		CreatePushConstantRange();
 		CreateGraphicsPipeline();
 		CreateFramebuffers();
-		CreateCommandPool();
-		CreateCommandBuffers();
+
+		m_pDevice->CreateGraphicsCommandPool(m_vkDevice);
+		m_pDevice->CreateGraphicsCommandBuffers(m_vecSwapchainImages.size(), m_vkDevice);
+
+		m_vecCommandBuffer = m_pDevice->m_vecCommandBuffer;
+		
 		CreateTextureSampler();
 		//AllocateDynamicBufferTransferSpace();
 		CreateUniformBuffers();
@@ -124,8 +129,8 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 
 		int texID1 = CreateTexture("Randy.jpg");
 		int texID2 = CreateTexture("Cartman.jpg");
-		Mesh mesh1(m_vkPhysicalDevice, m_vkDevice, m_vkQueueGraphics, m_vkCommandPoolGraphics, meshVertices1, meshIndices, texID1);
-		Mesh mesh2(m_vkPhysicalDevice, m_vkDevice, m_vkQueueGraphics, m_vkCommandPoolGraphics, meshVertices2, meshIndices, texID2);
+		Mesh mesh1(m_pDevice, m_vkDevice, meshVertices1, meshIndices, texID1);
+		Mesh mesh2(m_pDevice, m_vkDevice, meshVertices2, meshIndices, texID2);
 
 		m_vecMeshes.push_back(mesh1);
 		m_vecMeshes.push_back(mesh2);
@@ -176,7 +181,6 @@ void VulkanRenderer::UpdateModel(int modelID, glm::mat4 modelMatrix)
 	if (modelID < m_vecMeshes.size())
 		m_vecMeshes[modelID].SetPushConstantData(modelMatrix);
 
-
 	// Updating model
 	if (modelID < 0)
 	{
@@ -197,7 +201,7 @@ void VulkanRenderer::CreateInstance()
 	}
 
 	// Provide information about our application, this struct is optional!
-	VkApplicationInfo appInfo;
+	VkApplicationInfo appInfo = {};
 	appInfo.apiVersion = VK_API_VERSION_1_2;
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -363,162 +367,16 @@ void VulkanRenderer::CreateSurface()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::PickPhysicalDevice()
-{
-	// List out all the physical devices
-	uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
-
-	// if there are NO devices with Vulkan support, no point going forward!
-	if (deviceCount == 0)
-	{
-		LOG_ERROR("Failed to find GPU with Vulkan support!");
-		return;
-	}
-
-	// allocate an array to hold all physical devices handles...
-	std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
-	vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, physicalDevices.data());
-
-
-	// check if physical device has the Queue family required for needed operations
-	for (int i = 0; i < deviceCount; ++i)
-	{
-		// Find Queue families, look for needed queue families...
-		if (IsDeviceSuitable(physicalDevices[i]))
-		{
-			m_vkPhysicalDevice = physicalDevices[i];
-
-			LOG_INFO("Suitable Physical Device found!");
-
-			VkPhysicalDeviceProperties deviceProperties;
-			vkGetPhysicalDeviceProperties(m_vkPhysicalDevice, &deviceProperties);
-
-			LOG_DEBUG(std::string("Device Name        : " + std::string(deviceProperties.deviceName)).c_str());
-			LOG_DEBUG(std::string("Driver Version     : " + std::to_string(deviceProperties.driverVersion)).c_str());
-
-			break;
-		}
-	}
-
-	// If we don't find suitable device, return!
-	if (m_vkPhysicalDevice == VK_NULL_HANDLE)
-	{
-		LOG_ERROR("Failed to find suitable GPU!");
-		return;
-	}
-
-	//VkPhysicalDeviceProperties deviceProps;
-	//vkGetPhysicalDeviceProperties(m_vkPhysicalDevice, &deviceProps);
-	//m_uiMinUniformBufferOffset = deviceProps.limits.minUniformBufferOffsetAlignment;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool VulkanRenderer::IsDeviceSuitable(VkPhysicalDevice device)
-{
-	m_QueueFamilyIndices = FindQueueFamilies(device);
-	bool bExtensionsSupported = CheckDeviceExtensionSupport(device);
-
-	bool bSwapChainAdequate = false;
-	if (bExtensionsSupported)
-	{
-		SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device);
-		bSwapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-	}
-
-	// For our device to be suitable
-	// 1. We have to have right queue families
-	// 2. should supported all needed extensions
-	// 3. Swapchain should be valid!
-	return m_QueueFamilyIndices.isComplete() && bExtensionsSupported && bSwapChainAdequate;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool VulkanRenderer::CheckDeviceExtensionSupport(VkPhysicalDevice device)
-{
-	uint32_t extensionCount;
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-	std::vector<VkExtensionProperties> vecAvailableExtensions(extensionCount);
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, vecAvailableExtensions.data());
-
-	// Compare Required extensions with supported extensions...
-	bool bExtensionFound = false;
-	for (int i = 0; i < Helper::Vulkan::g_strDeviceExtensions.size(); ++i)
-	{
-		for (int j = 0; j < extensionCount; ++j)
-		{
-			if (strcmp(Helper::Vulkan::g_strDeviceExtensions[i], vecAvailableExtensions[j].extensionName) == 0)
-			{
-				bExtensionFound = true;
-
-				std::string msg = std::string(Helper::Vulkan::g_strDeviceExtensions[i]) + " device extension found!";
-				LOG_DEBUG(msg.c_str());
-
-				break;
-			}
-		}
-
-		if (!bExtensionFound)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-QueueFamilyIndices VulkanRenderer::FindQueueFamilies(VkPhysicalDevice device)
-{
-	QueueFamilyIndices indices;
-
-	// retrieve list of queue families 
-	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-	// VkQueueFamilyProperties contains details about the queue family. We need to find at least one
-	// queue family that supports VK_QUEUE_GRAPHICS_BIT
-	for (int i = 0; i < queueFamilyCount; ++i)
-	{
-		if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-		{
-			indices.m_uiGraphicsFamily = i;
-		}
-
-		// check if this queue family has capability of presenting to our window surface!
-		VkBool32 bPresentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_vkSurface, &bPresentSupport);
-
-		// if yes, store presentation family queue index!
-		if (bPresentSupport)
-		{
-			indices.m_uiPresentFamily = i;
-		}
-
-		if (indices.isComplete())
-			break;
-	}
-
-	return indices;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::CreateLogicalDevice()
 {
-	QueueFamilyIndices indices = m_QueueFamilyIndices;
-
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
 
 	// std::set allows only One unique value for input values, no duplicate is allowed, so if both Graphics Queue family
 	// and Presentation Queue family index is same then it will avoid the duplicates and assign only one queue index!
 	std::set<uint32_t> uniqueQueueFamilies =
 	{
-		indices.m_uiGraphicsFamily.value(),
-		indices.m_uiPresentFamily.value()
+		m_pDevice->m_pQueueFamilyIndices->m_uiGraphicsFamily.value(),
+		m_pDevice->m_pQueueFamilyIndices->m_uiPresentFamily.value()
 	};
 
 	float queuePriority = 1.0f;
@@ -562,7 +420,7 @@ void VulkanRenderer::CreateLogicalDevice()
 		createInfo.enabledLayerCount = 0;
 	}
 
-	if (vkCreateDevice(m_vkPhysicalDevice, &createInfo, nullptr, &m_vkDevice) != VK_SUCCESS)
+	if (vkCreateDevice(m_pDevice->m_vkPhysicalDevice, &createInfo, nullptr, &m_vkDevice) != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to create logical vulkan device!");
 		return;
@@ -571,8 +429,8 @@ void VulkanRenderer::CreateLogicalDevice()
 	// The queues are automatically created along with the logical device, but we don't 
 	// have a handle to interface with them yet. Since we are only creating a single queue
 	// from this family, we will use index 0
-	vkGetDeviceQueue(m_vkDevice, indices.m_uiGraphicsFamily.value(), 0, &m_vkQueueGraphics);
-	vkGetDeviceQueue(m_vkDevice, indices.m_uiPresentFamily.value(), 0, &m_vkQueuePresent);
+	vkGetDeviceQueue(m_vkDevice, m_pDevice->m_pQueueFamilyIndices->m_uiGraphicsFamily.value(), 0, &(m_pDevice->m_vkQueueGraphics));
+	vkGetDeviceQueue(m_vkDevice, m_pDevice->m_pQueueFamilyIndices->m_uiPresentFamily.value(), 0, &(m_pDevice->m_vkQueuePresent));
 
 	LOG_INFO("Logical Device Created!");
 }
@@ -684,7 +542,7 @@ VkFormat VulkanRenderer::ChooseSupportedFormats(const std::vector<VkFormat>& for
 	{
 		// Get properties for given formats on this device
 		VkFormatProperties properties;
-		vkGetPhysicalDeviceFormatProperties(m_vkPhysicalDevice, format, &properties);
+		vkGetPhysicalDeviceFormatProperties(m_pDevice->m_vkPhysicalDevice, format, &properties);
 
 		// depending on tiling choice, need to check for different bit flag
 		if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & featureFlags) == featureFlags)
@@ -704,7 +562,7 @@ VkFormat VulkanRenderer::ChooseSupportedFormats(const std::vector<VkFormat>& for
 void VulkanRenderer::CreateSwapChain()
 {
 	// Get swap chain details so we can pick the best setting!
-	SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_vkPhysicalDevice);
+	SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_pDevice->m_vkPhysicalDevice);
 
 	// 1. CHOOSE BEST SURFACE FORMAT
 	VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -745,10 +603,11 @@ void VulkanRenderer::CreateSwapChain()
 	// in our application if the graphics queue family is different from the presentation queue. We'll be drawing on 
 	// the images in the swap chain from the graphics queue and then submitting them on the presentation queue. 
 	// There are two ways to handle images that are accessed from multiple queues. 
-	QueueFamilyIndices indices = FindQueueFamilies(m_vkPhysicalDevice);
-	std::array<uint32_t, 2> queueFamilyIndices = { indices.m_uiGraphicsFamily.value(), indices.m_uiPresentFamily.value() };
+	
+	std::array<uint32_t, 2> queueFamilyIndices = { m_pDevice->m_pQueueFamilyIndices->m_uiGraphicsFamily.value(), m_pDevice->m_pQueueFamilyIndices->m_uiPresentFamily.value() };
 
-	if (indices.m_uiGraphicsFamily != indices.m_uiPresentFamily)
+	// check if Graphics & Presentation family share the same index or not!
+	if (queueFamilyIndices[0] != queueFamilyIndices[1])
 	{
 		// Images can be used across multiple queue families without explicit ownership transfers.
 		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -820,7 +679,9 @@ void VulkanRenderer::HandleWindowResize()
 	//CreatePushConstantRange();
 	//CreateDescriptorSets();
 	//CreateInputDescriptorSets();
-	CreateCommandBuffers();
+	//CreateCommandBuffers();
+
+	m_pDevice->CreateGraphicsCommandBuffers(m_vecSwapchainImages.size(), m_vkDevice);
 
 	LOG_DEBUG("Recreating SwapChain End");
 }
@@ -1029,7 +890,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	viewportInfo.maxDepth = 1.0f;
 
 	// Scissor rect 
-	VkRect2D scissorRect;
+	VkRect2D scissorRect = {};
 	scissorRect.offset = { 0, 0 };															// offset to use region from
 	scissorRect.extent = m_vkSwapchainExtent;												// extent to describe region to use, starting at offset!
 
@@ -1234,7 +1095,7 @@ void VulkanRenderer::CreateColorBufferImage()
 	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
 	{
 		// Create color buffer image
-		m_vecColorBufferImage[i] = Helper::Vulkan::CreateImage(m_vkPhysicalDevice,
+		m_vecColorBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice->m_vkPhysicalDevice,
 			m_vkDevice,
 			m_vkSwapchainExtent.width,
 			m_vkSwapchainExtent.height,
@@ -1266,7 +1127,7 @@ void VulkanRenderer::CreateDepthBufferImage()
 	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
 	{
 		// create depth buffer image
-		m_vecDepthBufferImage[i] = Helper::Vulkan::CreateImage(m_vkPhysicalDevice,
+		m_vecDepthBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice->m_vkPhysicalDevice,
 			m_vkDevice,
 			m_vkSwapchainExtent.width,
 			m_vkSwapchainExtent.height,
@@ -1452,48 +1313,6 @@ void VulkanRenderer::CreateFramebuffers()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::CreateCommandPool()
-{
-	QueueFamilyIndices queueFamilyIndices = m_QueueFamilyIndices;
-
-	VkCommandPoolCreateInfo commandPoolCreateInfo{};
-	commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.m_uiGraphicsFamily.value();
-	commandPoolCreateInfo.pNext = nullptr;
-
-	// Create a Graphics queue family Command Pool
-	if (vkCreateCommandPool(m_vkDevice, &commandPoolCreateInfo, nullptr, &m_vkCommandPoolGraphics) != VK_SUCCESS)
-	{
-		LOG_ERROR("Failed to create Command Pool!");
-	}
-	else
-		LOG_INFO("Created Command Pool!");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::CreateCommandBuffers()
-{
-	m_vecCommandBuffer.resize(m_vecFramebuffers.size());
-
-	VkCommandBufferAllocateInfo commandBufferAllocInfo{};
-	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	commandBufferAllocInfo.commandPool = m_vkCommandPoolGraphics;
-	commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;						// Buffer you submit directly to the queue. can't be called by other buffers!
-																						// BUFFER_LEVEL_SECONDARY can't be called directly but can be called from other buffers via "vkCmdExecuteCommands"
-	commandBufferAllocInfo.commandBufferCount = (uint32_t)m_vecCommandBuffer.size();
-	commandBufferAllocInfo.pNext = nullptr;
-
-	// Allocate command buffers & place handles in array of buffers!
-	if (vkAllocateCommandBuffers(m_vkDevice, &commandBufferAllocInfo, m_vecCommandBuffer.data()) != VK_SUCCESS)
-	{ 
-		LOG_ERROR("Failed to create Command buffer!");
-	}
-	else
-		LOG_INFO("Created Command buffers!");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::RecordCommands(uint32_t currentImage)
 {
 	// Information about how to begin each command buffer
@@ -1528,6 +1347,11 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 
 	// Bind Pipeline to be used in render pass
 	vkCmdBindPipeline(m_vecCommandBuffer[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkGraphicsPipeline);
+	
+	// Draw Cubes
+
+
+	// Draw 3D Meshes! 
 	for (uint16_t j = 0; j < m_vecModels.size(); j++)
 	{
 		Model thisModel = m_vecModels[j];
@@ -1538,8 +1362,8 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 		for (uint32_t k = 0; k < thisModel.GetMeshCount(); k++)
 		{
 			VkBuffer vertexBuffers[] = { thisModel.GetMesh(k)->getVertexBuffer() };						// Buffers to bind
-			VkDeviceSize offsets[] = { 0 };															// offsets into buffers being bound
-			vkCmdBindVertexBuffers(m_vecCommandBuffer[currentImage], 0, 1, vertexBuffers, offsets);	// Command to bind vertex buffer before drawing with them
+			VkDeviceSize offsets[] = { 0 };																// offsets into buffers being bound
+			vkCmdBindVertexBuffers(m_vecCommandBuffer[currentImage], 0, 1, vertexBuffers, offsets);		// Command to bind vertex buffer before drawing with them
 
 			// bind mesh index buffer, with zero offset & using uint32_t type
 			vkCmdBindIndexBuffer(m_vecCommandBuffer[currentImage], thisModel.GetMesh(k)->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
@@ -1633,7 +1457,7 @@ void VulkanRenderer::CreateUniformBuffers()
 	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
 	{
 		Helper::Vulkan::CreateBuffer(
-			m_vkPhysicalDevice,
+			m_pDevice->m_vkPhysicalDevice,
 			m_vkDevice,
 			vpBufferSize,
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -1765,11 +1589,11 @@ void VulkanRenderer::CreateDescriptorSets()
 		// Data about connection between binding & buffer
 		VkWriteDescriptorSet vpSetWrite = {};
 		vpSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		vpSetWrite.dstSet = m_vecDescriptorSets[i];								// Decriptor set to update
+		vpSetWrite.dstSet = m_vecDescriptorSets[i];									// Decriptor set to update
 		vpSetWrite.dstBinding = 0;													// binding to update
-		vpSetWrite.dstArrayElement = 0;											// index in array to update
+		vpSetWrite.dstArrayElement = 0;												// index in array to update
 		vpSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;				// type of descriptor
-		vpSetWrite.descriptorCount = 1;											// amount to update		
+		vpSetWrite.descriptorCount = 1;												// amount to update		
 		vpSetWrite.pBufferInfo = &vpbufferInfo;
 
 		// MODEL DESCRIPTOR
@@ -1895,7 +1719,7 @@ int VulkanRenderer::CreateTextureImage(std::string fileName)
 	VkDeviceMemory imageStagingBufferMemory;
 
 	// create stafging buffer to hold the loaded data, ready to copy to device!
-	Helper::Vulkan::CreateBuffer(m_vkPhysicalDevice,
+	Helper::Vulkan::CreateBuffer(m_pDevice->m_vkPhysicalDevice,
 		m_vkDevice,
 		imageSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -1916,7 +1740,7 @@ int VulkanRenderer::CreateTextureImage(std::string fileName)
 	VkImage texImage;
 	VkDeviceMemory texImageMemory;
 
-	texImage = Helper::Vulkan::CreateImage(m_vkPhysicalDevice,
+	texImage = Helper::Vulkan::CreateImage(m_pDevice->m_vkPhysicalDevice,
 		m_vkDevice,
 		width,
 		height,
@@ -1928,19 +1752,19 @@ int VulkanRenderer::CreateTextureImage(std::string fileName)
 
 	// Transition image to be DST for copy operation
 	Helper::Vulkan::TransitionImageLayout(m_vkDevice,
-		m_vkQueueGraphics,
-		m_vkCommandPoolGraphics,
+		m_pDevice->m_vkQueueGraphics,
+		m_pDevice->m_vkCommandPoolGraphics,
 		texImage,
 		VK_IMAGE_LAYOUT_UNDEFINED,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// COPY DATA TO IMAGE
-	Helper::Vulkan::CopyImageBuffer(m_vkDevice, m_vkQueueGraphics, m_vkCommandPoolGraphics, imageStagingBuffer, texImage, width, height);
+	Helper::Vulkan::CopyImageBuffer(m_vkDevice, m_pDevice->m_vkQueueGraphics, m_pDevice->m_vkCommandPoolGraphics, imageStagingBuffer, texImage, width, height);
 
 	// Transition image to be shader readable for shader usage
 	Helper::Vulkan::TransitionImageLayout(m_vkDevice,
-		m_vkQueueGraphics,
-		m_vkCommandPoolGraphics,
+		m_pDevice->m_vkQueueGraphics,
+		m_pDevice->m_vkCommandPoolGraphics,
 		texImage,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -2080,10 +1904,8 @@ void VulkanRenderer::CreateModel(const std::string& fileName)
 
 	// Load all our meshes!
 	std::vector<Mesh> vecMeshes = Model::LoadNode(
-		m_vkPhysicalDevice,
+		m_pDevice,
 		m_vkDevice,
-		m_vkQueueGraphics,
-		m_vkCommandPoolGraphics,
 		scene->mRootNode,
 		scene,
 		listMatToTexture);
@@ -2188,7 +2010,7 @@ void VulkanRenderer::Render()
 	submitInfo.pSignalSemaphores = signalSemaphores;										// semaphores to signal when command buffer finishes
 	submitInfo.pNext = nullptr;
 
-	if (vkQueueSubmit(m_vkQueueGraphics, 1, &submitInfo, m_vecFencesRender[m_uiCurrentFrame]) != VK_SUCCESS)
+	if (vkQueueSubmit(m_pDevice->m_vkQueueGraphics, 1, &submitInfo, m_vecFencesRender[m_uiCurrentFrame]) != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to submit draw command buffer!");
 	}
@@ -2205,7 +2027,7 @@ void VulkanRenderer::Render()
 	presentInfo.pResults = nullptr;
 
 	// check if swap chain is optimal or not! else recreate & try in next draw call!
-	result = vkQueuePresentKHR(m_vkQueuePresent, &presentInfo);
+	result = vkQueuePresentKHR(m_pDevice->m_vkQueuePresent, &presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_bFramebufferResized)
 	{
 		m_bFramebufferResized = false;
@@ -2256,7 +2078,7 @@ void VulkanRenderer::CleanupOnWindowResize()
 	}
 
 	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!
-	vkFreeCommandBuffers(m_vkDevice, m_vkCommandPoolGraphics, static_cast<uint32_t>(m_vecCommandBuffer.size()), m_vecCommandBuffer.data());
+	vkFreeCommandBuffers(m_vkDevice, m_pDevice->m_vkCommandPoolGraphics, static_cast<uint32_t>(m_vecCommandBuffer.size()), m_vecCommandBuffer.data());
 
 	vkDestroyPipeline(m_vkDevice, m_vkGraphicsPipeline2, nullptr);
 	vkDestroyPipelineLayout(m_vkDevice, m_vkPipelineLayout2, nullptr);
@@ -2338,7 +2160,7 @@ void VulkanRenderer::Cleanup()
 	}
 
 	// Destroy command pool
-	vkDestroyCommandPool(m_vkDevice, m_vkCommandPoolGraphics, nullptr);
+	vkDestroyCommandPool(m_vkDevice, m_pDevice->m_vkCommandPoolGraphics, nullptr);
 
 	vkDestroyDevice(m_vkDevice, nullptr);
 

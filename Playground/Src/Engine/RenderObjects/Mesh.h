@@ -9,6 +9,8 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
+class VulkanDevice;
+
 struct PushConstantData
 {
 	glm::mat4 matModel;
@@ -18,10 +20,8 @@ class Mesh
 {
 public:
 	Mesh();
-	Mesh(VkPhysicalDevice physicalDevice,
+	Mesh(const VulkanDevice* device,
 		VkDevice logicalDevice,
-		VkQueue transferQueue,
-		VkCommandPool transferCommandPool,
 		const std::vector<Helper::App::VertexPCT>& vertices,
 		const std::vector<uint32_t>& indices,
 		int texID);
@@ -43,11 +43,13 @@ public:
 
 private:
 
+	VkPhysicalDevice			m_vkPhysicalDevice;
+	VkDevice					m_vkLogicalDevice;
+
 	PushConstantData			m_pushConstData;
 
 	int							m_iTexID;
 
-	VkPhysicalDevice			m_vkPhysicalDevice;
 	VkDevice					m_vkDevice;
 
 	uint32_t					m_uiVertexCount;
@@ -58,7 +60,7 @@ private:
 	VkBuffer					m_vkIndexBuffer;
 	VkDeviceMemory				m_vkIndexBufferMemory;
 
-	void						CreateVertexBuffer(VkQueue transferQueue, VkCommandPool transferCommandPool, const std::vector<Helper::App::VertexPCT>& vertices);
-	void						CreateIndexBuffer(VkQueue transferQueue, VkCommandPool transferCommandPool, const std::vector<uint32_t>& indices);
+	void						CreateVertexBuffer(const VulkanDevice* device, const std::vector<Helper::App::VertexPCT>& vertices);
+	void						CreateIndexBuffer(const VulkanDevice* device, const std::vector<uint32_t>& indices);
 };
 
