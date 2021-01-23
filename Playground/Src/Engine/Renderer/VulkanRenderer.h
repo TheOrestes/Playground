@@ -16,22 +16,10 @@
 #include "Engine\RenderObjects\Mesh.h"
 #include "Engine\RenderObjects\Model.h"
 
-#include "VulkanDevice.h"
-
 #include "IRenderer.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Once we know that swap-chains are available, we need to check its compatibility with our window surface. 
-// We need to check following properties:
-// 1. Surface capabilities (min-max number of images in swap chain, width-height of images)
-// 2. Surface formats (pixel formats, color spaces)
-// 3. Available presentation modes
-struct SwapChainSupportDetails
-{
-	VkSurfaceCapabilitiesKHR capabilities;
-	std::vector<VkSurfaceFormatKHR> formats;
-	std::vector<VkPresentModeKHR> presentModes;
-};
+class VulkanDevice;
+class VulkanSwapChain;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class VulkanRenderer : public IRenderer
@@ -54,17 +42,11 @@ private:
 	void							PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
 	void							CreateSurface();
-
-	SwapChainSupportDetails			QuerySwapChainSupport(VkPhysicalDevice device);
-
-	VkSurfaceFormatKHR				ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-	VkPresentModeKHR				ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-	VkExtent2D						ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+	
 	VkFormat						ChooseSupportedFormats(const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
 
-	void							CreateSwapChain();
+	
 	void							HandleWindowResize();
-	void							CreateImageViews();
 	void							CreateDescriptorSetLayout();
 	void							CreatePushConstantRange();
 	void							CreateGraphicsPipeline();
@@ -97,17 +79,11 @@ private:
 	GLFWwindow* m_pWindow;
 
 	VulkanDevice*					m_pDevice;
-
+	VulkanSwapChain*				m_pSwapChain;
 	VkInstance						m_vkInstance;
-	QueueFamilyIndices				m_QueueFamilyIndices;
-
+	
 	VkDebugUtilsMessengerEXT		m_vkDebugMessenger;
 	VkSurfaceKHR					m_vkSurface;
-
-	VkSwapchainKHR					m_vkSwapchain;
-	std::vector<VkImage>			m_vecSwapchainImages;
-	VkFormat						m_vkSwapchainImageFormat;
-	VkExtent2D						m_vkSwapchainExtent;
 
 	VkRenderPass					m_vkRenderPass;
 
@@ -118,8 +94,6 @@ private:
 	VkPipeline						m_vkGraphicsPipeline2;
 
 	std::vector<VkFramebuffer>		m_vecFramebuffers;
-	std::vector<VkImageView>		m_vecSwapchainImageViews;
-	std::vector<VkCommandBuffer>	m_vecCommandBuffer;
 
 	VkFormat						m_vkDepthBufferFormat;
 	std::vector<VkImage>			m_vecDepthBufferImage;

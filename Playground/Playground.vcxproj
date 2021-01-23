@@ -24,6 +24,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PlaygroundPCH.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="Src\Engine\Renderer\VulkanDevice.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\VulkanSwapChain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Src\Application.h" />
@@ -36,6 +37,7 @@
     <ClInclude Include="Src\PlaygroundHeaders.h" />
     <ClInclude Include="Src\PlaygroundPCH.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanDevice.h" />
+    <ClInclude Include="Src\Engine\Renderer\VulkanSwapChain.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

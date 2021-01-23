@@ -1,7 +1,10 @@
 
 #include "PlaygroundPCH.h"
 #include "PlaygroundHeaders.h"
+
 #include "VulkanRenderer.h"
+#include "VulkanDevice.h"
+#include "VulkanSwapChain.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -14,6 +17,7 @@ VulkanRenderer::VulkanRenderer()
 	m_pWindow = nullptr;
 
 	m_pDevice = nullptr;
+	m_pSwapChain = nullptr;
 	
 	m_uiCurrentFrame = 0;
 	m_bFramebufferResized = false;
@@ -22,18 +26,12 @@ VulkanRenderer::VulkanRenderer()
 	m_vkDebugMessenger = VK_NULL_HANDLE;
 	m_vkSurface = VK_NULL_HANDLE;
 
-	m_vkSwapchain = VK_NULL_HANDLE;
-	m_vecSwapchainImages.clear();
-
 	m_vkRenderPass = VK_NULL_HANDLE;
 	m_vkPipelineLayout = VK_NULL_HANDLE;
 	m_vkGraphicsPipeline = VK_NULL_HANDLE;
 
 	m_vecFramebuffers.clear();
-	m_vecSwapchainImageViews.clear();
 	
-	m_vecCommandBuffer.clear();
-
 	m_vecSemaphoreImageAvailable.clear();
 	m_vecSemaphoreRenderFinished.clear();
 	m_vecFencesRender.clear();
@@ -66,8 +64,9 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pDevice->PickPhysicalDevice();
 		m_pDevice->CreateLogicalDevice();
 		
-		CreateSwapChain();
-		CreateImageViews();
+		m_pSwapChain = new VulkanSwapChain();
+		m_pSwapChain->CreateSwapChain(m_pDevice, m_vkSurface, m_pWindow);
+		
 		CreateColorBufferImage();
 		CreateDepthBufferImage();
 		CreateRenderPass();
@@ -77,9 +76,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		CreateFramebuffers();
 
 		m_pDevice->CreateGraphicsCommandPool();
-		m_pDevice->CreateGraphicsCommandBuffers(m_vecSwapchainImages.size());
-
-		m_vecCommandBuffer = m_pDevice->m_vecCommandBuffer;
+		m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 		
 		CreateTextureSampler();
 		//AllocateDynamicBufferTransferSpace();
@@ -93,7 +90,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		// Create Projection matrix
 		m_uboViewProjection.matProjection = glm::perspective(
 			glm::radians(45.0f),
-			(float)m_vkSwapchainExtent.width / (float)m_vkSwapchainExtent.height,
+			(float)m_pSwapChain->m_vkSwapchainExtent.width / (float)m_pSwapChain->m_vkSwapchainExtent.height,
 			0.1f,
 			1000.0f
 		);
@@ -365,106 +362,6 @@ void VulkanRenderer::CreateSurface()
 	LOG_INFO("Windows surface created");
 }
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-SwapChainSupportDetails VulkanRenderer::QuerySwapChainSupport(VkPhysicalDevice device)
-{
-	SwapChainSupportDetails swapChainDetails;
-
-	// Start with basic surface capabilities...
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_vkSurface, &swapChainDetails.capabilities);
-
-	// Now query supported surface formats...
-	uint32_t formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_vkSurface, &formatCount, nullptr);
-
-	if (formatCount != 0)
-	{
-		swapChainDetails.formats.resize(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_vkSurface, &formatCount, swapChainDetails.formats.data());
-	}
-
-	// Finally, query supported presentation modes...
-	uint32_t presentationModesCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_vkSurface, &presentationModesCount, nullptr);
-
-	if (presentationModesCount != 0)
-	{
-		swapChainDetails.presentModes.resize(presentationModesCount);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_vkSurface, &presentationModesCount, swapChainDetails.presentModes.data());
-	}
-
-	return swapChainDetails;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-VkSurfaceFormatKHR VulkanRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
-{
-	// If only 1 format available and is undefined, then this means ALL formats are available (no restrictions)
-	if (availableFormats.size() == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED)
-	{
-		return { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-	}
-
-	// If restricted, search for optimal format
-	for (const auto& format : availableFormats)
-	{
-		if ((format.format == VK_FORMAT_R8G8B8A8_UNORM || format.format == VK_FORMAT_B8G8R8A8_UNORM)
-			&& format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-		{
-			return format;
-		}
-	}
-
-	// If can't find optimal format, then just return first format
-	return availableFormats[0];
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-VkPresentModeKHR VulkanRenderer::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
-{
-	// out of all Mailbox allows triple buffering, so if available use it, else use FIFO mode.
-	for (uint32_t i = 0; i < availablePresentModes.size(); ++i)
-	{
-		if (availablePresentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
-		{
-			return availablePresentModes[i];
-		}
-	}
-
-	return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-VkExtent2D VulkanRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
-{
-	// The swap extent is the resolution of the swap chain images and it's almost always exactly equal to the 
-	// resolution of the window that we're drawing to.The range of the possible resolutions is defined in the 
-	// VkSurfaceCapabilitiesKHR structure.Vulkan tells us to match the resolution of the window by setting the 
-	// width and height in the currentExtent member.However, some window managers do allow us to differ here 
-	// and this is indicated by setting the width and height in currentExtent to a special value : the maximum 
-	// value of uint32_t. In that case we'll pick the resolution that best matches the window within the 
-	// minImageExtent and maxImageExtent bounds.
-	if (capabilities.currentExtent.width != UINT32_MAX)
-	{
-		return capabilities.currentExtent;
-	}
-	else
-	{
-		// To handle window resize properly, query current width-height of framebuffer, instead of global value!
-		int width, height;
-		glfwGetFramebufferSize(m_pWindow, &width, &height);
-
-		//VkExtent2D actualExtent = { Helper::App::WIDTH, Helper::App::HEIGHT };
-		VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-
-		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-		actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
-		return actualExtent;
-	}
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 VkFormat VulkanRenderer::ChooseSupportedFormats(const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags)
 {
@@ -489,91 +386,6 @@ VkFormat VulkanRenderer::ChooseSupportedFormats(const std::vector<VkFormat>& for
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::CreateSwapChain()
-{
-	// Get swap chain details so we can pick the best setting!
-	SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_pDevice->m_vkPhysicalDevice);
-
-	// 1. CHOOSE BEST SURFACE FORMAT
-	VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
-
-	// 2. CHOOSE BEST PRESENTATION MODE
-	VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
-
-	// 3. CHOOSE SWAPCHAIN IMAGE RESOLUTION
-	VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities);
-
-	// decide how many images to have in the swap chain, it's good practice to have an extra count.
-	// Also make sure it does not exceed maximum number of images 
-	uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
-	{
-		imageCount = swapChainSupport.capabilities.maxImageCount;
-	}
-
-	// Create SwapChain object
-	VkSwapchainCreateInfoKHR createInfo{};
-	createInfo.clipped = VK_TRUE;									// don't care about the obscured pixels by other window
-	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;	// ignore alpha channel to blend with other windows
-	createInfo.flags = 0;
-	createInfo.imageArrayLayers = 1;								// Number of layers each image has, always 1, except for stereo app.
-	createInfo.imageColorSpace = surfaceFormat.colorSpace;
-	createInfo.imageExtent = extent;
-	createInfo.imageFormat = surfaceFormat.format;
-	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;	// use image as color attachment
-	createInfo.minImageCount = imageCount;
-	createInfo.oldSwapchain = VK_NULL_HANDLE;
-	createInfo.pNext = nullptr;
-	createInfo.presentMode = presentMode;
-	createInfo.preTransform = swapChainSupport.capabilities.currentTransform;	// transform to image, say 90 degrees!
-	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	createInfo.surface = m_vkSurface;
-
-	// Specify how to handle swap chain images that will be used across multiple queue families. That will be the case 
-	// in our application if the graphics queue family is different from the presentation queue. We'll be drawing on 
-	// the images in the swap chain from the graphics queue and then submitting them on the presentation queue. 
-	// There are two ways to handle images that are accessed from multiple queues. 
-	
-	std::array<uint32_t, 2> queueFamilyIndices = { m_pDevice->m_pQueueFamilyIndices->m_uiGraphicsFamily.value(), m_pDevice->m_pQueueFamilyIndices->m_uiPresentFamily.value() };
-
-	// check if Graphics & Presentation family share the same index or not!
-	if (queueFamilyIndices[0] != queueFamilyIndices[1])
-	{
-		// Images can be used across multiple queue families without explicit ownership transfers.
-		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		createInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
-		createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-	}
-	else
-	{
-		// An image is owned by one queue family at a time and ownership must be explicitly transferred before using 
-		// it in another queue family. This option offers the best performance.
-		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		createInfo.queueFamilyIndexCount = 0;
-		createInfo.pQueueFamilyIndices = nullptr;
-	}
-
-	// Finally, create the swap chain...
-	if (vkCreateSwapchainKHR(m_pDevice->m_vkLogicalDevice, &createInfo, nullptr, &m_vkSwapchain) != VK_SUCCESS)
-	{
-		LOG_ERROR("Failed to create Swap chain!");
-		return;
-	}
-
-	LOG_INFO("Swapchain created!");
-
-	// Retrieve handle to swapchain images...
-	vkGetSwapchainImagesKHR(m_pDevice->m_vkLogicalDevice, m_vkSwapchain, &imageCount, nullptr);
-	m_vecSwapchainImages.resize(imageCount);
-	vkGetSwapchainImagesKHR(m_pDevice->m_vkLogicalDevice, m_vkSwapchain, &imageCount, m_vecSwapchainImages.data());
-
-	LOG_INFO("Swapchain images created!");
-
-	// store format & extent for later usage...
-	m_vkSwapchainImageFormat = surfaceFormat.format;
-	m_vkSwapchainExtent = extent;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::HandleWindowResize()
@@ -596,8 +408,8 @@ void VulkanRenderer::HandleWindowResize()
 	// Recreate...!
 	LOG_DEBUG("Recreating SwapChain Start");
 
-	CreateSwapChain();
-	CreateImageViews();
+	m_pSwapChain->CreateSwapChain(m_pDevice, m_vkSurface, m_pWindow);
+
 	CreateColorBufferImage();
 	CreateDepthBufferImage();
 	CreateRenderPass();
@@ -612,26 +424,11 @@ void VulkanRenderer::HandleWindowResize()
 	//CreateInputDescriptorSets();
 	//CreateCommandBuffers();
 
-	m_pDevice->CreateGraphicsCommandBuffers(m_vecSwapchainImages.size());
+	m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
 	LOG_DEBUG("Recreating SwapChain End");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::CreateImageViews()
-{
-	m_vecSwapchainImageViews.resize(m_vecSwapchainImages.size());
-
-	for (uint32_t i = 0; i < m_vecSwapchainImageViews.size(); ++i)
-	{
-		m_vecSwapchainImageViews[i] = Helper::Vulkan::CreateImageView(m_pDevice,
-			m_vecSwapchainImages[i],
-			m_vkSwapchainImageFormat,
-			VK_IMAGE_ASPECT_COLOR_BIT);
-	}
-
-	LOG_INFO("Swapchain Imageviews created!");
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::CreateDescriptorSetLayout()
@@ -815,15 +612,15 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	VkViewport viewportInfo{};
 	viewportInfo.x = 0.0f;
 	viewportInfo.y = 0.0f;
-	viewportInfo.width = (float)m_vkSwapchainExtent.width;
-	viewportInfo.height = (float)m_vkSwapchainExtent.height;
+	viewportInfo.width = (float)m_pSwapChain->m_vkSwapchainExtent.width;
+	viewportInfo.height = (float)m_pSwapChain->m_vkSwapchainExtent.height;
 	viewportInfo.minDepth = 0.0f;
 	viewportInfo.maxDepth = 1.0f;
 
 	// Scissor rect 
 	VkRect2D scissorRect = {};
 	scissorRect.offset = { 0, 0 };															// offset to use region from
-	scissorRect.extent = m_vkSwapchainExtent;												// extent to describe region to use, starting at offset!
+	scissorRect.extent = m_pSwapChain->m_vkSwapchainExtent;									// extent to describe region to use, starting at offset!
 
 	// combine viewport & scissor rect info to create viewport info!
 	VkPipelineViewportStateCreateInfo viewportStateInfo{};
@@ -1014,21 +811,21 @@ void VulkanRenderer::CreateGraphicsPipeline()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::CreateColorBufferImage()
 {
-	m_vecColorBufferImage.resize(m_vecSwapchainImages.size());
-	m_vecColorBufferImageMemory.resize(m_vecSwapchainImages.size());
-	m_vecColorBufferImageView.resize(m_vecSwapchainImages.size());
+	m_vecColorBufferImage.resize(m_pSwapChain->m_vecSwapchainImages.size());
+	m_vecColorBufferImageMemory.resize(m_pSwapChain->m_vecSwapchainImages.size());
+	m_vecColorBufferImageView.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
 	std::vector<VkFormat> formats = { VK_FORMAT_R8G8B8A8_UNORM };
 
 	// Get supported format for color attachment
 	m_vkColorBufferFormat = ChooseSupportedFormats(formats, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
 
-	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
+	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
 	{
 		// Create color buffer image
 		m_vecColorBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice,
-			m_vkSwapchainExtent.width,
-			m_vkSwapchainExtent.height,
+			m_pSwapChain->m_vkSwapchainExtent.width,
+			m_pSwapChain->m_vkSwapchainExtent.height,
 			m_vkColorBufferFormat,
 			VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
@@ -1046,20 +843,20 @@ void VulkanRenderer::CreateColorBufferImage()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::CreateDepthBufferImage()
 {
-	m_vecDepthBufferImage.resize(m_vecSwapchainImages.size());
-	m_vecDepthBufferImageMemory.resize(m_vecSwapchainImages.size());
-	m_vecDepthBufferImageView.resize(m_vecSwapchainImages.size());
+	m_vecDepthBufferImage.resize(m_pSwapChain->m_vecSwapchainImages.size());
+	m_vecDepthBufferImageMemory.resize(m_pSwapChain->m_vecSwapchainImages.size());
+	m_vecDepthBufferImageView.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
 	std::vector<VkFormat> formats = { VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT };
 
 	m_vkDepthBufferFormat = ChooseSupportedFormats(formats, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
-	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
+	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
 	{
 		// create depth buffer image
 		m_vecDepthBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice,
-			m_vkSwapchainExtent.width,
-			m_vkSwapchainExtent.height,
+			m_pSwapChain->m_vkSwapchainExtent.width,
+			m_pSwapChain->m_vkSwapchainExtent.height,
 			m_vkDepthBufferFormat,
 			VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
@@ -1125,7 +922,7 @@ void VulkanRenderer::CreateRenderPass()
 	//--- SUBPASS 2 ATTACHMENTS + REFERENCES
 	// Swapchain Color Attachment 
 	VkAttachmentDescription swapChainColorAttachmentDesc = {};
-	swapChainColorAttachmentDesc.format = m_vkSwapchainImageFormat;								// format to use for attachment
+	swapChainColorAttachmentDesc.format = m_pSwapChain->m_vkSwapchainImageFormat;				// format to use for attachment
 	swapChainColorAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;								// number of samples for multisampling
 	swapChainColorAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;							// describes what to do with attachment before rendering
 	swapChainColorAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;						// describes what to do with attachment after rendering
@@ -1214,20 +1011,20 @@ void VulkanRenderer::CreateRenderPass()
 void VulkanRenderer::CreateFramebuffers()
 {
 	// resize framebuffer count to equal swap chain image views count
-	m_vecFramebuffers.resize(m_vecSwapchainImageViews.size());
+	m_vecFramebuffers.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
 	// create framebuffer for each swap chain image view
-	for (uint32_t i = 0; i < m_vecSwapchainImageViews.size(); ++i)
+	for (uint32_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); ++i)
 	{
-		std::array<VkImageView, 3> attachments = { m_vecSwapchainImageViews[i], m_vecColorBufferImageView[i], m_vecDepthBufferImageView[i] };
+		std::array<VkImageView, 3> attachments = { m_pSwapChain->m_vecSwapchainImageViews[i], m_vecColorBufferImageView[i], m_vecDepthBufferImageView[i] };
 
 		VkFramebufferCreateInfo framebufferCreateInfo{};
 		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferCreateInfo.renderPass = m_vkRenderPass;									// Render pass layout the framebuffer will be used with					 
 		framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 		framebufferCreateInfo.pAttachments = attachments.data();							// List of attachments
-		framebufferCreateInfo.width = m_vkSwapchainExtent.width;							// frambuffer width
-		framebufferCreateInfo.height = m_vkSwapchainExtent.height;							// framebuffer height
+		framebufferCreateInfo.width = m_pSwapChain->m_vkSwapchainExtent.width;							// frambuffer width
+		framebufferCreateInfo.height = m_pSwapChain->m_vkSwapchainExtent.height;							// framebuffer height
 		framebufferCreateInfo.layers = 1;													// framebuffer layers
 		framebufferCreateInfo.flags = 0;
 		framebufferCreateInfo.pNext = nullptr;
@@ -1254,7 +1051,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassBeginInfo.renderPass = m_vkRenderPass;						// Render pass to begin
 	renderPassBeginInfo.renderArea.offset = { 0,0 };						// start point of render pass in pixels
-	renderPassBeginInfo.renderArea.extent = m_vkSwapchainExtent;			// size of region to run render pass on (starting at offset) 
+	renderPassBeginInfo.renderArea.extent = m_pSwapChain->m_vkSwapchainExtent;			// size of region to run render pass on (starting at offset) 
 
 	std::array<VkClearValue, 3> clearValues = {};
 
@@ -1268,14 +1065,14 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	renderPassBeginInfo.framebuffer = m_vecFramebuffers[currentImage];
 
 	// start recording commands to command buffer
-	if (vkBeginCommandBuffer(m_vecCommandBuffer[currentImage], &bufferBeginInfo) != VK_SUCCESS)
+	if (vkBeginCommandBuffer(m_pDevice->m_vecCommandBufferGraphics[currentImage], &bufferBeginInfo) != VK_SUCCESS)
 		LOG_ERROR("Failed to begin recording command buffer...");
 
 	// Begin Render Pass
-	vkCmdBeginRenderPass(m_vecCommandBuffer[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	// Bind Pipeline to be used in render pass
-	vkCmdBindPipeline(m_vecCommandBuffer[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkGraphicsPipeline);
+	vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkGraphicsPipeline);
 	
 	// Draw Cubes
 
@@ -1286,16 +1083,16 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 		Model thisModel = m_vecModels[j];
 
 		// Push constants to given shader stage directly
-		vkCmdPushConstants(m_vecCommandBuffer[currentImage], m_vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstantData), glm::value_ptr(thisModel.GetModelMatrix()));
+		vkCmdPushConstants(m_pDevice->m_vecCommandBufferGraphics[currentImage], m_vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstantData), glm::value_ptr(thisModel.GetModelMatrix()));
 
 		for (uint32_t k = 0; k < thisModel.GetMeshCount(); k++)
 		{
 			VkBuffer vertexBuffers[] = { thisModel.GetMesh(k)->getVertexBuffer() };						// Buffers to bind
 			VkDeviceSize offsets[] = { 0 };																// offsets into buffers being bound
-			vkCmdBindVertexBuffers(m_vecCommandBuffer[currentImage], 0, 1, vertexBuffers, offsets);		// Command to bind vertex buffer before drawing with them
+			vkCmdBindVertexBuffers(m_pDevice->m_vecCommandBufferGraphics[currentImage], 0, 1, vertexBuffers, offsets);		// Command to bind vertex buffer before drawing with them
 
 			// bind mesh index buffer, with zero offset & using uint32_t type
-			vkCmdBindIndexBuffer(m_vecCommandBuffer[currentImage], thisModel.GetMesh(k)->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(m_pDevice->m_vecCommandBufferGraphics[currentImage], thisModel.GetMesh(k)->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 			// Dynamic offset amount
 			// uint32_t dynamicOffset = m_uiModelUniformAlignment * j;
@@ -1303,7 +1100,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 			std::array<VkDescriptorSet, 2> descriptorSetGroup = { m_vecDescriptorSets[currentImage], m_vecSamplerDescriptorSets[thisModel.GetMesh(k)->getTexID()] };
 
 			// bind descriptor sets
-			vkCmdBindDescriptorSets(m_vecCommandBuffer[currentImage],
+			vkCmdBindDescriptorSets(m_pDevice->m_vecCommandBufferGraphics[currentImage],
 				VK_PIPELINE_BIND_POINT_GRAPHICS,
 				m_vkPipelineLayout,
 				0,
@@ -1313,24 +1110,24 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 				nullptr);
 
 			// Execute pipeline
-			//vkCmdDraw(m_vecCommandBuffer[i], static_cast<uint32_t>(m_pMesh->getVertexCount()), 1, 0, 0);
-			vkCmdDrawIndexed(m_vecCommandBuffer[currentImage], thisModel.GetMesh(k)->getIndexCount(), 1, 0, 0, 0);
+			//vkCmdDraw(m_pDevice->m_vecCommandBufferGraphics[i], static_cast<uint32_t>(m_pMesh->getVertexCount()), 1, 0, 0);
+			vkCmdDrawIndexed(m_pDevice->m_vecCommandBufferGraphics[currentImage], thisModel.GetMesh(k)->getIndexCount(), 1, 0, 0, 0);
 		}
 	}
 
 	// Start second subpass
-	vkCmdNextSubpass(m_vecCommandBuffer[currentImage], VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(m_vecCommandBuffer[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkGraphicsPipeline2);
-	vkCmdBindDescriptorSets(m_vecCommandBuffer[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkPipelineLayout2, 0, 1, &m_vecInputDescriptorSets[currentImage], 0, nullptr);
+	vkCmdNextSubpass(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkGraphicsPipeline2);
+	vkCmdBindDescriptorSets(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkPipelineLayout2, 0, 1, &m_vecInputDescriptorSets[currentImage], 0, nullptr);
 
 	// Draw full screen triangle
-	vkCmdDraw(m_vecCommandBuffer[currentImage], 3, 1, 0, 0);
+	vkCmdDraw(m_pDevice->m_vecCommandBufferGraphics[currentImage], 3, 1, 0, 0);
 
 	// End Render Pass
-	vkCmdEndRenderPass(m_vecCommandBuffer[currentImage]);
+	vkCmdEndRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage]);
 
 	// finish recording to command buffer
-	if (vkEndCommandBuffer(m_vecCommandBuffer[currentImage]) != VK_SUCCESS)
+	if (vkEndCommandBuffer(m_pDevice->m_vecCommandBufferGraphics[currentImage]) != VK_SUCCESS)
 		LOG_ERROR("Failed to record command buffer!");
 }
 
@@ -1376,14 +1173,14 @@ void VulkanRenderer::CreateUniformBuffers()
 	//VkDeviceSize modelBufferSize = m_uiModelUniformAlignment * Helper::App::MAX_OBJECTS;
 
 	// one uniform buffer for each image (and by extension command buffer)
-	m_vecVPUniformBuffer.resize(m_vecSwapchainImages.size());
-	m_vecVPUniformBufferMemory.resize(m_vecSwapchainImages.size());
+	m_vecVPUniformBuffer.resize(m_pSwapChain->m_vecSwapchainImages.size());
+	m_vecVPUniformBufferMemory.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
-	//m_vecModelDynamicUniformBuffer.resize(m_vecSwapchainImages.size());
-	//m_vecModelDynamicUniformBufferMemory.resize(m_vecSwapchainImages.size());
+	//m_vecModelDynamicUniformBuffer.resize(m_pSwapChain->m_vecSwapchainImages.size());
+	//m_vecModelDynamicUniformBufferMemory.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
 	// create uniform buffers
-	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
+	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
 	{
 		m_pDevice->CreateBuffer( vpBufferSize,
 								VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -1422,7 +1219,7 @@ void VulkanRenderer::CreateDescriptorPool()
 	// data to create descriptor pool
 	VkDescriptorPoolCreateInfo poolCreateInfo = {};
 	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolCreateInfo.maxSets = static_cast<uint32_t>(m_vecSwapchainImages.size());		// maximum number of descriptor sets that can be created from pool
+	poolCreateInfo.maxSets = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());		// maximum number of descriptor sets that can be created from pool
 	poolCreateInfo.poolSizeCount = static_cast<uint32_t>(descriptorPoolSizes.size());   // amount of pool sizes being passed
 	poolCreateInfo.pPoolSizes = descriptorPoolSizes.data();								// Pool sizes to create pool with
 
@@ -1468,7 +1265,7 @@ void VulkanRenderer::CreateDescriptorPool()
 	// Create input attachment pool
 	VkDescriptorPoolCreateInfo inputPoolCreateInfo = {};
 	inputPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	inputPoolCreateInfo.maxSets = m_vecSwapchainImages.size();
+	inputPoolCreateInfo.maxSets = m_pSwapChain->m_vecSwapchainImages.size();
 	inputPoolCreateInfo.poolSizeCount = static_cast<uint32_t>(inputPoolSizes.size());
 	inputPoolCreateInfo.pPoolSizes = inputPoolSizes.data();
 
@@ -1484,15 +1281,15 @@ void VulkanRenderer::CreateDescriptorPool()
 void VulkanRenderer::CreateDescriptorSets()
 {
 	// Resize descriptor sets so one for every buffer
-	m_vecDescriptorSets.resize(m_vecSwapchainImages.size());
+	m_vecDescriptorSets.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
-	std::vector<VkDescriptorSetLayout> setLayouts(m_vecSwapchainImages.size(), m_vkDescriptorSetLayout);
+	std::vector<VkDescriptorSetLayout> setLayouts(m_pSwapChain->m_vecSwapchainImages.size(), m_vkDescriptorSetLayout);
 
 	// Descriptor set allocation info 
 	VkDescriptorSetAllocateInfo	setAllocInfo = {};
 	setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	setAllocInfo.descriptorPool = m_vkDescriptorPool;										// pool to allocate descriptor set from
-	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(m_vecSwapchainImages.size());	// number of sets to allocate
+	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());	// number of sets to allocate
 	setAllocInfo.pSetLayouts = setLayouts.data();											// layouts to use to allocate sets
 
 	if (vkAllocateDescriptorSets(m_pDevice->m_vkLogicalDevice, &setAllocInfo, m_vecDescriptorSets.data()) != VK_SUCCESS)
@@ -1503,7 +1300,7 @@ void VulkanRenderer::CreateDescriptorSets()
 		LOG_DEBUG("Successfully created Descriptor sets");
 
 	// Update all the descriptor set bindings
-	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
+	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
 	{
 		// VIEW PROJECTION DESCRIPTOR
 		// buffer info & data offset info
@@ -1549,15 +1346,15 @@ void VulkanRenderer::CreateDescriptorSets()
 void VulkanRenderer::CreateInputDescriptorSets()
 {
 	// Resize array to hold descriptor set for each swap chain image
-	m_vecInputDescriptorSets.resize(m_vecSwapchainImages.size());
+	m_vecInputDescriptorSets.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
 	// Fill array of layouts ready for set creation
-	std::vector<VkDescriptorSetLayout> setLayouts(m_vecSwapchainImages.size(), m_vkInputSeLayout);
+	std::vector<VkDescriptorSetLayout> setLayouts(m_pSwapChain->m_vecSwapchainImages.size(), m_vkInputSeLayout);
 
 	VkDescriptorSetAllocateInfo setAllocInfo = {};
 	setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	setAllocInfo.descriptorPool = m_vkInputDescriptorPool;
-	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(m_vecSwapchainImages.size());
+	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 	setAllocInfo.pSetLayouts = setLayouts.data();
 
 	// Allocate Descriptor Sets
@@ -1569,7 +1366,7 @@ void VulkanRenderer::CreateInputDescriptorSets()
 		LOG_DEBUG("Successfully created Input Descriptor sets");
 
 	// Update each descriptor set with input attachment
-	for (uint32_t i = 0; i < m_vecSwapchainImages.size(); i++)
+	for (uint32_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
 	{
 		// color attachment descriptor
 		VkDescriptorImageInfo colorAttachmentDescriptor = {};
@@ -1885,7 +1682,7 @@ void VulkanRenderer::Render()
 
 	// Get index of next image to be drawn to & signal semaphore when ready to be drawn to
 	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(m_pDevice->m_vkLogicalDevice, m_vkSwapchain, UINT64_MAX, m_vecSemaphoreImageAvailable[m_uiCurrentFrame], VK_NULL_HANDLE, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(m_pDevice->m_vkLogicalDevice, m_pSwapChain->m_vkSwapchain, UINT64_MAX, m_vecSemaphoreImageAvailable[m_uiCurrentFrame], VK_NULL_HANDLE, &imageIndex);
 
 	RecordCommands(imageIndex);
 	UpdateUniformBuffers(imageIndex);
@@ -1923,7 +1720,7 @@ void VulkanRenderer::Render()
 	submitInfo.pWaitDstStageMask = waitStages;												// stages to check sepmaphores at
 
 	submitInfo.commandBufferCount = 1;														// number of command buffers to submit
-	submitInfo.pCommandBuffers = &m_vecCommandBuffer[imageIndex];							// command buffers to submit
+	submitInfo.pCommandBuffers = &m_pDevice->m_vecCommandBufferGraphics[imageIndex];							// command buffers to submit
 	submitInfo.signalSemaphoreCount = 1;													// number of semaphores to signal
 	submitInfo.pSignalSemaphores = signalSemaphores;										// semaphores to signal when command buffer finishes
 	submitInfo.pNext = nullptr;
@@ -1939,7 +1736,7 @@ void VulkanRenderer::Render()
 	presentInfo.waitSemaphoreCount = 1;														// Number of semaphores to wait on
 	presentInfo.pWaitSemaphores = signalSemaphores;											// semaphores to wait on
 	presentInfo.swapchainCount = 1;															// number of swapchains to present to
-	presentInfo.pSwapchains = &m_vkSwapchain;												// swapchain to present image to
+	presentInfo.pSwapchains = &(m_pSwapChain->m_vkSwapchain);								// swapchain to present image to
 	presentInfo.pImageIndices = &imageIndex;												// index of images in swapchains to present
 	presentInfo.pNext = nullptr;
 	presentInfo.pResults = nullptr;
@@ -1995,8 +1792,7 @@ void VulkanRenderer::CleanupOnWindowResize()
 		vkDestroyFramebuffer(m_pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
 	}
 
-	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!
-	vkFreeCommandBuffers(m_pDevice->m_vkLogicalDevice, m_pDevice->m_vkCommandPoolGraphics, static_cast<uint32_t>(m_vecCommandBuffer.size()), m_vecCommandBuffer.data());
+	
 
 	vkDestroyPipeline(m_pDevice->m_vkLogicalDevice, m_vkGraphicsPipeline2, nullptr);
 	vkDestroyPipelineLayout(m_pDevice->m_vkLogicalDevice, m_vkPipelineLayout2, nullptr);
@@ -2005,14 +1801,10 @@ void VulkanRenderer::CleanupOnWindowResize()
 	vkDestroyPipelineLayout(m_pDevice->m_vkLogicalDevice, m_vkPipelineLayout, nullptr);
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
 
-	for (uint32_t i = 0; i < m_vecSwapchainImageViews.size(); ++i)
-	{
-		vkDestroyImageView(m_pDevice->m_vkLogicalDevice, m_vecSwapchainImageViews[i], nullptr);
-	}
+	m_pSwapChain->CleanupOnWindowResize(m_pDevice);
+	m_pDevice->CleanupOnWindowResize();
 
-	vkDestroySwapchainKHR(m_pDevice->m_vkLogicalDevice, m_vkSwapchain, nullptr);
-
-	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
+	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
 	{
 		vkDestroyBuffer(m_pDevice->m_vkLogicalDevice, m_vecVPUniformBuffer[i], nullptr);
 		vkFreeMemory(m_pDevice->m_vkLogicalDevice, m_vecVPUniformBufferMemory[i], nullptr);
@@ -2077,10 +1869,8 @@ void VulkanRenderer::Cleanup()
 		vkDestroyFence(m_pDevice->m_vkLogicalDevice, m_vecFencesRender[i], nullptr);
 	}
 
-	// Destroy command pool
-	vkDestroyCommandPool(m_pDevice->m_vkLogicalDevice, m_pDevice->m_vkCommandPoolGraphics, nullptr);
-
-	vkDestroyDevice(m_pDevice->m_vkLogicalDevice, nullptr);
+	m_pSwapChain->Cleanup(m_pDevice);
+	m_pDevice->Cleanup();
 
 	if (Helper::Vulkan::g_bEnableValidationLayer)
 	{

@@ -47,6 +47,7 @@ public:
 	void								CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
 
 	void								Cleanup();
+	void								CleanupOnWindowResize();
 
 private:
 	bool								CheckDeviceExtensionSupport(VkPhysicalDevice device);
@@ -69,7 +70,7 @@ public:
 	QueueFamilyIndices*					m_pQueueFamilyIndices;
 
 	VkCommandPool						m_vkCommandPoolGraphics;
-	std::vector<VkCommandBuffer>		m_vecCommandBuffer;
+	std::vector<VkCommandBuffer>		m_vecCommandBufferGraphics;
 
 	VkQueue								m_vkQueueGraphics;
 	VkQueue								m_vkQueuePresent;

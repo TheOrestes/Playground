@@ -245,18 +245,18 @@ void VulkanDevice::CreateGraphicsCommandPool()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanDevice::CreateGraphicsCommandBuffers(uint32_t size)
 {
-	m_vecCommandBuffer.resize(size);
+	m_vecCommandBufferGraphics.resize(size);
 
 	VkCommandBufferAllocateInfo commandBufferAllocInfo{};
 	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	commandBufferAllocInfo.commandPool = m_vkCommandPoolGraphics;
 	commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;						// Buffer you submit directly to the queue. can't be called by other buffers!
 																						// BUFFER_LEVEL_SECONDARY can't be called directly but can be called from other buffers via "vkCmdExecuteCommands"
-	commandBufferAllocInfo.commandBufferCount = (uint32_t)m_vecCommandBuffer.size();
+	commandBufferAllocInfo.commandBufferCount = (uint32_t)m_vecCommandBufferGraphics.size();
 	commandBufferAllocInfo.pNext = nullptr;
 
 	// Allocate command buffers & place handles in array of buffers!
-	if (vkAllocateCommandBuffers(m_vkLogicalDevice, &commandBufferAllocInfo, m_vecCommandBuffer.data()) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(m_vkLogicalDevice, &commandBufferAllocInfo, m_vecCommandBufferGraphics.data()) != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to create Command buffer!");
 	}
@@ -387,5 +387,17 @@ void VulkanDevice::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSi
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanDevice::Cleanup()
 {
-	
+	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!
+	vkFreeCommandBuffers(m_vkLogicalDevice, m_vkCommandPoolGraphics, static_cast<uint32_t>(m_vecCommandBufferGraphics.size()), m_vecCommandBufferGraphics.data());
+
+	// Destroy command pool
+	vkDestroyCommandPool(m_vkLogicalDevice, m_vkCommandPoolGraphics, nullptr);
+	vkDestroyDevice(m_vkLogicalDevice, nullptr);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void VulkanDevice::CleanupOnWindowResize()
+{
+	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!
+	vkFreeCommandBuffers(m_vkLogicalDevice, m_vkCommandPoolGraphics, static_cast<uint32_t>(m_vecCommandBufferGraphics.size()), m_vecCommandBufferGraphics.data());
 }
