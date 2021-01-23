@@ -624,7 +624,7 @@ void VulkanRenderer::CreateImageViews()
 
 	for (uint32_t i = 0; i < m_vecSwapchainImageViews.size(); ++i)
 	{
-		m_vecSwapchainImageViews[i] = Helper::Vulkan::CreateImageView(m_pDevice->m_vkLogicalDevice,
+		m_vecSwapchainImageViews[i] = Helper::Vulkan::CreateImageView(m_pDevice,
 			m_vecSwapchainImages[i],
 			m_vkSwapchainImageFormat,
 			VK_IMAGE_ASPECT_COLOR_BIT);
@@ -1026,8 +1026,7 @@ void VulkanRenderer::CreateColorBufferImage()
 	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
 	{
 		// Create color buffer image
-		m_vecColorBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice->m_vkPhysicalDevice,
-			m_pDevice->m_vkLogicalDevice,
+		m_vecColorBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice,
 			m_vkSwapchainExtent.width,
 			m_vkSwapchainExtent.height,
 			m_vkColorBufferFormat,
@@ -1037,7 +1036,7 @@ void VulkanRenderer::CreateColorBufferImage()
 			&m_vecColorBufferImageMemory[i]);
 
 		// Create color buffer image view!
-		m_vecColorBufferImageView[i] = Helper::Vulkan::CreateImageView(m_pDevice->m_vkLogicalDevice,
+		m_vecColorBufferImageView[i] = Helper::Vulkan::CreateImageView(m_pDevice,
 			m_vecColorBufferImage[i],
 			m_vkColorBufferFormat,
 			VK_IMAGE_ASPECT_COLOR_BIT);
@@ -1058,8 +1057,7 @@ void VulkanRenderer::CreateDepthBufferImage()
 	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
 	{
 		// create depth buffer image
-		m_vecDepthBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice->m_vkPhysicalDevice,
-			m_pDevice->m_vkLogicalDevice,
+		m_vecDepthBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice,
 			m_vkSwapchainExtent.width,
 			m_vkSwapchainExtent.height,
 			m_vkDepthBufferFormat,
@@ -1069,7 +1067,7 @@ void VulkanRenderer::CreateDepthBufferImage()
 			&m_vecDepthBufferImageMemory[i]);
 
 		// Create depth buffer image view!
-		m_vecDepthBufferImageView[i] = Helper::Vulkan::CreateImageView(m_pDevice->m_vkLogicalDevice,
+		m_vecDepthBufferImageView[i] = Helper::Vulkan::CreateImageView(m_pDevice,
 			m_vecDepthBufferImage[i],
 			m_vkDepthBufferFormat,
 			VK_IMAGE_ASPECT_DEPTH_BIT);
@@ -1387,14 +1385,11 @@ void VulkanRenderer::CreateUniformBuffers()
 	// create uniform buffers
 	for (uint16_t i = 0; i < m_vecSwapchainImages.size(); i++)
 	{
-		Helper::Vulkan::CreateBuffer(
-			m_pDevice->m_vkPhysicalDevice,
-			m_pDevice->m_vkLogicalDevice,
-			vpBufferSize,
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&m_vecVPUniformBuffer[i],
-			&m_vecVPUniformBufferMemory[i]);
+		m_pDevice->CreateBuffer( vpBufferSize,
+								VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+								VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+								&m_vecVPUniformBuffer[i],
+								&m_vecVPUniformBufferMemory[i]);
 
 		//Helper::Vulkan::CreateBuffer(
 		//							m_vkPhysicalDevice,
@@ -1650,9 +1645,7 @@ int VulkanRenderer::CreateTextureImage(std::string fileName)
 	VkDeviceMemory imageStagingBufferMemory;
 
 	// create stafging buffer to hold the loaded data, ready to copy to device!
-	Helper::Vulkan::CreateBuffer(m_pDevice->m_vkPhysicalDevice,
-		m_pDevice->m_vkLogicalDevice,
-		imageSize,
+	m_pDevice->CreateBuffer(imageSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		&imageStagingBuffer,
@@ -1671,8 +1664,7 @@ int VulkanRenderer::CreateTextureImage(std::string fileName)
 	VkImage texImage;
 	VkDeviceMemory texImageMemory;
 
-	texImage = Helper::Vulkan::CreateImage(m_pDevice->m_vkPhysicalDevice,
-		m_pDevice->m_vkLogicalDevice,
+	texImage = Helper::Vulkan::CreateImage(m_pDevice,
 		width,
 		height,
 		VK_FORMAT_R8G8B8A8_UNORM,
@@ -1682,20 +1674,16 @@ int VulkanRenderer::CreateTextureImage(std::string fileName)
 		&texImageMemory);
 
 	// Transition image to be DST for copy operation
-	Helper::Vulkan::TransitionImageLayout(m_pDevice->m_vkLogicalDevice,
-		m_pDevice->m_vkQueueGraphics,
-		m_pDevice->m_vkCommandPoolGraphics,
+	Helper::Vulkan::TransitionImageLayout(m_pDevice,
 		texImage,
 		VK_IMAGE_LAYOUT_UNDEFINED,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// COPY DATA TO IMAGE
-	Helper::Vulkan::CopyImageBuffer(m_pDevice->m_vkLogicalDevice, m_pDevice->m_vkQueueGraphics, m_pDevice->m_vkCommandPoolGraphics, imageStagingBuffer, texImage, width, height);
+	Helper::Vulkan::CopyImageBuffer(m_pDevice, imageStagingBuffer, texImage, width, height);
 
 	// Transition image to be shader readable for shader usage
-	Helper::Vulkan::TransitionImageLayout(m_pDevice->m_vkLogicalDevice,
-		m_pDevice->m_vkQueueGraphics,
-		m_pDevice->m_vkCommandPoolGraphics,
+	Helper::Vulkan::TransitionImageLayout(m_pDevice,
 		texImage,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1719,7 +1707,7 @@ int VulkanRenderer::CreateTexture(std::string fileName)
 	int textureImageLoc = CreateTextureImage(fileName);
 
 	// Create Image view & add to the list
-	VkImageView imageView = Helper::Vulkan::CreateImageView(m_pDevice->m_vkLogicalDevice,
+	VkImageView imageView = Helper::Vulkan::CreateImageView(m_pDevice,
 		m_vecTextureImages[textureImageLoc],
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT);

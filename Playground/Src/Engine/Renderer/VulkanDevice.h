@@ -38,6 +38,14 @@ public:
 
 	uint32_t							FindMemoryTypeIndex(uint32_t allowedTypeIndex, VkMemoryPropertyFlags props);
 
+	void								CreateBuffer(VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsageFlags, 
+													 VkMemoryPropertyFlags bufferProperties, VkBuffer* outBuffer, 
+													 VkDeviceMemory* outBufferMemory);
+
+	VkCommandBuffer						BeginCommandBuffer();
+	void								EndAndSubmitCommandBuffer(VkCommandBuffer commandBuffer);
+	void								CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
+
 	void								Cleanup();
 
 private:
@@ -66,4 +74,5 @@ public:
 	VkQueue								m_vkQueueGraphics;
 	VkQueue								m_vkQueuePresent;
 };
+
 

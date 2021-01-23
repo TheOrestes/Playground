@@ -52,7 +52,7 @@ std::vector<std::string> Model::LoadMaterials(const aiScene* scene)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, aiNode* node, const aiScene* scene, std::vector<int> vecMatToTexture)
+std::vector<Mesh> Model::LoadNode(VulkanDevice* device, aiNode* node, const aiScene* scene, std::vector<int> vecMatToTexture)
 {
 	std::vector<Mesh> vecMesh;
 
@@ -76,7 +76,7 @@ std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, aiNode* node, cons
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Mesh Model::LoadMesh(const VulkanDevice* device, aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture)
+Mesh Model::LoadMesh(VulkanDevice* device, aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture)
 {
 	std::vector<Helper::App::VertexPCT>  vertices;
 	std::vector<uint32_t>				indices;

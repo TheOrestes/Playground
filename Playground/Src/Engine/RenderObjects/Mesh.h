@@ -20,7 +20,7 @@ class Mesh
 {
 public:
 	Mesh();
-	Mesh(const VulkanDevice* device,
+	Mesh(VulkanDevice* device,
 		const std::vector<Helper::App::VertexPCT>& vertices,
 		const std::vector<uint32_t>& indices,
 		int texID);
@@ -59,7 +59,7 @@ private:
 	VkBuffer					m_vkIndexBuffer;
 	VkDeviceMemory				m_vkIndexBufferMemory;
 
-	void						CreateVertexBuffer(const VulkanDevice* device, const std::vector<Helper::App::VertexPCT>& vertices);
-	void						CreateIndexBuffer(const VulkanDevice* device, const std::vector<uint32_t>& indices);
+	void						CreateVertexBuffer(VulkanDevice* device, const std::vector<Helper::App::VertexPCT>& vertices);
+	void						CreateIndexBuffer(VulkanDevice* device, const std::vector<uint32_t>& indices);
 };
 

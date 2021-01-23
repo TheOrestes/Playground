@@ -282,6 +282,108 @@ uint32_t VulkanDevice::FindMemoryTypeIndex(uint32_t allowedTypeIndex, VkMemoryPr
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//--- Create VkBuffer & VkDeviceMemory of specific size, based on usage flags & property flags. 
+void VulkanDevice::CreateBuffer(VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsageFlags, VkMemoryPropertyFlags bufferProperties, 
+								VkBuffer* outBuffer, VkDeviceMemory* outBufferMemory)
+{
+
+	// Information to create a buffer (doesn't include assigning memory)
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = bufferSize;													// total size of buffer
+	bufferInfo.usage = bufferUsageFlags;											// type of buffer
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;								// similar to swap chain images, can share vertex buffers
+
+	if (vkCreateBuffer(m_vkLogicalDevice, &bufferInfo, nullptr, outBuffer) != VK_SUCCESS)
+		LOG_ERROR("Failed to create Vertex Buffer");
+
+	// GET BUFFER MEMORY REQUIREMENTS
+	VkMemoryRequirements	memRequirements;
+	vkGetBufferMemoryRequirements(m_vkLogicalDevice, *outBuffer, &memRequirements);
+
+	// ALLOCATE MEMORY TO BUFFER
+	VkMemoryAllocateInfo memoryAllocInfo = {};
+	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memoryAllocInfo.allocationSize = memRequirements.size;
+	memoryAllocInfo.memoryTypeIndex = FindMemoryTypeIndex(memRequirements.memoryTypeBits, bufferProperties); // Index of memory type on Physical Device that has required bit flags
+
+	// Allocated memory to VkDeviceMemory
+	if (vkAllocateMemory(m_vkLogicalDevice, &memoryAllocInfo, nullptr, outBufferMemory) != VK_SUCCESS)
+		LOG_ERROR("Failed to allocated Vertex Buffer Memory!");
+
+	// Allocate memory to given Vertex buffer
+	vkBindBufferMemory(m_vkLogicalDevice, *outBuffer, *outBufferMemory, 0);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//--- Begin Command buffer for recording commands! 
+VkCommandBuffer VulkanDevice::BeginCommandBuffer()
+{
+	// Command buffer to hold transfer command
+	VkCommandBuffer commandBuffer;
+
+	// Command buffer details
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = m_vkCommandPoolGraphics;
+	allocInfo.commandBufferCount = 1;
+
+	// Allocate command buffer from pool
+	vkAllocateCommandBuffers(m_vkLogicalDevice, &allocInfo, &commandBuffer);
+
+	// Information to begin the command buffer record!
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;	// We are only using the command buffer once, so set for one time submit!
+
+	// Begin recording transfer commands
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	return commandBuffer;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//--- End recording Commands & submit them to the Queue!
+void VulkanDevice::EndAndSubmitCommandBuffer(VkCommandBuffer commandBuffer)
+{
+	// End Commands!
+	vkEndCommandBuffer(commandBuffer);
+
+	// Queue submission information
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	// Submit transfer command to transfer queue (which is same as Graphics Queue) & wait until it finishes!
+	vkQueueSubmit(m_vkQueueGraphics, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(m_vkQueueGraphics);
+
+	// Free temporary command buffer back to pool!
+	vkFreeCommandBuffers(m_vkLogicalDevice, m_vkCommandPoolGraphics, 1, &commandBuffer);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//--- Generic Copy buffer from srcBuffer to dstBuffer using transferQueue & transferCommandPool of specific size
+void VulkanDevice::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize)
+{
+	// Create buffer
+	VkCommandBuffer transferCommandBuffer = BeginCommandBuffer();
+
+	// Region of data to copy from and to 
+	VkBufferCopy bufferCopyRegion = {};
+	bufferCopyRegion.srcOffset = 0;
+	bufferCopyRegion.dstOffset = 0;
+	bufferCopyRegion.size = bufferSize;
+
+	// Command to copy src buffer to dst buffer
+	vkCmdCopyBuffer(transferCommandBuffer, srcBuffer, dstBuffer, 1, &bufferCopyRegion);
+
+	EndAndSubmitCommandBuffer(transferCommandBuffer);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanDevice::Cleanup()
 {

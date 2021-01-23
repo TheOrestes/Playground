@@ -7,6 +7,7 @@
 #include "vulkan/vulkan.h"
 
 #include "Engine/Helpers/Log.h"
+#include "Engine/Renderer/VulkanDevice.h"
 
 namespace Helper
 {
@@ -134,138 +135,14 @@ namespace Helper
 				LOG_ERROR("Failed to create shader module!");
 
 			return shaderModule;
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		//--- Find suitable memory type based on allowed type & property flags
-		inline uint32_t FindMemoryTypeIndex(VkPhysicalDevice physicalDevice, uint32_t allowedTypeIndex, VkMemoryPropertyFlags props)
-		{
-			// Get properties of physical device memory
-			VkPhysicalDeviceMemoryProperties memoryProps;
-			vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
-
-			for (uint32_t i = 0; i < memoryProps.memoryTypeCount; i++)
-			{
-				if ((allowedTypeIndex & (1 << i))											// Index of memory type must match corresponding bit in allowed types!
-					&& (memoryProps.memoryTypes[i].propertyFlags & props) == props)			// Desired property bit flags are part of the memory type's property flags!
-				{
-					// This memory type is valid, so return index!
-					return i;
-				}
-			}
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		//--- Create VkBuffer & VkDeviceMemory of specific size, based on usage flags & property flags. 
-		inline void CreateBuffer(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsageFlags,
-			VkMemoryPropertyFlags bufferProperties, VkBuffer* outBuffer, VkDeviceMemory* outBufferMemory)
-		{
-
-			// Information to create a buffer (doesn't include assigning memory)
-			VkBufferCreateInfo bufferInfo = {};
-			bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-			bufferInfo.size = bufferSize;													// total size of buffer
-			bufferInfo.usage = bufferUsageFlags;											// type of buffer
-			bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;								// similar to swap chain images, can share vertex buffers
-
-			if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, outBuffer) != VK_SUCCESS)
-				LOG_ERROR("Failed to create Vertex Buffer");
-
-			// GET BUFFER MEMORY REQUIREMENTS
-			VkMemoryRequirements	memRequirements;
-			vkGetBufferMemoryRequirements(logicalDevice, *outBuffer, &memRequirements);
-
-			// ALLOCATE MEMORY TO BUFFER
-			VkMemoryAllocateInfo memoryAllocInfo = {};
-			memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-			memoryAllocInfo.allocationSize = memRequirements.size;
-			memoryAllocInfo.memoryTypeIndex = FindMemoryTypeIndex(physicalDevice, memRequirements.memoryTypeBits,			// Index of memory type on Physical Device that has required bit flags
-				bufferProperties);
-
-			// Allocated memory to VkDeviceMemory
-			if (vkAllocateMemory(logicalDevice, &memoryAllocInfo, nullptr, outBufferMemory) != VK_SUCCESS)
-				LOG_ERROR("Failed to allocated Vertex Buffer Memory!");
-
-			// Allocate memory to given Vertex buffer
-			vkBindBufferMemory(logicalDevice, *outBuffer, *outBufferMemory, 0);
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		//--- Begin Command buffer for recording commands! 
-		inline VkCommandBuffer BeginCommandBuffer(VkDevice logicalDevice, VkCommandPool commandPool)
-		{
-			// Command buffer to hold transfer command
-			VkCommandBuffer commandBuffer;
-
-			// Command buffer details
-			VkCommandBufferAllocateInfo allocInfo = {};
-			allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-			allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-			allocInfo.commandPool = commandPool;
-			allocInfo.commandBufferCount = 1;
-
-			// Allocate command buffer from pool
-			vkAllocateCommandBuffers(logicalDevice, &allocInfo, &commandBuffer);
-
-			// Information to begin the command buffer record!
-			VkCommandBufferBeginInfo beginInfo = {};
-			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;	// We are only using the command buffer once, so set for one time submit!
-
-			// Begin recording transfer commands
-			vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-			return commandBuffer;
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		//--- End recording Commands & submit them to the Queue!
-		inline void EndAndSubmitCommandBuffer(VkDevice logicalDevice, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer)
-		{
-			// End Commands!
-			vkEndCommandBuffer(commandBuffer);
-
-			// Queue submission information
-			VkSubmitInfo submitInfo = {};
-			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-			submitInfo.commandBufferCount = 1;
-			submitInfo.pCommandBuffers = &commandBuffer;
-
-			// Submit transfer command to transfer queue (which is same as Graphics Queue) & wait until it finishes!
-			vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-			vkQueueWaitIdle(queue);
-
-			// Free temporary command buffer back to pool!
-			vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		//--- Generic Copy buffer from srcBuffer to dstBuffer using transferQueue & transferCommandPool of specific size
-		inline void CopyBuffer(VkDevice logicalDevice, VkQueue transferQueue, VkCommandPool transferCommandPool,
-			VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize)
-		{
-			// Create buffer
-			VkCommandBuffer transferCommandBuffer = BeginCommandBuffer(logicalDevice, transferCommandPool);
-
-			// Region of data to copy from and to 
-			VkBufferCopy bufferCopyRegion = {};
-			bufferCopyRegion.srcOffset = 0;
-			bufferCopyRegion.dstOffset = 0;
-			bufferCopyRegion.size = bufferSize;
-
-			// Command to copy src buffer to dst buffer
-			vkCmdCopyBuffer(transferCommandBuffer, srcBuffer, dstBuffer, 1, &bufferCopyRegion);
-
-			EndAndSubmitCommandBuffer(logicalDevice, transferCommandPool, transferQueue, transferCommandBuffer);
-		}
+		}		
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Generic Copy Image buffer from srcBuffer to VkImage using transferQueue & transferCommandPool of specific width-height!
-		inline void CopyImageBuffer(VkDevice logicalDevice, VkQueue transferQueue, VkCommandPool transferCommandPool,
-			VkBuffer srcBuffer, VkImage image, uint32_t width, uint32_t height)
+		inline void CopyImageBuffer(VulkanDevice* pDevice, VkBuffer srcBuffer, VkImage image, uint32_t width, uint32_t height)
 		{
 			//Create buffer
-			VkCommandBuffer transferCommandBuffer = BeginCommandBuffer(logicalDevice, transferCommandPool);
+			VkCommandBuffer transferCommandBuffer = pDevice->BeginCommandBuffer();
 
 			VkBufferImageCopy imageRegion = {};
 			imageRegion.bufferOffset = 0;											// offset into data
@@ -281,15 +158,14 @@ namespace Helper
 			// copy buffer to given image
 			vkCmdCopyBufferToImage(transferCommandBuffer, srcBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageRegion);
 
-			EndAndSubmitCommandBuffer(logicalDevice, transferCommandPool, transferQueue, transferCommandBuffer);
+			pDevice->EndAndSubmitCommandBuffer(transferCommandBuffer);
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Function to transition image layout from old to new image layout using command pool for VkImage!
-		inline void TransitionImageLayout(VkDevice logicalDevice, VkQueue queue, VkCommandPool commandPool, VkImage image,
-			VkImageLayout oldImageLayout, VkImageLayout newImageLayout)
+		inline void TransitionImageLayout(VulkanDevice* pDevice, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout)
 		{
-			VkCommandBuffer commandBuffer = BeginCommandBuffer(logicalDevice, commandPool);
+			VkCommandBuffer commandBuffer = pDevice->BeginCommandBuffer();
 
 			VkImageMemoryBarrier imageMemoryBarrier = {};
 			imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -333,13 +209,13 @@ namespace Helper
 				0, nullptr,				// Buffer memory barrier count + data
 				1, &imageMemoryBarrier);	// image memmory barrier count + data
 
-			EndAndSubmitCommandBuffer(logicalDevice, commandPool, queue, commandBuffer);
+			pDevice->EndAndSubmitCommandBuffer(commandBuffer);
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Create VkImage & VkDeviceMemory based on width-height-format-tiling-usageFlags-propertyFlags!
-		inline VkImage CreateImage(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, uint32_t width, uint32_t height, VkFormat format,
-			VkImageTiling tiling, VkImageUsageFlags usageFlags, VkMemoryPropertyFlags propFlags, VkDeviceMemory* imageMemory)
+		inline VkImage CreateImage(VulkanDevice* pDevice, uint32_t width, uint32_t height, VkFormat format,	VkImageTiling tiling, 
+									VkImageUsageFlags usageFlags, VkMemoryPropertyFlags propFlags, VkDeviceMemory* imageMemory)
 		{
 			// Image creation info
 			VkImageCreateInfo imageCreateInfo = {};
@@ -359,31 +235,31 @@ namespace Helper
 
 			// Create Image
 			VkImage image;
-			if (vkCreateImage(logicalDevice, &imageCreateInfo, nullptr, &image) != VK_SUCCESS)
+			if (vkCreateImage(pDevice->m_vkLogicalDevice, &imageCreateInfo, nullptr, &image) != VK_SUCCESS)
 				LOG_ERROR("Failed to create an image");
 
 			// Get memory requirements for type of image
 			VkMemoryRequirements memoryRequirements;
-			vkGetImageMemoryRequirements(logicalDevice, image, &memoryRequirements);
+			vkGetImageMemoryRequirements(pDevice->m_vkLogicalDevice, image, &memoryRequirements);
 
 			// Allocated memory using image requirements & user defined properties
 			VkMemoryAllocateInfo memoryAllocInfo = {};
 			memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 			memoryAllocInfo.allocationSize = memoryRequirements.size;
-			memoryAllocInfo.memoryTypeIndex = FindMemoryTypeIndex(physicalDevice, memoryRequirements.memoryTypeBits, propFlags);
+			memoryAllocInfo.memoryTypeIndex = pDevice->FindMemoryTypeIndex(memoryRequirements.memoryTypeBits, propFlags);
 
-			if (vkAllocateMemory(logicalDevice, &memoryAllocInfo, nullptr, imageMemory) != VK_SUCCESS)
+			if (vkAllocateMemory(pDevice->m_vkLogicalDevice, &memoryAllocInfo, nullptr, imageMemory) != VK_SUCCESS)
 				LOG_ERROR("Failed to allocated memory for image!");
 
 			// Connect memory to image
-			vkBindImageMemory(logicalDevice, image, *imageMemory, 0);
+			vkBindImageMemory(pDevice->m_vkLogicalDevice, image, *imageMemory, 0);
 
 			return image;
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Create VkImageView for a VkImage
-		inline VkImageView CreateImageView(VkDevice logicalDevice, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+		inline VkImageView CreateImageView(const VulkanDevice* pDevice, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 		{
 			VkImageViewCreateInfo imageViewCreateInfo = {};
 			imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -403,7 +279,7 @@ namespace Helper
 
 			// Create image view & return it
 			VkImageView imageView;
-			if (vkCreateImageView(logicalDevice, &imageViewCreateInfo, nullptr, &imageView) != VK_SUCCESS)
+			if (vkCreateImageView(pDevice->m_vkLogicalDevice, &imageViewCreateInfo, nullptr, &imageView) != VK_SUCCESS)
 				LOG_ERROR("Failed to create an Image View");
 
 			return imageView;

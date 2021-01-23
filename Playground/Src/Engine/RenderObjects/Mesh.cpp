@@ -10,7 +10,7 @@ Mesh::Mesh()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Mesh::Mesh(const VulkanDevice* device,
+Mesh::Mesh(VulkanDevice* device,
 	const std::vector<Helper::App::VertexPCT>& vertices,
 	const std::vector<uint32_t>& indices,
 	int texID)
@@ -51,7 +51,7 @@ void Mesh::Cleanup()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Mesh::CreateVertexBuffer(const VulkanDevice* device, const std::vector<Helper::App::VertexPCT>& vertices)
+void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::App::VertexPCT>& vertices)
 {
 	// Get the size of buffer needed for vertices
 	VkDeviceSize bufferSize = m_uiVertexCount * sizeof(Helper::App::VertexPCT);
@@ -61,9 +61,7 @@ void Mesh::CreateVertexBuffer(const VulkanDevice* device, const std::vector<Help
 	VkDeviceMemory stagingBufferMemory;
 
 	// Create buffer & allocate memory to it!
-	Helper::Vulkan::CreateBuffer(m_vkPhysicalDevice,
-		m_vkDevice,
-		bufferSize,
+	pDevice->CreateBuffer(bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		&stagingBuffer,
@@ -77,16 +75,14 @@ void Mesh::CreateVertexBuffer(const VulkanDevice* device, const std::vector<Help
 
 	// Create buffer with TRANSFER_DST_BIT to mark as recipient of transfer data (also VERTEX_BUFFER_BIT)
 	// Buffer memory is to be DEVICE_LOCAL_BIT meaning memory is on the GPU & accessible by it & not CPU!
-	Helper::Vulkan::CreateBuffer(m_vkPhysicalDevice,
-		m_vkDevice,
-		bufferSize,
+	pDevice->CreateBuffer(bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		&m_vkVertexBuffer,
 		&m_vkVertexBufferMemory);
 
 	// Copy staging buffer to vertex buffer on GPU using Command buffer!
-	Helper::Vulkan::CopyBuffer(m_vkDevice, device->m_vkQueueGraphics, device->m_vkCommandPoolGraphics, stagingBuffer, m_vkVertexBuffer, bufferSize);
+	pDevice->CopyBuffer(stagingBuffer, m_vkVertexBuffer, bufferSize);
 
 	// Clean up staging buffers
 	vkDestroyBuffer(m_vkDevice, stagingBuffer, nullptr);
@@ -94,7 +90,7 @@ void Mesh::CreateVertexBuffer(const VulkanDevice* device, const std::vector<Help
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Mesh::CreateIndexBuffer(const VulkanDevice* device, const std::vector<uint32_t>& indices)
+void Mesh::CreateIndexBuffer(VulkanDevice* pDevice, const std::vector<uint32_t>& indices)
 {
 	// Get size of buffer needed for indices
 	VkDeviceSize bufferSize = m_uiIndexCount * sizeof(uint32_t);
@@ -103,9 +99,7 @@ void Mesh::CreateIndexBuffer(const VulkanDevice* device, const std::vector<uint3
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 
-	Helper::Vulkan::CreateBuffer(m_vkPhysicalDevice,
-		m_vkDevice,
-		bufferSize,
+	pDevice->CreateBuffer(bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		&stagingBuffer,
@@ -118,16 +112,14 @@ void Mesh::CreateIndexBuffer(const VulkanDevice* device, const std::vector<uint3
 	vkUnmapMemory(m_vkDevice, stagingBufferMemory);
 
 	// Create buffer for index data on GPU access only area
-	Helper::Vulkan::CreateBuffer(m_vkPhysicalDevice,
-		m_vkDevice,
-		bufferSize,
+	pDevice->CreateBuffer(bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		&m_vkIndexBuffer,
 		&m_vkIndexBufferMemory);
 
 	// Copy from staging buffer to GPU access buffer
-	Helper::Vulkan::CopyBuffer(m_vkDevice, device->m_vkQueueGraphics, device->m_vkCommandPoolGraphics, stagingBuffer, m_vkIndexBuffer, bufferSize);
+	pDevice->CopyBuffer(stagingBuffer, m_vkIndexBuffer, bufferSize);
 
 	// Clean up staging buffers
 	vkDestroyBuffer(m_vkDevice, stagingBuffer, nullptr);
