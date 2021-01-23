@@ -33,8 +33,8 @@ public:
 	void								PickPhysicalDevice();
 	void								CreateLogicalDevice();
 
-	void								CreateGraphicsCommandPool(VkDevice logicalDevice);
-	void								CreateGraphicsCommandBuffers(uint32_t size, VkDevice logicalDevice);
+	void								CreateGraphicsCommandPool();
+	void								CreateGraphicsCommandBuffers(uint32_t size);
 
 	uint32_t							FindMemoryTypeIndex(uint32_t allowedTypeIndex, VkMemoryPropertyFlags props);
 

@@ -21,7 +21,6 @@ class Mesh
 public:
 	Mesh();
 	Mesh(const VulkanDevice* device,
-		VkDevice logicalDevice,
 		const std::vector<Helper::App::VertexPCT>& vertices,
 		const std::vector<uint32_t>& indices,
 		int texID);

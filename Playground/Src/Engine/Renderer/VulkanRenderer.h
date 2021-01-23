@@ -55,8 +55,6 @@ private:
 
 	void							CreateSurface();
 
-	void							CreateLogicalDevice();
-
 	SwapChainSupportDetails			QuerySwapChainSupport(VkPhysicalDevice device);
 
 	VkSurfaceFormatKHR				ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
@@ -105,8 +103,6 @@ private:
 
 	VkDebugUtilsMessengerEXT		m_vkDebugMessenger;
 	VkSurfaceKHR					m_vkSurface;
-
-	VkDevice						m_vkDevice;
 
 	VkSwapchainKHR					m_vkSwapchain;
 	std::vector<VkImage>			m_vecSwapchainImages;

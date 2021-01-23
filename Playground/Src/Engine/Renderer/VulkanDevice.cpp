@@ -225,7 +225,7 @@ void VulkanDevice::CreateLogicalDevice()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanDevice::CreateGraphicsCommandPool(VkDevice logicalDevice)
+void VulkanDevice::CreateGraphicsCommandPool()
 {
 	VkCommandPoolCreateInfo commandPoolCreateInfo{};
 	commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -234,7 +234,7 @@ void VulkanDevice::CreateGraphicsCommandPool(VkDevice logicalDevice)
 	commandPoolCreateInfo.pNext = nullptr;
 
 	// Create a Graphics queue family Command Pool
-	if (vkCreateCommandPool(logicalDevice, &commandPoolCreateInfo, nullptr, &m_vkCommandPoolGraphics) != VK_SUCCESS)
+	if (vkCreateCommandPool(m_vkLogicalDevice, &commandPoolCreateInfo, nullptr, &m_vkCommandPoolGraphics) != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to create Command Pool!");
 	}
@@ -243,7 +243,7 @@ void VulkanDevice::CreateGraphicsCommandPool(VkDevice logicalDevice)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanDevice::CreateGraphicsCommandBuffers(uint32_t size, VkDevice logicalDevice)
+void VulkanDevice::CreateGraphicsCommandBuffers(uint32_t size)
 {
 	m_vecCommandBuffer.resize(size);
 
@@ -256,7 +256,7 @@ void VulkanDevice::CreateGraphicsCommandBuffers(uint32_t size, VkDevice logicalD
 	commandBufferAllocInfo.pNext = nullptr;
 
 	// Allocate command buffers & place handles in array of buffers!
-	if (vkAllocateCommandBuffers(logicalDevice, &commandBufferAllocInfo, m_vecCommandBuffer.data()) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(m_vkLogicalDevice, &commandBufferAllocInfo, m_vecCommandBuffer.data()) != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to create Command buffer!");
 	}

@@ -52,8 +52,7 @@ std::vector<std::string> Model::LoadMaterials(const aiScene* scene)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, VkDevice logicalDevice, aiNode* node, const aiScene* scene, 
-	std::vector<int> vecMatToTexture)
+std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, aiNode* node, const aiScene* scene, std::vector<int> vecMatToTexture)
 {
 	std::vector<Mesh> vecMesh;
 
@@ -61,7 +60,6 @@ std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, VkDevice logicalDe
 	for (uint64_t i = 0; i < node->mNumMeshes; i++)
 	{
 		vecMesh.push_back(LoadMesh(device,
-								logicalDevice,
 								scene->mMeshes[node->mMeshes[i]],
 								scene,
 								vecMatToTexture));
@@ -70,7 +68,7 @@ std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, VkDevice logicalDe
 	// Go through each node attached to this node & load it, then append their meshes to this node's mesh list
 	for (uint64_t i = 0; i < node->mNumChildren; i++)
 	{
-		std::vector<Mesh> newList = LoadNode(device, logicalDevice, node->mChildren[i], scene, vecMatToTexture);
+		std::vector<Mesh> newList = LoadNode(device, node->mChildren[i], scene, vecMatToTexture);
 		vecMesh.insert(vecMesh.end(), newList.begin(), newList.end());
 	}
 
@@ -78,7 +76,7 @@ std::vector<Mesh> Model::LoadNode(const VulkanDevice* device, VkDevice logicalDe
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Mesh Model::LoadMesh(const VulkanDevice* device, VkDevice logicalDevice, aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture)
+Mesh Model::LoadMesh(const VulkanDevice* device, aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture)
 {
 	std::vector<Helper::App::VertexPCT>  vertices;
 	std::vector<uint32_t>				indices;
@@ -118,7 +116,7 @@ Mesh Model::LoadMesh(const VulkanDevice* device, VkDevice logicalDevice, aiMesh*
 	}
 
 	// Create new mesh with details & return it!
-	Mesh newMesh(device, logicalDevice, vertices, indices, vecMatToTexture[mesh->mMaterialIndex]);
+	Mesh newMesh(device, vertices, indices, vecMatToTexture[mesh->mMaterialIndex]);
 	return newMesh;
 }
 

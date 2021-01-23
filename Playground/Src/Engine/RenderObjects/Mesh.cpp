@@ -11,13 +11,12 @@ Mesh::Mesh()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Mesh::Mesh(const VulkanDevice* device,
-	VkDevice logicalDevice,
 	const std::vector<Helper::App::VertexPCT>& vertices,
 	const std::vector<uint32_t>& indices,
 	int texID)
 {
 	m_vkPhysicalDevice = device->m_vkPhysicalDevice;
-	m_vkDevice = logicalDevice;
+	m_vkDevice = device->m_vkLogicalDevice;
 
 	m_uiVertexCount = vertices.size();
 	m_uiIndexCount = indices.size();

@@ -15,8 +15,8 @@ public:
 	~Model() {};
 
 	static std::vector<std::string>		LoadMaterials(const aiScene* scene);
-	static std::vector<Mesh>			LoadNode(const VulkanDevice* device, VkDevice logicalDevice, aiNode* node, const aiScene* scene, std::vector<int> vecMatToTexture);
-	static Mesh							LoadMesh(const VulkanDevice* device, VkDevice logicalDevice, aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture);
+	static std::vector<Mesh>			LoadNode(const VulkanDevice* device, aiNode* node, const aiScene* scene, std::vector<int> vecMatToTexture);
+	static Mesh							LoadMesh(const VulkanDevice* device, aiMesh* mesh, const aiScene* scene, std::vector<int> vecMatToTexture);
 
 	uint64_t							GetMeshCount() const;
 	Mesh*								GetMesh(uint64_t index);
