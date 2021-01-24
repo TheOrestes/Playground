@@ -5,6 +5,7 @@
 #include "VulkanRenderer.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapChain.h"
+#include "VulkanFrameBuffer.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -18,6 +19,7 @@ VulkanRenderer::VulkanRenderer()
 
 	m_pDevice = nullptr;
 	m_pSwapChain = nullptr;
+	m_pFrameBuffer = nullptr;
 	
 	m_uiCurrentFrame = 0;
 	m_bFramebufferResized = false;
@@ -29,8 +31,6 @@ VulkanRenderer::VulkanRenderer()
 	m_vkRenderPass = VK_NULL_HANDLE;
 	m_vkPipelineLayout = VK_NULL_HANDLE;
 	m_vkGraphicsPipeline = VK_NULL_HANDLE;
-
-	m_vecFramebuffers.clear();
 	
 	m_vecSemaphoreImageAvailable.clear();
 	m_vecSemaphoreRenderFinished.clear();
@@ -66,14 +66,17 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		
 		m_pSwapChain = new VulkanSwapChain();
 		m_pSwapChain->CreateSwapChain(m_pDevice, m_vkSurface, m_pWindow);
+
+		m_pFrameBuffer = new VulkanFrameBuffer();
+		m_pFrameBuffer->CreateColorAttachment(m_pDevice, m_pSwapChain);
+		m_pFrameBuffer->CreateDepthAttachment(m_pDevice, m_pSwapChain);
 		
-		CreateColorBufferImage();
-		CreateDepthBufferImage();
 		CreateRenderPass();
 		CreateDescriptorSetLayout();
 		CreatePushConstantRange();
 		CreateGraphicsPipeline();
-		CreateFramebuffers();
+
+		m_pFrameBuffer->CreateFrameBuffers(m_pDevice, m_pSwapChain, m_vkRenderPass);
 
 		m_pDevice->CreateGraphicsCommandPool();
 		m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
@@ -363,31 +366,6 @@ void VulkanRenderer::CreateSurface()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-VkFormat VulkanRenderer::ChooseSupportedFormats(const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags)
-{
-	// Loop through options & find the compatible one
-	for (VkFormat format : formats)
-	{
-		// Get properties for given formats on this device
-		VkFormatProperties properties;
-		vkGetPhysicalDeviceFormatProperties(m_pDevice->m_vkPhysicalDevice, format, &properties);
-
-		// depending on tiling choice, need to check for different bit flag
-		if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & featureFlags) == featureFlags)
-		{
-			return format;
-		}
-		else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & featureFlags) == featureFlags)
-		{
-			return format;
-		}
-
-		LOG_ERROR("Failed to find matching format!");
-	}
-}
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::HandleWindowResize()
 {
 	// Handle window minimization => framebuffer size = 0
@@ -410,12 +388,15 @@ void VulkanRenderer::HandleWindowResize()
 
 	m_pSwapChain->CreateSwapChain(m_pDevice, m_vkSurface, m_pWindow);
 
-	CreateColorBufferImage();
-	CreateDepthBufferImage();
-	CreateRenderPass();
 
+	m_pFrameBuffer->CreateColorAttachment(m_pDevice, m_pSwapChain);
+	m_pFrameBuffer->CreateDepthAttachment(m_pDevice, m_pSwapChain);
+
+	CreateRenderPass();
 	CreateGraphicsPipeline();
-	CreateFramebuffers();
+
+	m_pFrameBuffer->CreateFrameBuffers(m_pDevice, m_pSwapChain, m_vkRenderPass);
+
 	CreateUniformBuffers();
 	//CreateDescriptorPool();
 	//CreateDescriptorSetLayout();
@@ -809,69 +790,6 @@ void VulkanRenderer::CreateGraphicsPipeline()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::CreateColorBufferImage()
-{
-	m_vecColorBufferImage.resize(m_pSwapChain->m_vecSwapchainImages.size());
-	m_vecColorBufferImageMemory.resize(m_pSwapChain->m_vecSwapchainImages.size());
-	m_vecColorBufferImageView.resize(m_pSwapChain->m_vecSwapchainImages.size());
-
-	std::vector<VkFormat> formats = { VK_FORMAT_R8G8B8A8_UNORM };
-
-	// Get supported format for color attachment
-	m_vkColorBufferFormat = ChooseSupportedFormats(formats, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
-
-	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
-	{
-		// Create color buffer image
-		m_vecColorBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice,
-			m_pSwapChain->m_vkSwapchainExtent.width,
-			m_pSwapChain->m_vkSwapchainExtent.height,
-			m_vkColorBufferFormat,
-			VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			&m_vecColorBufferImageMemory[i]);
-
-		// Create color buffer image view!
-		m_vecColorBufferImageView[i] = Helper::Vulkan::CreateImageView(m_pDevice,
-			m_vecColorBufferImage[i],
-			m_vkColorBufferFormat,
-			VK_IMAGE_ASPECT_COLOR_BIT);
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::CreateDepthBufferImage()
-{
-	m_vecDepthBufferImage.resize(m_pSwapChain->m_vecSwapchainImages.size());
-	m_vecDepthBufferImageMemory.resize(m_pSwapChain->m_vecSwapchainImages.size());
-	m_vecDepthBufferImageView.resize(m_pSwapChain->m_vecSwapchainImages.size());
-
-	std::vector<VkFormat> formats = { VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT };
-
-	m_vkDepthBufferFormat = ChooseSupportedFormats(formats, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-
-	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
-	{
-		// create depth buffer image
-		m_vecDepthBufferImage[i] = Helper::Vulkan::CreateImage(m_pDevice,
-			m_pSwapChain->m_vkSwapchainExtent.width,
-			m_pSwapChain->m_vkSwapchainExtent.height,
-			m_vkDepthBufferFormat,
-			VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			&m_vecDepthBufferImageMemory[i]);
-
-		// Create depth buffer image view!
-		m_vecDepthBufferImageView[i] = Helper::Vulkan::CreateImageView(m_pDevice,
-			m_vecDepthBufferImage[i],
-			m_vkDepthBufferFormat,
-			VK_IMAGE_ASPECT_DEPTH_BIT);
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::CreateRenderPass()
 {
 	// Array of subpasses
@@ -882,7 +800,7 @@ void VulkanRenderer::CreateRenderPass()
 	//--- SUBPASS 1 ATTACHMENTS + REFERENCES (INPUT ATTACHMENTS)
 	// Color Attachment (Input)
 	VkAttachmentDescription colorAttachmentDesc = {};
-	colorAttachmentDesc.format = m_vkColorBufferFormat;											// format to use for attachment
+	colorAttachmentDesc.format = m_pFrameBuffer->m_pColorAttachment->attachmentFormat;											// format to use for attachment
 	colorAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;										// number of samples for multisampling
 	colorAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;									// describes what to do with attachment before rendering
 	colorAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with attachment after rendering
@@ -893,7 +811,7 @@ void VulkanRenderer::CreateRenderPass()
 
 	// Depth attachment (Input)
 	VkAttachmentDescription depthAttachmentDesc = {};
-	depthAttachmentDesc.format = m_vkDepthBufferFormat;
+	depthAttachmentDesc.format = m_pFrameBuffer->m_pDepthAttachment->attachmentFormat;
 	depthAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
 	depthAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -1008,37 +926,6 @@ void VulkanRenderer::CreateRenderPass()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void VulkanRenderer::CreateFramebuffers()
-{
-	// resize framebuffer count to equal swap chain image views count
-	m_vecFramebuffers.resize(m_pSwapChain->m_vecSwapchainImages.size());
-
-	// create framebuffer for each swap chain image view
-	for (uint32_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); ++i)
-	{
-		std::array<VkImageView, 3> attachments = { m_pSwapChain->m_vecSwapchainImageViews[i], m_vecColorBufferImageView[i], m_vecDepthBufferImageView[i] };
-
-		VkFramebufferCreateInfo framebufferCreateInfo{};
-		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferCreateInfo.renderPass = m_vkRenderPass;									// Render pass layout the framebuffer will be used with					 
-		framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		framebufferCreateInfo.pAttachments = attachments.data();							// List of attachments
-		framebufferCreateInfo.width = m_pSwapChain->m_vkSwapchainExtent.width;							// frambuffer width
-		framebufferCreateInfo.height = m_pSwapChain->m_vkSwapchainExtent.height;							// framebuffer height
-		framebufferCreateInfo.layers = 1;													// framebuffer layers
-		framebufferCreateInfo.flags = 0;
-		framebufferCreateInfo.pNext = nullptr;
-
-		if (vkCreateFramebuffer(m_pDevice->m_vkLogicalDevice, &framebufferCreateInfo, nullptr, &m_vecFramebuffers[i]) != VK_SUCCESS)
-		{
-			LOG_ERROR("Failed to create Framebuffer");
-		}
-		else
-			LOG_INFO("Framebuffer created!");
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::RecordCommands(uint32_t currentImage)
 {
 	// Information about how to begin each command buffer
@@ -1062,7 +949,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	renderPassBeginInfo.pClearValues = clearValues.data();								// list of clear values
 	renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 
-	renderPassBeginInfo.framebuffer = m_vecFramebuffers[currentImage];
+	renderPassBeginInfo.framebuffer = m_pFrameBuffer->m_vecFramebuffers[currentImage];
 
 	// start recording commands to command buffer
 	if (vkBeginCommandBuffer(m_pDevice->m_vecCommandBufferGraphics[currentImage], &bufferBeginInfo) != VK_SUCCESS)
@@ -1253,12 +1140,11 @@ void VulkanRenderer::CreateDescriptorPool()
 	// Color attachment 
 	VkDescriptorPoolSize colorInputPoolSize = {};
 	colorInputPoolSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	colorInputPoolSize.descriptorCount = static_cast<uint32_t>(m_vecColorBufferImageView.size());
-
+	colorInputPoolSize.descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 	// Depth attachment 
 	VkDescriptorPoolSize depthInputPoolSize = {};
 	depthInputPoolSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	depthInputPoolSize.descriptorCount = static_cast<uint32_t>(m_vecDepthBufferImageView.size());
+	depthInputPoolSize.descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 
 	std::vector<VkDescriptorPoolSize> inputPoolSizes = { colorInputPoolSize, depthInputPoolSize };
 
@@ -1371,7 +1257,7 @@ void VulkanRenderer::CreateInputDescriptorSets()
 		// color attachment descriptor
 		VkDescriptorImageInfo colorAttachmentDescriptor = {};
 		colorAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		colorAttachmentDescriptor.imageView = m_vecColorBufferImageView[i];
+		colorAttachmentDescriptor.imageView = m_pFrameBuffer->m_pColorAttachment->vecAttachmentImageView[i];
 		colorAttachmentDescriptor.sampler = VK_NULL_HANDLE;
 
 		// Color attachment descriptor write
@@ -1387,7 +1273,7 @@ void VulkanRenderer::CreateInputDescriptorSets()
 		// depth attachment descriptor
 		VkDescriptorImageInfo depthAttachmentDescriptor = {};
 		depthAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		depthAttachmentDescriptor.imageView = m_vecDepthBufferImageView[i];
+		depthAttachmentDescriptor.imageView = m_pFrameBuffer->m_pDepthAttachment->vecAttachmentImageView[i];
 		depthAttachmentDescriptor.sampler = VK_NULL_HANDLE;
 
 		// depth attachment descriptor write
@@ -1770,39 +1656,12 @@ void VulkanRenderer::AllocateDynamicBufferTransferSpace()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void VulkanRenderer::CleanupOnWindowResize()
 {
-	// Cleanup depth related buffers, textures, memory etc.
-	for (uint16_t i = 0; i < m_vecDepthBufferImage.size(); i++)
-	{
-		vkDestroyImageView(m_pDevice->m_vkLogicalDevice, m_vecDepthBufferImageView[i], nullptr);
-		vkDestroyImage(m_pDevice->m_vkLogicalDevice, m_vecDepthBufferImage[i], nullptr);
-		vkFreeMemory(m_pDevice->m_vkLogicalDevice, m_vecDepthBufferImageMemory[i], nullptr);
-	}
-
-	// Cleanup color related buffers, textures, memory etc.
-	for (uint16_t i = 0; i < m_vecColorBufferImage.size(); i++)
-	{
-		vkDestroyImageView(m_pDevice->m_vkLogicalDevice, m_vecColorBufferImageView[i], nullptr);
-		vkDestroyImage(m_pDevice->m_vkLogicalDevice, m_vecColorBufferImage[i], nullptr);
-		vkFreeMemory(m_pDevice->m_vkLogicalDevice, m_vecColorBufferImageMemory[i], nullptr);
-	}
-
-	// Destroy framebuffers!
-	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)
-	{
-		vkDestroyFramebuffer(m_pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
-	}
-
-	
-
 	vkDestroyPipeline(m_pDevice->m_vkLogicalDevice, m_vkGraphicsPipeline2, nullptr);
 	vkDestroyPipelineLayout(m_pDevice->m_vkLogicalDevice, m_vkPipelineLayout2, nullptr);
 
 	vkDestroyPipeline(m_pDevice->m_vkLogicalDevice, m_vkGraphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_pDevice->m_vkLogicalDevice, m_vkPipelineLayout, nullptr);
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
-
-	m_pSwapChain->CleanupOnWindowResize(m_pDevice);
-	m_pDevice->CleanupOnWindowResize();
 
 	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
 	{
@@ -1813,6 +1672,12 @@ void VulkanRenderer::CleanupOnWindowResize()
 		//vkFreeMemory(m_pDevice->m_vkLogicalDevice, m_vecModelDynamicUniformBufferMemory[i], nullptr);
 	}
 
+
+	m_pFrameBuffer->CleanupOnWindowResize(m_pDevice);
+	m_pSwapChain->CleanupOnWindowResize(m_pDevice);
+	m_pDevice->CleanupOnWindowResize();
+
+	
 	//vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDescriptorPool, nullptr);
 	//vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkSamplerDescriptorPool, nullptr);
 	//vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkInputDescriptorPool, nullptr);
@@ -1826,12 +1691,19 @@ void VulkanRenderer::Cleanup()
 	// Wait until no action being run on device before destroying! 
 	vkDeviceWaitIdle(m_pDevice->m_vkLogicalDevice);
 
-	CleanupOnWindowResize();
+	//CleanupOnWindowResize();
 
 	//_aligned_free(m_pModelTransferSpace);
 
 	//vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkInputDescriptorPool, nullptr);
 	//vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkInputSeLayout, nullptr);
+
+	vkDestroyPipeline(m_pDevice->m_vkLogicalDevice, m_vkGraphicsPipeline2, nullptr);
+	vkDestroyPipelineLayout(m_pDevice->m_vkLogicalDevice, m_vkPipelineLayout2, nullptr);
+
+	vkDestroyPipeline(m_pDevice->m_vkLogicalDevice, m_vkGraphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(m_pDevice->m_vkLogicalDevice, m_vkPipelineLayout, nullptr);
+	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
 
 	vkDestroySampler(m_pDevice->m_vkLogicalDevice, m_vkTextureSampler, nullptr);
 
@@ -1841,7 +1713,6 @@ void VulkanRenderer::Cleanup()
 		vkDestroyImage(m_pDevice->m_vkLogicalDevice, m_vecTextureImages[i], nullptr);
 		vkFreeMemory(m_pDevice->m_vkLogicalDevice, m_vecTextureImageMemory[i], nullptr);
 	}
-
 
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDescriptorPool, nullptr);
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkSamplerDescriptorPool, nullptr);
@@ -1869,6 +1740,16 @@ void VulkanRenderer::Cleanup()
 		vkDestroyFence(m_pDevice->m_vkLogicalDevice, m_vecFencesRender[i], nullptr);
 	}
 
+	for (uint16_t i = 0; i < m_pSwapChain->m_vecSwapchainImages.size(); i++)
+	{
+		vkDestroyBuffer(m_pDevice->m_vkLogicalDevice, m_vecVPUniformBuffer[i], nullptr);
+		vkFreeMemory(m_pDevice->m_vkLogicalDevice, m_vecVPUniformBufferMemory[i], nullptr);
+
+		//vkDestroyBuffer(m_pDevice->m_vkLogicalDevice, m_vecModelDynamicUniformBuffer[i], nullptr);
+		//vkFreeMemory(m_pDevice->m_vkLogicalDevice, m_vecModelDynamicUniformBufferMemory[i], nullptr);
+	}
+
+	m_pFrameBuffer->Cleanup(m_pDevice);
 	m_pSwapChain->Cleanup(m_pDevice);
 	m_pDevice->Cleanup();
 

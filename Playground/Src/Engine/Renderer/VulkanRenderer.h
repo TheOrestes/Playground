@@ -20,6 +20,7 @@
 
 class VulkanDevice;
 class VulkanSwapChain;
+class VulkanFrameBuffer;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class VulkanRenderer : public IRenderer
@@ -43,17 +44,11 @@ private:
 
 	void							CreateSurface();
 	
-	VkFormat						ChooseSupportedFormats(const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
-
-	
 	void							HandleWindowResize();
 	void							CreateDescriptorSetLayout();
 	void							CreatePushConstantRange();
 	void							CreateGraphicsPipeline();
-	void							CreateColorBufferImage();
-	void							CreateDepthBufferImage();
 	void							CreateRenderPass();
-	void							CreateFramebuffers();
 	void							CreateSyncObjects();
 	void							CreateUniformBuffers();
 	void							CreateDescriptorPool();
@@ -78,9 +73,11 @@ private:
 private:
 	GLFWwindow* m_pWindow;
 
+	VkInstance						m_vkInstance;
+
 	VulkanDevice*					m_pDevice;
 	VulkanSwapChain*				m_pSwapChain;
-	VkInstance						m_vkInstance;
+	VulkanFrameBuffer*				m_pFrameBuffer;
 	
 	VkDebugUtilsMessengerEXT		m_vkDebugMessenger;
 	VkSurfaceKHR					m_vkSurface;
@@ -93,17 +90,9 @@ private:
 	VkPipelineLayout				m_vkPipelineLayout2;
 	VkPipeline						m_vkGraphicsPipeline2;
 
-	std::vector<VkFramebuffer>		m_vecFramebuffers;
+	
 
-	VkFormat						m_vkDepthBufferFormat;
-	std::vector<VkImage>			m_vecDepthBufferImage;
-	std::vector<VkImageView>		m_vecDepthBufferImageView;
-	std::vector<VkDeviceMemory>		m_vecDepthBufferImageMemory;
-
-	VkFormat						m_vkColorBufferFormat;
-	std::vector<VkImage>			m_vecColorBufferImage;
-	std::vector<VkImageView>		m_vecColorBufferImageView;
-	std::vector<VkDeviceMemory>		m_vecColorBufferImageMemory;
+	
 
 	std::vector<VkSemaphore>		m_vecSemaphoreImageAvailable;
 	std::vector<VkSemaphore>		m_vecSemaphoreRenderFinished;
