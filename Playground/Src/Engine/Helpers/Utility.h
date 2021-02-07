@@ -13,34 +13,10 @@ namespace Helper
 {
 	namespace App
 	{
-		const uint32_t MAX_FRAME_DRAWS = 2;
-		const uint32_t MAX_OBJECTS = 20;
-
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		//--- Read shader file...
-		inline std::vector<char> ReadShaderFile(const std::string& fileName)
-		{
-			// start reading at the end & in binary mode.
-			// Advantage of reading file from the end is we can use read position to determine
-			// size of the file & allocate buffer accordingly!
-			std::ifstream file(fileName, std::ios::ate | std::ios::binary);
-
-			if (!file.is_open())
-				LOG_ERROR("Failed to open Shader file!");
-
-			// get the file size & allocate buffer memory!
-			size_t fileSize = (size_t)file.tellg();
-			std::vector<char> buffer(fileSize);
-
-			// now seek back to the beginning of the file & read all bytes at once!
-			file.seekg(0);
-			file.read(buffer.data(), fileSize);
-
-			// close the file & return bytes!
-			file.close();
-
-			return buffer;
-		}
+		const uint32_t	MAX_FRAME_DRAWS = 2;
+		const uint32_t	MAX_OBJECTS = 20;
+		const uint16_t	WINDOW_WIDTH = 960;
+		const uint16_t	WINDOW_HEIGHT = 540;
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Vertex data with Position
@@ -118,24 +94,6 @@ namespace Helper
 		{
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME
 		};
-
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		//--- Create shader module
-		inline VkShaderModule CreateShaderModule(const VkDevice device, const std::vector<char>& shaderCode)
-		{
-			VkShaderModuleCreateInfo shaderModuleInfo;
-			shaderModuleInfo.codeSize = shaderCode.size();
-			shaderModuleInfo.flags = 0;
-			shaderModuleInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
-			shaderModuleInfo.pNext = nullptr;
-			shaderModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-
-			VkShaderModule shaderModule;
-			if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &shaderModule) != VK_SUCCESS)
-				LOG_ERROR("Failed to create shader module!");
-
-			return shaderModule;
-		}		
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Generic Copy Image buffer from srcBuffer to VkImage using transferQueue & transferCommandPool of specific width-height!

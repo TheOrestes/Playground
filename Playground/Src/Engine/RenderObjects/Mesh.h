@@ -22,8 +22,7 @@ public:
 	Mesh();
 	Mesh(VulkanDevice* device,
 		const std::vector<Helper::App::VertexPCT>& vertices,
-		const std::vector<uint32_t>& indices,
-		int texID);
+		const std::vector<uint32_t>& indices);
 
 	void						SetPushConstantData(glm::mat4 modelMatrix);
 	inline PushConstantData		GetPushConstantData() { return m_pushConstData; }
@@ -34,29 +33,21 @@ public:
 	inline uint32_t				getIndexCount() const { return m_uiIndexCount; }
 	inline VkBuffer				getIndexBuffer() const { return m_vkIndexBuffer; }
 
-	inline int					getTexID() const { return m_iTexID; }
-
 	~Mesh();
 
-	void						Cleanup();
+	void						Cleanup(VulkanDevice* pDevice);
+
+public:
+	uint32_t					m_uiVertexCount;
+	uint32_t					m_uiIndexCount;
+
+	VkBuffer					m_vkVertexBuffer;
+	VkBuffer					m_vkIndexBuffer;
 
 private:
-
-	VkPhysicalDevice			m_vkPhysicalDevice;
-	VkDevice					m_vkLogicalDevice;
-
 	PushConstantData			m_pushConstData;
 
-	int							m_iTexID;
-
-	VkDevice					m_vkDevice;
-
-	uint32_t					m_uiVertexCount;
-	VkBuffer					m_vkVertexBuffer;
 	VkDeviceMemory				m_vkVertexBufferMemory;
-
-	uint32_t					m_uiIndexCount;
-	VkBuffer					m_vkIndexBuffer;
 	VkDeviceMemory				m_vkIndexBufferMemory;
 
 	void						CreateVertexBuffer(VulkanDevice* device, const std::vector<Helper::App::VertexPCT>& vertices);

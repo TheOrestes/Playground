@@ -63,10 +63,17 @@ void VulkanDevice::PickPhysicalDevice()
 
 			vkGetPhysicalDeviceProperties(m_vkPhysicalDevice, &m_vkDeviceProperties);
 
-			LOG_DEBUG("Vendor ID:		{0}", m_vkDeviceProperties.vendorID);
-			LOG_DEBUG("Device Name:		{0}", m_vkDeviceProperties.deviceName);
-			LOG_DEBUG("Driver Version:	{0}", m_vkDeviceProperties.driverVersion);
-			LOG_DEBUG("API Version:		{0}", m_vkDeviceProperties.apiVersion);
+			LOG_DEBUG("Device Name: {0}", m_vkDeviceProperties.deviceName);
+			
+			LOG_WARNING("---------- Device Limits ----------");
+			LOG_WARNING("Max Color Attachments: {0}", m_vkDeviceProperties.limits.maxColorAttachments);
+			LOG_WARNING("Max Descriptor Set Samplers: {0}", m_vkDeviceProperties.limits.maxDescriptorSetSamplers);
+			LOG_WARNING("Max Descriptor Set Uniform Buffers: {0}", m_vkDeviceProperties.limits.maxDescriptorSetUniformBuffers);
+			LOG_WARNING("Max Framebuffer Height: {0}", m_vkDeviceProperties.limits.maxFramebufferHeight);
+			LOG_WARNING("Max Framebuffer Width: {0}", m_vkDeviceProperties.limits.maxFramebufferWidth);
+			LOG_WARNING("Max Push Constant Size: {0}", m_vkDeviceProperties.limits.maxPushConstantsSize);
+			LOG_WARNING("Max Uniform Buffer Range: {0}", m_vkDeviceProperties.limits.maxUniformBufferRange);
+			LOG_WARNING("Max Vertex Input Attributes: {0}", m_vkDeviceProperties.limits.maxVertexInputAttributes);
 
 			break;
 		}

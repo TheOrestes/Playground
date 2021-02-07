@@ -26,6 +26,9 @@
     <ClCompile Include="Src\Engine\Renderer\VulkanDevice.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanSwapChain.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanFrameBuffer.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\VulkanTexture.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\VulkanGraphicsPipeline.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\VulkanMaterial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Src\Application.h" />
@@ -40,6 +43,9 @@
     <ClInclude Include="Src\Engine\Renderer\VulkanDevice.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanSwapChain.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanFrameBuffer.h" />
+    <ClInclude Include="Src\Engine\Renderer\VulkanTexture.h" />
+    <ClInclude Include="Src\Engine\Renderer\VulkanGraphicsPipeline.h" />
+    <ClInclude Include="Src\Engine\Renderer\VulkanMaterial.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
