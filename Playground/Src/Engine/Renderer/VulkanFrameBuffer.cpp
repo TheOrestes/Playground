@@ -19,6 +19,10 @@ VulkanFrameBuffer::VulkanFrameBuffer()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 VulkanFrameBuffer::~VulkanFrameBuffer()
 {
+	SAFE_DELETE(m_pColorAttachment);
+	SAFE_DELETE(m_pDepthAttachment);
+
+	m_vecFramebuffers.clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +159,7 @@ void VulkanFrameBuffer::Cleanup(VulkanDevice* pDevice)
 	m_pColorAttachment->Cleanup(pDevice);
 	m_pDepthAttachment->Cleanup(pDevice);
 
-	// Destroy framebuffers!
+	// Destroy frame buffers!
 	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)
 	{
 		vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
@@ -168,7 +172,7 @@ void VulkanFrameBuffer::CleanupOnWindowResize(VulkanDevice* pDevice)
 	m_pColorAttachment->CleanupOnWindowResize(pDevice);
 	m_pDepthAttachment->CleanupOnWindowResize(pDevice);
 
-	// Destroy framebuffers!
+	// Destroy frame buffers!
 	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)
 	{
 		vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);

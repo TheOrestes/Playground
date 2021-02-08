@@ -25,7 +25,7 @@ public:
 		const std::vector<uint32_t>& indices);
 
 	void						SetPushConstantData(glm::mat4 modelMatrix);
-	inline PushConstantData		GetPushConstantData() { return m_pushConstData; }
+	//inline PushConstantData		GetPushConstantData() { return m_pushConstData; }
 
 	inline uint32_t				getVertexCount() const { return m_uiVertexCount; }
 	inline VkBuffer				getVertexBuffer() const { return m_vkVertexBuffer; }
@@ -45,7 +45,7 @@ public:
 	VkBuffer					m_vkIndexBuffer;
 
 private:
-	PushConstantData			m_pushConstData;
+	//PushConstantData			m_pushConstData;
 
 	VkDeviceMemory				m_vkVertexBufferMemory;
 	VkDeviceMemory				m_vkIndexBufferMemory;

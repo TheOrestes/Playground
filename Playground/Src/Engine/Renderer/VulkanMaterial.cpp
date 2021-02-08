@@ -19,6 +19,7 @@ VulkanMaterial::VulkanMaterial()
 //---------------------------------------------------------------------------------------------------------------------
 VulkanMaterial::~VulkanMaterial()
 {
+	m_mapTextures.clear();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -132,4 +133,24 @@ void VulkanMaterial::LoadTexture(VulkanDevice* pDevice, const std::string& fileP
 		default:
 			break;
 	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void VulkanMaterial::Cleanup(VulkanDevice* pDevice)
+{
+	std::map<VulkanTexture*, TextureType>::iterator iter = m_mapTextures.begin();
+	for (; iter != m_mapTextures.end(); ++iter)
+	{
+		iter->first->Cleanup(pDevice);
+	}
+	
+	//vkFreeDescriptorSets(pDevice->m_vkLogicalDevice, m_vkDescriptorPool, m_mapTextures.size(), &m_vkDescriptorSet);
+	vkDestroyDescriptorPool(pDevice->m_vkLogicalDevice, m_vkDescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(pDevice->m_vkLogicalDevice, m_vkDescriptorSetLayout, nullptr);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void VulkanMaterial::CleanupOnWindowResize(VulkanDevice* pDevice)
+{
+
 }

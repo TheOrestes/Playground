@@ -97,6 +97,7 @@ private:
 		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 		void* pUserData)
 	{
+		LOG_WARNING("----------------------------------------------------------------------------------------------------");
 		LOG_CRITICAL("Validation Layer: {0}", pCallbackData->pMessage);
 		return VK_FALSE;
 	}

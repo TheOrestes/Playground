@@ -47,7 +47,17 @@ VulkanRenderer::VulkanRenderer()
 //---------------------------------------------------------------------------------------------------------------------
 VulkanRenderer::~VulkanRenderer()
 {
+	m_vecModels.clear();
 
+	m_vecSemaphoreImageAvailable.clear();
+	m_vecSemaphoreRenderFinished.clear();
+	m_vecFencesRender.clear();
+
+	SAFE_DELETE(m_pGraphicsPipelineOpaque);
+	SAFE_DELETE(m_pGraphicsPipelineDeferred);
+	SAFE_DELETE(m_pFrameBuffer);
+	SAFE_DELETE(m_pSwapChain);
+	SAFE_DELETE(m_pDevice);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -876,6 +886,13 @@ void VulkanRenderer::Cleanup()
 	// Wait until no action being run on device before destroying! 
 	vkDeviceWaitIdle(m_pDevice->m_vkLogicalDevice);
 
+	m_pFrameBuffer->Cleanup(m_pDevice);
+
+	m_pGraphicsPipelineDeferred->Cleanup(m_pDevice);
+	m_pGraphicsPipelineOpaque->Cleanup(m_pDevice);
+
+	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
+
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorSetLayout, nullptr);
 
@@ -884,12 +901,6 @@ void VulkanRenderer::Cleanup()
 		m_vecModels[i]->Cleanup(m_pDevice);
 	}
 
-	m_pGraphicsPipelineDeferred->Cleanup(m_pDevice);
-	m_pGraphicsPipelineOpaque->Cleanup(m_pDevice);
-	m_pFrameBuffer->Cleanup(m_pDevice);
-	m_pSwapChain->Cleanup(m_pDevice);
-	m_pDevice->Cleanup();
-
 	// Destroy semaphores
 	for (uint32_t i = 0; i < Helper::App::MAX_FRAME_DRAWS; ++i)
 	{
@@ -897,7 +908,10 @@ void VulkanRenderer::Cleanup()
 		vkDestroySemaphore(m_pDevice->m_vkLogicalDevice, m_vecSemaphoreRenderFinished[i], nullptr);
 		vkDestroyFence(m_pDevice->m_vkLogicalDevice, m_vecFencesRender[i], nullptr);
 	}
-	
+
+	m_pSwapChain->Cleanup(m_pDevice);
+	m_pDevice->Cleanup();
+
 	if (Helper::Vulkan::g_bEnableValidationLayer)
 	{
 		DestroyDebugUtilsMessengerEXT(m_vkInstance, m_vkDebugMessenger, nullptr);

@@ -65,7 +65,7 @@ class Model
 {
 public:
 	Model();
-	~Model() {};
+	~Model();
 
 	std::vector<Mesh>					LoadModel(VulkanDevice* device, const std::string& filePath);
 

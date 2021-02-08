@@ -23,13 +23,13 @@ Mesh::Mesh(VulkanDevice* device,
 	CreateVertexBuffer(device, vertices);
 	CreateIndexBuffer(device, indices);
 
-	m_pushConstData.matModel = glm::mat4(1.0f);
+	//m_pushConstData.matModel = glm::mat4(1.0f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void Mesh::SetPushConstantData(glm::mat4 modelMatrix)
 {
-	m_pushConstData.matModel = modelMatrix;
+	//m_pushConstData.matModel = modelMatrix;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -20,6 +20,16 @@ Model::Model()
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+Model::~Model()
+{
+	m_mapTextures.clear();
+	m_vecMeshes.clear();
+
+	SAFE_DELETE(m_pShaderUniformsMVP);
+	SAFE_DELETE(m_pMaterial);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 std::vector<Mesh> Model::LoadModel(VulkanDevice* device, const std::string& filePath)
 {
 	// Import Model scene
@@ -58,8 +68,8 @@ std::vector<Mesh> Model::LoadNode(VulkanDevice* device, aiNode* node, const aiSc
 	// Go through each node attached to this node & load it, then append their meshes to this node's mesh list
 	for (uint64_t i = 0; i < node->mNumChildren; i++)
 	{
-		std::vector<Mesh> newList = LoadNode(device, node->mChildren[i], scene);
-		m_vecMeshes.insert(m_vecMeshes.end(), newList.begin(), newList.end());
+		LoadNode(device, node->mChildren[i], scene);
+		//m_vecMeshes.insert(m_vecMeshes.end(), newList.begin(), newList.end());
 	}
 
 	return m_vecMeshes;
@@ -126,7 +136,7 @@ Mesh Model::LoadMesh(VulkanDevice* pDevice, aiMesh* mesh, const aiScene* scene)
 		// Set position
 		vertices[i].Position = { mesh->mVertices[i].x, mesh->mVertices[i].y,  mesh->mVertices[i].z };
 
-		// Set texture co-ords (if they exists)
+		// Set texture coords (if they exists)
 		if (mesh->mTextureCoords[0])
 		{
 			vertices[i].UV = { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
@@ -241,8 +251,10 @@ Mesh* Model::GetMesh(uint64_t index)
 //---------------------------------------------------------------------------------------------------------------------
 void Model::Cleanup(VulkanDevice* pDevice)
 {
-	std::vector<Mesh>::iterator iter = m_vecMeshes.begin();
+	m_pShaderUniformsMVP->Cleanup(pDevice);
+	m_pMaterial->Cleanup(pDevice);
 
+	std::vector<Mesh>::iterator iter = m_vecMeshes.begin();
 	for (; iter != m_vecMeshes.end(); iter++)
 	{
 		(*iter).Cleanup(pDevice);
@@ -375,3 +387,24 @@ void ShaderUniforms::CreateBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwap
 			&vecMemory[i]);
 	}
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+void ShaderUniforms::Cleanup(VulkanDevice* pDevice)
+{
+	vkDestroyDescriptorPool(pDevice->m_vkLogicalDevice, descriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(pDevice->m_vkLogicalDevice, descriptorSetLayout, nullptr);
+
+	for (uint16_t i = 0; i < vecBuffer.size(); ++i)
+	{
+		vkDestroyBuffer(pDevice->m_vkLogicalDevice, vecBuffer[i], nullptr);
+		vkFreeMemory(pDevice->m_vkLogicalDevice, vecMemory[i], nullptr);
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void ShaderUniforms::CleanupOnWindowResize(VulkanDevice* pDevice)
+{
+
+}
+
+
