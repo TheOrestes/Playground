@@ -4,7 +4,7 @@
 #include "PlaygroundHeaders.h"
 #include "Engine/Helpers/Utility.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanDevice::VulkanDevice(VkInstance instance, VkSurfaceKHR surface)
 {
 	// Application Instance
@@ -27,13 +27,13 @@ VulkanDevice::VulkanDevice(VkInstance instance, VkSurfaceKHR surface)
 	m_pQueueFamilyIndices = nullptr;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanDevice::~VulkanDevice()
 {
 	SAFE_DELETE(m_pQueueFamilyIndices);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanDevice::PickPhysicalDevice()
 {
 	// List out all the physical devices
@@ -88,7 +88,7 @@ void VulkanDevice::PickPhysicalDevice()
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 bool VulkanDevice::CheckDeviceExtensionSupport(VkPhysicalDevice device)
 {
 	// Get count of total number of extensions
@@ -127,7 +127,7 @@ bool VulkanDevice::CheckDeviceExtensionSupport(VkPhysicalDevice device)
 	return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanDevice::FindQueueFamilies(VkPhysicalDevice device)
 {
 	// retrieve list of queue families 
@@ -163,7 +163,7 @@ void VulkanDevice::FindQueueFamilies(VkPhysicalDevice device)
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanDevice::CreateLogicalDevice()
 {
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
@@ -232,7 +232,7 @@ void VulkanDevice::CreateLogicalDevice()
 	LOG_INFO("Logical Device Created!");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanDevice::CreateGraphicsCommandPool()
 {
 	VkCommandPoolCreateInfo commandPoolCreateInfo{};
@@ -250,7 +250,7 @@ void VulkanDevice::CreateGraphicsCommandPool()
 		LOG_DEBUG("Created Command Pool!");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanDevice::CreateGraphicsCommandBuffers(uint32_t size)
 {
 	m_vecCommandBufferGraphics.resize(size);
@@ -392,7 +392,7 @@ void VulkanDevice::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSi
 	EndAndSubmitCommandBuffer(transferCommandBuffer);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanDevice::Cleanup()
 {
 	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!
@@ -403,7 +403,7 @@ void VulkanDevice::Cleanup()
 	vkDestroyDevice(m_vkLogicalDevice, nullptr);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanDevice::CleanupOnWindowResize()
 {
 	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!

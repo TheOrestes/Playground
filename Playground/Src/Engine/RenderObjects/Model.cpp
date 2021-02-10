@@ -262,6 +262,12 @@ void Model::Cleanup(VulkanDevice* pDevice)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+void Model::CleanupOnWindowResize(VulkanDevice* pDevice)
+{
+
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 void ShaderUniforms::CreateDescriptorSetLayout(VulkanDevice* pDevice)
 {
 	// UNIFORM VALUE DESCRIPTOR SET LAYOUT

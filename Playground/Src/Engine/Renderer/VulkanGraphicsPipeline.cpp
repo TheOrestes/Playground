@@ -10,7 +10,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanGraphicsPipeline::VulkanGraphicsPipeline(PipelineType type, VulkanSwapChain* pSwapChain)
 {
 	m_vkPipelineLayout = VK_NULL_HANDLE;
@@ -110,12 +110,12 @@ VulkanGraphicsPipeline::VulkanGraphicsPipeline(PipelineType type, VulkanSwapChai
 	m_vkVertexInputStateCreateInfo = {};
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanGraphicsPipeline::~VulkanGraphicsPipeline()
 {
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanGraphicsPipeline::CreatePipelineLayout(VulkanDevice* pDevice, const std::vector<VkDescriptorSetLayout>& layouts,
 													VkPushConstantRange pushConstantRange)
 {
@@ -135,7 +135,7 @@ void VulkanGraphicsPipeline::CreatePipelineLayout(VulkanDevice* pDevice, const s
 		LOG_INFO("Created Pipeline layout");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VkShaderModule VulkanGraphicsPipeline::CreateShaderModule(VulkanDevice* pDevice, const std::string& fileName)
 {
 	// start reading at the end & in binary mode.
@@ -172,7 +172,7 @@ VkShaderModule VulkanGraphicsPipeline::CreateShaderModule(VulkanDevice* pDevice,
 	return shaderModule;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, 
 													VkRenderPass renderPass, uint32_t subpass)
 {
@@ -309,16 +309,18 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 	vkDestroyShaderModule(pDevice->m_vkLogicalDevice, fragShaderModule, nullptr);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanGraphicsPipeline::Cleanup(VulkanDevice* pDevice)
 {
 	vkDestroyPipeline(pDevice->m_vkLogicalDevice, m_vkGraphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(pDevice->m_vkLogicalDevice, m_vkPipelineLayout, nullptr);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanGraphicsPipeline::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
+	vkDestroyPipeline(pDevice->m_vkLogicalDevice, m_vkGraphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(pDevice->m_vkLogicalDevice, m_vkPipelineLayout, nullptr);
 }
 
 

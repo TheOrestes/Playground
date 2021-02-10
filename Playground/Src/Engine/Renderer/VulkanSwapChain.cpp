@@ -6,7 +6,7 @@
 #include "Engine/Helpers/Log.h"
 #include "Engine/Helpers/Utility.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanSwapChain::VulkanSwapChain()
 {
     m_vkSwapchain = nullptr;
@@ -15,14 +15,14 @@ VulkanSwapChain::VulkanSwapChain()
     m_vecSwapchainImageViews.clear();
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanSwapChain::~VulkanSwapChain()
 {
     m_vecSwapchainImages.clear();
     m_vecSwapchainImageViews.clear();
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanSwapChain::CreateSwapChain(VulkanDevice* pDevice, VkSurfaceKHR surface, GLFWwindow* pWindow)
 {
     // Get swap chain details so we can pick the best setting!
@@ -111,7 +111,7 @@ void VulkanSwapChain::CreateSwapChain(VulkanDevice* pDevice, VkSurfaceKHR surfac
     CreateSwapChainImageViews(pDevice);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanSwapChain::CreateSwapChainImageViews(VulkanDevice* pDevice)
 {
     m_vecSwapchainImageViews.resize(m_vecSwapchainImages.size());
@@ -127,7 +127,7 @@ void VulkanSwapChain::CreateSwapChainImageViews(VulkanDevice* pDevice)
     LOG_INFO("Swapchain Imageviews created!");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 SwapChainSupportDetails* VulkanSwapChain::QuerySwapChainSupport(VulkanDevice* pDevice, VkSurfaceKHR surface)
 {
     SwapChainSupportDetails* swapChainDetails = new SwapChainSupportDetails();
@@ -158,7 +158,7 @@ SwapChainSupportDetails* VulkanSwapChain::QuerySwapChainSupport(VulkanDevice* pD
     return swapChainDetails;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VkSurfaceFormatKHR VulkanSwapChain::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
     // If only 1 format available and is undefined, then this means ALL formats are available (no restrictions)
@@ -181,7 +181,7 @@ VkSurfaceFormatKHR VulkanSwapChain::ChooseSwapSurfaceFormat(const std::vector<Vk
     return availableFormats[0];
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VkPresentModeKHR VulkanSwapChain::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
 {
     // out of all Mailbox allows triple buffering, so if available use it, else use FIFO mode.
@@ -196,7 +196,7 @@ VkPresentModeKHR VulkanSwapChain::ChooseSwapPresentMode(const std::vector<VkPres
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VkExtent2D VulkanSwapChain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* pWindow)
 {
     // The swap extent is the resolution of the swap chain images and it's almost always exactly equal to the 
@@ -226,7 +226,7 @@ VkExtent2D VulkanSwapChain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& cap
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanSwapChain::Cleanup(VulkanDevice* pDevice)
 {
     for (uint32_t i = 0; i < m_vecSwapchainImageViews.size(); ++i)
@@ -238,12 +238,12 @@ void VulkanSwapChain::Cleanup(VulkanDevice* pDevice)
     vkDestroySwapchainKHR(pDevice->m_vkLogicalDevice, m_vkSwapchain, nullptr);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanSwapChain::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
     for (uint32_t i = 0; i < m_vecSwapchainImageViews.size(); ++i)
     {
-        vkDestroyImage(pDevice->m_vkLogicalDevice, m_vecSwapchainImages[i], nullptr);
+        //vkDestroyImage(pDevice->m_vkLogicalDevice, m_vecSwapchainImages[i], nullptr);
         vkDestroyImageView(pDevice->m_vkLogicalDevice, m_vecSwapchainImageViews[i], nullptr);
     }
 

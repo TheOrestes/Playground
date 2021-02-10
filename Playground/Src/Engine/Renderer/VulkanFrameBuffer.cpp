@@ -7,7 +7,7 @@
 #include "Engine/Helpers/Utility.h"
 #include "PlaygroundHeaders.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanFrameBuffer::VulkanFrameBuffer()
 {
 	m_pColorAttachment = nullptr;
@@ -16,7 +16,7 @@ VulkanFrameBuffer::VulkanFrameBuffer()
 	m_vecFramebuffers.clear();
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VulkanFrameBuffer::~VulkanFrameBuffer()
 {
 	SAFE_DELETE(m_pColorAttachment);
@@ -25,7 +25,7 @@ VulkanFrameBuffer::~VulkanFrameBuffer()
 	m_vecFramebuffers.clear();
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::CreateColorAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain)
 {
 	m_pColorAttachment = new FramebufferAttachment();
@@ -59,7 +59,7 @@ void VulkanFrameBuffer::CreateColorAttachment(VulkanDevice* pDevice, VulkanSwapC
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::CreateDepthAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain)
 {
 	m_pDepthAttachment = new FramebufferAttachment();
@@ -91,7 +91,7 @@ void VulkanFrameBuffer::CreateDepthAttachment(VulkanDevice* pDevice, VulkanSwapC
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 VkFormat VulkanFrameBuffer::ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags)
 {
 	// Loop through options & find the compatible one
@@ -116,7 +116,7 @@ VkFormat VulkanFrameBuffer::ChooseSupportedFormats(VulkanDevice* pDevice, const 
 }
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, VkRenderPass renderPass)
 {
 	if (!pDevice || !pSwapChain)
@@ -138,7 +138,7 @@ void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChai
 		framebufferCreateInfo.renderPass = renderPass;											// Render pass layout the framebuffer will be used with					 
 		framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(m_arrAttachments.size());
 		framebufferCreateInfo.pAttachments = m_arrAttachments.data();							// List of attachments
-		framebufferCreateInfo.width = pSwapChain->m_vkSwapchainExtent.width;					// frambuffer width
+		framebufferCreateInfo.width = pSwapChain->m_vkSwapchainExtent.width;					// framebuffer width
 		framebufferCreateInfo.height = pSwapChain->m_vkSwapchainExtent.height;					// framebuffer height
 		framebufferCreateInfo.layers = 1;														// framebuffer layers
 		framebufferCreateInfo.flags = 0;
@@ -153,7 +153,7 @@ void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChai
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::Cleanup(VulkanDevice* pDevice)
 {
 	m_pColorAttachment->Cleanup(pDevice);
@@ -166,7 +166,7 @@ void VulkanFrameBuffer::Cleanup(VulkanDevice* pDevice)
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
 	m_pColorAttachment->CleanupOnWindowResize(pDevice);
@@ -179,7 +179,7 @@ void VulkanFrameBuffer::CleanupOnWindowResize(VulkanDevice* pDevice)
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void FramebufferAttachment::Cleanup(VulkanDevice* pDevice)
 {
 	// Cleanup depth related buffers, textures, memory etc.
@@ -191,7 +191,7 @@ void FramebufferAttachment::Cleanup(VulkanDevice* pDevice)
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void FramebufferAttachment::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
 	// Cleanup depth related buffers, textures, memory etc.

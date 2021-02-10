@@ -5,12 +5,7 @@
 
 #include "Engine/Renderer/VulkanDevice.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Mesh::Mesh()
-{
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 Mesh::Mesh(VulkanDevice* device,
 	const std::vector<Helper::App::VertexPCT>& vertices,
 	const std::vector<uint32_t>& indices)
@@ -26,18 +21,18 @@ Mesh::Mesh(VulkanDevice* device,
 	//m_pushConstData.matModel = glm::mat4(1.0f);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void Mesh::SetPushConstantData(glm::mat4 modelMatrix)
 {
 	//m_pushConstData.matModel = modelMatrix;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 Mesh::~Mesh()
 {
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void Mesh::Cleanup(VulkanDevice* pDevice)
 {
 	vkDestroyBuffer(pDevice->m_vkLogicalDevice, m_vkVertexBuffer, nullptr);
@@ -47,7 +42,12 @@ void Mesh::Cleanup(VulkanDevice* pDevice)
 	vkFreeMemory(pDevice->m_vkLogicalDevice, m_vkIndexBufferMemory, nullptr);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Mesh::CleanupOnWindowsResize(VulkanDevice* pDevice)
+{
+
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::App::VertexPCT>& vertices)
 {
 	// Get the size of buffer needed for vertices
@@ -86,7 +86,7 @@ void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::A
 	vkFreeMemory(pDevice->m_vkLogicalDevice, stagingBufferMemory, nullptr);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
 void Mesh::CreateIndexBuffer(VulkanDevice* pDevice, const std::vector<uint32_t>& indices)
 {
 	// Get size of buffer needed for indices

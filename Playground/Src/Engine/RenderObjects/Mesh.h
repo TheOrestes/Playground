@@ -19,7 +19,7 @@ struct PushConstantData
 class Mesh
 {
 public:
-	Mesh();
+	Mesh() {};
 	Mesh(VulkanDevice* device,
 		const std::vector<Helper::App::VertexPCT>& vertices,
 		const std::vector<uint32_t>& indices);
@@ -36,6 +36,7 @@ public:
 	~Mesh();
 
 	void						Cleanup(VulkanDevice* pDevice);
+	void						CleanupOnWindowsResize(VulkanDevice* pDevice);
 
 public:
 	uint32_t					m_uiVertexCount;

@@ -341,6 +341,9 @@ void VulkanRenderer::HandleWindowResize()
 
 	m_pFrameBuffer->CreateFrameBuffers(m_pDevice, m_pSwapChain, m_vkRenderPass);
 
+	CreateInputBuffersDescriptorPool();
+	CreateInputBuffersDescriptorSets();
+
 	//CreateUniformBuffers();
 	//CreateDescriptorPool();
 	//CreateDescriptorSetLayout();
@@ -693,7 +696,10 @@ void VulkanRenderer::CreateInputBuffersDescriptorSets()
 	setAllocInfo.pSetLayouts = setLayouts.data();
 
 	// Allocate Descriptor Sets
-	if (vkAllocateDescriptorSets(m_pDevice->m_vkLogicalDevice, &setAllocInfo, m_vecInputBuffersDescriptorSets.data()) != VK_SUCCESS)
+	VkResult result;
+	result = vkAllocateDescriptorSets(m_pDevice->m_vkLogicalDevice, &setAllocInfo, m_vecInputBuffersDescriptorSets.data());
+
+	if (result != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to allocated Input Descriptor sets");
 	}
@@ -868,10 +874,14 @@ void VulkanRenderer::AllocateDynamicBufferTransferSpace()
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::CleanupOnWindowResize()
 {
-	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
-
 	m_pGraphicsPipelineOpaque->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineDeferred->CleanupOnWindowResize(m_pDevice);
+
+	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
+
+	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorSetLayout, nullptr);
+
 	m_pFrameBuffer->CleanupOnWindowResize(m_pDevice);
 	m_pSwapChain->CleanupOnWindowResize(m_pDevice);
 	m_pDevice->CleanupOnWindowResize();
