@@ -12,6 +12,7 @@ VulkanFrameBuffer::VulkanFrameBuffer()
 {
 	m_pColorAttachment = nullptr;
 	m_pDepthAttachment = nullptr;
+	m_pNormalAttachment = nullptr;
 
 	m_vecFramebuffers.clear();
 }
@@ -21,6 +22,7 @@ VulkanFrameBuffer::~VulkanFrameBuffer()
 {
 	SAFE_DELETE(m_pColorAttachment);
 	SAFE_DELETE(m_pDepthAttachment);
+	SAFE_DELETE(m_pNormalAttachment);
 
 	m_vecFramebuffers.clear();
 }
@@ -92,6 +94,40 @@ void VulkanFrameBuffer::CreateDepthAttachment(VulkanDevice* pDevice, VulkanSwapC
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+void VulkanFrameBuffer::CreateNormalAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain)
+{
+	m_pNormalAttachment = new FramebufferAttachment();
+
+	m_pNormalAttachment->vecAttachmentImage.resize(pSwapChain->m_vecSwapchainImages.size());
+	m_pNormalAttachment->vecAttachmentImageView.resize(pSwapChain->m_vecSwapchainImages.size());
+	m_pNormalAttachment->vecAttachmentImageMemory.resize(pSwapChain->m_vecSwapchainImages.size());
+
+	std::vector<VkFormat> formats = { VK_FORMAT_R8G8B8A8_UNORM };
+	m_pNormalAttachment->attachmentFormat = ChooseSupportedFormats(pDevice, formats, VK_IMAGE_TILING_OPTIMAL,
+		VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
+
+
+	for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
+	{
+		// Create Normal buffer image
+		m_pNormalAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(pDevice,
+			pSwapChain->m_vkSwapchainExtent.width,
+			pSwapChain->m_vkSwapchainExtent.height,
+			m_pNormalAttachment->attachmentFormat,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			&(m_pNormalAttachment->vecAttachmentImageMemory[i]));
+
+		// Create normal buffer image view!
+		m_pNormalAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(pDevice,
+			m_pNormalAttachment->vecAttachmentImage[i],
+			m_pNormalAttachment->attachmentFormat,
+			VK_IMAGE_ASPECT_COLOR_BIT);
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 VkFormat VulkanFrameBuffer::ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags)
 {
 	// Loop through options & find the compatible one
@@ -128,9 +164,10 @@ void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChai
 	// create framebuffer for each swap chain image view
 	for (uint32_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); ++i)
 	{
-		m_arrAttachments = {	pSwapChain->m_vecSwapchainImageViews[i], 
-								m_pColorAttachment->vecAttachmentImageView[i], 
-								m_pDepthAttachment->vecAttachmentImageView[i] };
+		m_arrAttachments = { pSwapChain->m_vecSwapchainImageViews[i],
+								m_pColorAttachment->vecAttachmentImageView[i],
+								m_pDepthAttachment->vecAttachmentImageView[i],
+								m_pNormalAttachment->vecAttachmentImageView[i] };
 
 
 		VkFramebufferCreateInfo framebufferCreateInfo{};
@@ -158,6 +195,7 @@ void VulkanFrameBuffer::Cleanup(VulkanDevice* pDevice)
 {
 	m_pColorAttachment->Cleanup(pDevice);
 	m_pDepthAttachment->Cleanup(pDevice);
+	m_pNormalAttachment->Cleanup(pDevice);
 
 	// Destroy frame buffers!
 	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)
@@ -171,6 +209,7 @@ void VulkanFrameBuffer::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
 	m_pColorAttachment->CleanupOnWindowResize(pDevice);
 	m_pDepthAttachment->CleanupOnWindowResize(pDevice);
+	m_pNormalAttachment->CleanupOnWindowResize(pDevice);
 
 	// Destroy frame buffers!
 	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)

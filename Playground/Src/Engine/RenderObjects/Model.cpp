@@ -124,9 +124,9 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 //---------------------------------------------------------------------------------------------------------------------
 Mesh Model::LoadMesh(VulkanDevice* pDevice, aiMesh* mesh, const aiScene* scene)
 {
-	std::vector<Helper::App::VertexPCT>  vertices;
-	std::vector<uint32_t>				indices;
-	std::vector<uint32_t>				textureIDs;
+	std::vector<Helper::App::VertexPNTBT>	vertices;
+	std::vector<uint32_t>					indices;
+	std::vector<uint32_t>					textureIDs;
 
 	vertices.resize(mesh->mNumVertices);
 
@@ -135,6 +135,15 @@ Mesh Model::LoadMesh(VulkanDevice* pDevice, aiMesh* mesh, const aiScene* scene)
 	{
 		// Set position
 		vertices[i].Position = { mesh->mVertices[i].x, mesh->mVertices[i].y,  mesh->mVertices[i].z };
+
+		// Set Normals
+		vertices[i].Normal = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
+
+		if (mesh->mTangents || mesh->mBitangents)
+		{
+			vertices[i].Tangent = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z };
+			vertices[i].BiNormal = { mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z };
+		}
 
 		// Set texture coords (if they exists)
 		if (mesh->mTextureCoords[0])
@@ -145,9 +154,6 @@ Mesh Model::LoadMesh(VulkanDevice* pDevice, aiMesh* mesh, const aiScene* scene)
 		{
 			vertices[i].UV = { 0.0f, 0.0f };
 		}
-
-		// Set color (just use white for now)
-		vertices[i].Color = { 1.0f, 1.0f, 1.0f };
 	}
 
 	// iterate over indices thorough faces for index data...

@@ -84,29 +84,6 @@ VulkanGraphicsPipeline::VulkanGraphicsPipeline(PipelineType type, VulkanSwapChai
 	m_vkDepthStencilCreateInfo.depthBoundsTestEnable = VK_FALSE;								// Depth bounds test, does the depth value exist between two bounds!
 	m_vkDepthStencilCreateInfo.stencilTestEnable = VK_FALSE;									// Enable/Disable Stencil test
 
-	//--- Color blending
-	m_vkColorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;	// apply blending on all channels!	
-	m_vkColorBlendAttachment.blendEnable = VK_FALSE;											// enable/disable blending
-	m_vkColorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-	m_vkColorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-	m_vkColorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	m_vkColorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-	m_vkColorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	m_vkColorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-
-	m_vkColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	m_vkColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;										// alternative to calculations is to use logical operations
-	m_vkColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
-	m_vkColorBlendStateCreateInfo.attachmentCount = 1;
-	m_vkColorBlendStateCreateInfo.pAttachments = &m_vkColorBlendAttachment;
-	m_vkColorBlendStateCreateInfo.blendConstants[0] = 0.0f;
-	m_vkColorBlendStateCreateInfo.blendConstants[1] = 0.0f;
-	m_vkColorBlendStateCreateInfo.blendConstants[2] = 0.0f;
-	m_vkColorBlendStateCreateInfo.blendConstants[3] = 0.0f;
-	m_vkColorBlendStateCreateInfo.flags = 0;
-	m_vkColorBlendStateCreateInfo.pNext = nullptr;
-
-
 	m_vkVertexInputStateCreateInfo = {};
 }
 
@@ -192,29 +169,41 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			//--- How the data for the single vertex (including info such as Position, color, texcoords etc.) is as a whole
 			VkVertexInputBindingDescription bindingDescription = {};
 			bindingDescription.binding = 0;															// can bind multiple stream of data, this defines which one?
-			bindingDescription.stride = sizeof(Helper::App::VertexPCT);								// size of single vertex object
+			bindingDescription.stride = sizeof(Helper::App::VertexPNTBT);							// size of single vertex object
 			bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;								// How to move between data after each vertex
 																									// VK_VERTEX_INPUT_RATE_VERTEX : move on to the next vertex																							// VK_VERTEX_INPUT_RATE_INSTANCE: move on to a vertex of next instance.
 			// How the data for an attribute is defined within a vertex
-			std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions;
+			std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions;
 
 			// Position attribute
 			attributeDescriptions[0].binding = 0;													// which binding the data is at (should be same as above)
 			attributeDescriptions[0].location = 0;													// location in shader where data will be read from
 			attributeDescriptions[0].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;					// format the data will take (also helps define size of the data)
-			attributeDescriptions[0].offset = offsetof(Helper::App::VertexPCT, Position);			// where this attribute is defined in the data for a single vertex
+			attributeDescriptions[0].offset = offsetof(Helper::App::VertexPNTBT, Position);			// where this attribute is defined in the data for a single vertex
 
-			// Color attribute
+			// Normal attribute
 			attributeDescriptions[1].binding = 0;
 			attributeDescriptions[1].location = 1;
 			attributeDescriptions[1].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
-			attributeDescriptions[1].offset = offsetof(Helper::App::VertexPCT, Color);
+			attributeDescriptions[1].offset = offsetof(Helper::App::VertexPNTBT, Normal);
 
-			// Texture attribute
+			// Tangent attribute
 			attributeDescriptions[2].binding = 0;
 			attributeDescriptions[2].location = 2;
-			attributeDescriptions[2].format = VkFormat::VK_FORMAT_R32G32_SFLOAT;
-			attributeDescriptions[2].offset = offsetof(Helper::App::VertexPCT, UV);
+			attributeDescriptions[2].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
+			attributeDescriptions[2].offset = offsetof(Helper::App::VertexPNTBT, Tangent);
+
+			// BiNormal attribute
+			attributeDescriptions[3].binding = 0;
+			attributeDescriptions[3].location = 3;
+			attributeDescriptions[3].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
+			attributeDescriptions[3].offset = offsetof(Helper::App::VertexPNTBT, BiNormal);
+
+			// Texture attribute
+			attributeDescriptions[4].binding = 0;
+			attributeDescriptions[4].location = 4;
+			attributeDescriptions[4].format = VkFormat::VK_FORMAT_R32G32_SFLOAT;
+			attributeDescriptions[4].offset = offsetof(Helper::App::VertexPNTBT, UV);
 
 			// Vertex Input
 			m_vkVertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -224,6 +213,43 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			m_vkVertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;						// List of vertex binding descriptions (data spacing/strides info) 
 			m_vkVertexInputStateCreateInfo.flags = 0;
 			m_vkVertexInputStateCreateInfo.pNext = nullptr;
+
+			//--- Color blending
+			VkPipelineColorBlendAttachmentState colorBlendAttachment1 = {};
+			colorBlendAttachment1.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;	// apply blending on all channels!	
+			colorBlendAttachment1.blendEnable = VK_FALSE;
+			colorBlendAttachment1.alphaBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment1.colorBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment1.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment1.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment1.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+			colorBlendAttachment1.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+
+			VkPipelineColorBlendAttachmentState colorBlendAttachment2 = {};
+			colorBlendAttachment2.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;	// apply blending on all channels!	
+			colorBlendAttachment2.blendEnable = VK_FALSE;
+			colorBlendAttachment2.alphaBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment2.colorBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment2.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment2.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment2.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+			colorBlendAttachment2.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+
+			m_vecColorBlendAttachments.push_back(colorBlendAttachment1);
+			m_vecColorBlendAttachments.push_back(colorBlendAttachment2);
+
+			m_vkColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+			m_vkColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;										// alternative to calculations is to use logical operations
+			m_vkColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+			m_vkColorBlendStateCreateInfo.attachmentCount = m_vecColorBlendAttachments.size();
+			m_vkColorBlendStateCreateInfo.pAttachments = m_vecColorBlendAttachments.data();
+			m_vkColorBlendStateCreateInfo.blendConstants[0] = 0.0f;
+			m_vkColorBlendStateCreateInfo.blendConstants[1] = 0.0f;
+			m_vkColorBlendStateCreateInfo.blendConstants[2] = 0.0f;
+			m_vkColorBlendStateCreateInfo.blendConstants[3] = 0.0f;
+			m_vkColorBlendStateCreateInfo.flags = 0;
+			m_vkColorBlendStateCreateInfo.pNext = nullptr;
+
 
 			break;
 		}
@@ -245,6 +271,32 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 
 			// disable writing to depth buffer
 			m_vkDepthStencilCreateInfo.depthWriteEnable = VK_FALSE;
+
+			//--- Color blending
+			VkPipelineColorBlendAttachmentState colorBlendAttachment1 = {};
+			colorBlendAttachment1.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;	// apply blending on all channels!	
+			colorBlendAttachment1.blendEnable = VK_FALSE;
+			colorBlendAttachment1.alphaBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment1.colorBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment1.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment1.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment1.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+			colorBlendAttachment1.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+
+			m_vecColorBlendAttachments.push_back(colorBlendAttachment1);
+
+			m_vkColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+			m_vkColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;										// alternative to calculations is to use logical operations
+			m_vkColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+			m_vkColorBlendStateCreateInfo.attachmentCount = m_vecColorBlendAttachments.size();
+			m_vkColorBlendStateCreateInfo.pAttachments = m_vecColorBlendAttachments.data();
+			m_vkColorBlendStateCreateInfo.blendConstants[0] = 0.0f;
+			m_vkColorBlendStateCreateInfo.blendConstants[1] = 0.0f;
+			m_vkColorBlendStateCreateInfo.blendConstants[2] = 0.0f;
+			m_vkColorBlendStateCreateInfo.blendConstants[3] = 0.0f;
+			m_vkColorBlendStateCreateInfo.flags = 0;
+			m_vkColorBlendStateCreateInfo.pNext = nullptr;
+
 
 			break;
 		}

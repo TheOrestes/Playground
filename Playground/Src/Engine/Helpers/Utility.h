@@ -69,6 +69,25 @@ namespace Helper
 			glm::vec3 Color;			// Vertex Color R, G, B
 			glm::vec2 UV;				// Texture coordinates U,V
 		};
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Vertex data with Position, Normal, Tangent, BiNormal, Texcoords
+		struct VertexPNTBT
+		{
+			VertexPNTBT() { Position = glm::vec3(0);  Normal = glm::vec3(0);  Tangent = glm::vec3(0); BiNormal = glm::vec3(0); UV = glm::vec2(0); }
+			VertexPNTBT(const glm::vec3& _pos, const glm::vec3& _normal, const glm::vec3& _tangent, const glm::vec3& _binormal, const glm::vec2& _uv) :
+				Position(_pos),
+				Normal(_normal),
+				Tangent(_tangent),
+				BiNormal(_binormal),
+				UV(_uv) {}
+
+			glm::vec3 Position;			// Vertex position X, Y, Z
+			glm::vec3 Normal;			// Normals
+			glm::vec3 Tangent;			// Tangents
+			glm::vec3 BiNormal;			// BiNormals
+			glm::vec2 UV;				// Texture coordinates U,V
+		};
 	}
 
 

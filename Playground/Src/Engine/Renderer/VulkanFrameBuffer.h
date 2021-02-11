@@ -32,6 +32,7 @@ public:
 
 	void							CreateColorAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain);
 	void							CreateDepthAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain);
+	void							CreateNormalAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain);
 
 	void							CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, 
 														VkRenderPass renderPass);
@@ -43,11 +44,12 @@ private:
 	VkFormat						ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats,
 															VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
 
-	std::array<VkImageView, 3>		m_arrAttachments;
+	std::array<VkImageView, 4>		m_arrAttachments;
 
 public:
 	FramebufferAttachment*			m_pColorAttachment;
 	FramebufferAttachment*			m_pDepthAttachment;
+	FramebufferAttachment*			m_pNormalAttachment;
 	std::vector<VkFramebuffer>		m_vecFramebuffers;
 };
 

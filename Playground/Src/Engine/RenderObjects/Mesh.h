@@ -21,7 +21,7 @@ class Mesh
 public:
 	Mesh() {};
 	Mesh(VulkanDevice* device,
-		const std::vector<Helper::App::VertexPCT>& vertices,
+		const std::vector<Helper::App::VertexPNTBT>& vertices,
 		const std::vector<uint32_t>& indices);
 
 	void						SetPushConstantData(glm::mat4 modelMatrix);
@@ -51,7 +51,7 @@ private:
 	VkDeviceMemory				m_vkVertexBufferMemory;
 	VkDeviceMemory				m_vkIndexBufferMemory;
 
-	void						CreateVertexBuffer(VulkanDevice* device, const std::vector<Helper::App::VertexPCT>& vertices);
+	void						CreateVertexBuffer(VulkanDevice* device, const std::vector<Helper::App::VertexPNTBT>& vertices);
 	void						CreateIndexBuffer(VulkanDevice* device, const std::vector<uint32_t>& indices);
 };
 

@@ -7,7 +7,7 @@
 
 //---------------------------------------------------------------------------------------------------------------------
 Mesh::Mesh(VulkanDevice* device,
-	const std::vector<Helper::App::VertexPCT>& vertices,
+	const std::vector<Helper::App::VertexPNTBT>& vertices,
 	const std::vector<uint32_t>& indices)
 {
 	m_uiVertexCount = vertices.size();
@@ -48,10 +48,10 @@ void Mesh::CleanupOnWindowsResize(VulkanDevice* pDevice)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::App::VertexPCT>& vertices)
+void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::App::VertexPNTBT>& vertices)
 {
 	// Get the size of buffer needed for vertices
-	VkDeviceSize bufferSize = m_uiVertexCount * sizeof(Helper::App::VertexPCT);
+	VkDeviceSize bufferSize = m_uiVertexCount * sizeof(Helper::App::VertexPNTBT);
 
 	// Temporary buffer to "stage" vertex data before transferring to GPU
 	VkBuffer stagingBuffer;
@@ -65,18 +65,18 @@ void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::A
 		&stagingBufferMemory);
 
 	//-- MAP MEMORY TO VERTEX BUFFER
-	void* data;																	// 1. Create pointer to a point in normal memory
+	void* data;																					// 1. Create pointer to a point in normal memory
 	vkMapMemory(pDevice->m_vkLogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);		// 2. Map the vertex buffer memory to that point
-	memcpy(data, vertices.data(), (size_t)bufferSize);							// 3. Copy memory from vertices vector to the point
+	memcpy(data, vertices.data(), (size_t)bufferSize);											// 3. Copy memory from vertices vector to the point
 	vkUnmapMemory(pDevice->m_vkLogicalDevice, stagingBufferMemory);								// 4. Unmap the vertex buffer memory
 
 	// Create buffer with TRANSFER_DST_BIT to mark as recipient of transfer data (also VERTEX_BUFFER_BIT)
 	// Buffer memory is to be DEVICE_LOCAL_BIT meaning memory is on the GPU & accessible by it & not CPU!
-	pDevice->CreateBuffer(bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		&m_vkVertexBuffer,
-		&m_vkVertexBufferMemory);
+	pDevice->CreateBuffer(	bufferSize,
+							VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+							&m_vkVertexBuffer,
+							&m_vkVertexBufferMemory);
 
 	// Copy staging buffer to vertex buffer on GPU using Command buffer!
 	pDevice->CopyBuffer(stagingBuffer, m_vkVertexBuffer, bufferSize);

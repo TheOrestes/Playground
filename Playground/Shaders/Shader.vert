@@ -2,8 +2,10 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(location=0) in vec3 in_Position;
-layout(location=1) in vec3 in_Color;
-layout(location=2) in vec2 in_UV;
+layout(location=1) in vec3 in_Normal;
+layout(location=2) in vec3 in_Tangent;
+layout(location=3) in vec3 in_BiNormal;
+layout(location=4) in vec2 in_UV;
 
 layout(set = 0, binding = 0) uniform ShaderData
 {
@@ -23,13 +25,14 @@ layout(set = 0, binding = 0) uniform ShaderData
 //    mat4 matModel;
 //} pushModel;
 
-layout(location=0) out vec3 vs_outColor;
-layout(location=1) out vec2 vs_outUV;
+layout(location=0) out vec3 vs_outPosition;
+layout(location=1) out vec3 vs_outNormal;
+layout(location=2) out vec2 vs_outUV;
 
 void main()
 {
     gl_Position = shaderData.matProjection * shaderData.matView * shaderData.matModel * vec4(in_Position, 1.0f);
 
-    vs_outColor = in_Color;
+    vs_outNormal = in_Normal;
     vs_outUV = in_UV;
 }
