@@ -68,13 +68,11 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 	// register a callback to detect window resize
 	glfwSetFramebufferSizeCallback(m_pWindow, FramebufferResizeCallback);
 
+	// Run shader compiler before everything else
+	RunShaderCompiler("Shaders");
+
 	try
 	{
-		LOG_INFO("mat4 size {0} bytes", sizeof(glm::mat4));
-		LOG_INFO("mat3 size {0} bytes", sizeof(glm::mat3));
-		LOG_INFO("float size {0} bytes", sizeof(float));
-		LOG_INFO("double size {0} bytes", sizeof(double));
-
 		CreateInstance();
 		SetupDebugMessenger();
 		CreateSurface();
@@ -132,6 +130,21 @@ void VulkanRenderer::Update(float dt)
 	for ( ; iter != m_vecModels.end() ; ++iter)
 	{
 		(*iter)->Update(m_pDevice, m_pSwapChain, dt);
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void VulkanRenderer::RunShaderCompiler(const std::string& directoryPath)
+{
+	std::string shaderCompiler = "C:/VulkanSDK/1.2.162.1/Bin/glslc.exe";
+	for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
+	{
+		if (entry.is_regular_file() && (entry.path().extension().string() == ".vert" || entry.path().extension().string() == ".frag"))
+		{
+			std::string cmd = shaderCompiler + " -c" + " " + entry.path().string() + " -o " + entry.path().string() + ".spv";
+			LOG_DEBUG("Compiling shader " + entry.path().filename().string());
+			std::system(cmd.c_str());
+		}
 	}
 }
 

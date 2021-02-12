@@ -108,6 +108,14 @@
       <AdditionalLibraryDirectories>c:\VulkanSDK\1.2.162.1\Lib;$(SolutionDir)Playground\ThirdParty\glfw\build\src\Debug;$(SolutionDir)Playground\ThirdParty\assimp\build\lib\Debug;$(SolutionDir)Playground\ThirdParty\assimp\build\contrib\zlib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;assimp-vc142-mtd.lib;zlibstaticd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -130,6 +138,14 @@
       <AdditionalLibraryDirectories>c:\VulkanSDK\1.2.162.1\Lib;$(SolutionDir)Playground\ThirdParty\glfw\build\src\Release;$(SolutionDir)Playground\ThirdParty\assimp\build\lib\Release;$(SolutionDir)Playground\ThirdParty\assimp\build\contrib\zlib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;assimp-vc142-mt.lib;zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -160,8 +160,8 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 	{
 		case PipelineType::GBUFFER_OPAQUE:
 		{
-			m_strVertexShader = "Shaders/vs_shader.spv";
-			m_strFragmentShader = "Shaders/fs_shader.spv";
+			m_strVertexShader = "Shaders/GBuffer.vert.spv";
+			m_strFragmentShader = "Shaders/GBuffer.frag.spv";
 
 			vertShaderModule = CreateShaderModule(pDevice, m_strVertexShader);
 			fragShaderModule = CreateShaderModule(pDevice, m_strFragmentShader);
@@ -256,8 +256,8 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			
 		case PipelineType::FINAL_BEAUTY:
 		{
-			m_strVertexShader = "Shaders/vs_Second.spv";
-			m_strFragmentShader = "Shaders/fs_Second.spv";
+			m_strVertexShader = "Shaders/Deferred.vert.spv";
+			m_strFragmentShader = "Shaders/Deferred.frag.spv";
 
 			vertShaderModule = CreateShaderModule(pDevice, m_strVertexShader);
 			fragShaderModule = CreateShaderModule(pDevice, m_strFragmentShader);

@@ -36,6 +36,7 @@ public:
 	virtual void					Cleanup() override;
 
 private:
+	void							RunShaderCompiler(const std::string& directoryPath);
 	void							CreateInstance();
 	bool							CheckInstanceExtensionSupport(const std::vector<const char*>& instanceExtensions);
 	bool							CheckValidationLayerSupport();
