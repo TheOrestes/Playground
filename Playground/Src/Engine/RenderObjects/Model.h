@@ -81,6 +81,10 @@ public:
 	void								Cleanup(VulkanDevice* pDevice);
 	void								CleanupOnWindowResize(VulkanDevice* pDevice);
 
+	void								SetPosition(const glm::vec3& _pos);
+	void								SetRotation(const glm::vec3& _axis, float angle);
+	void								SetScale(const glm::vec3& _scale);
+
 private:
 	std::vector<Mesh>					LoadNode(VulkanDevice* device, aiNode* node, const aiScene* scene);
 
@@ -94,5 +98,11 @@ private:
 public:
 	VulkanMaterial*						m_pMaterial;
 	ShaderUniforms*						m_pShaderUniformsMVP;
+
+private:
+	glm::vec3							m_vecPosition;
+	glm::vec3							m_vecRotationAxis;
+	float								m_fAngle;
+	glm::vec3							m_vecScale;
 };
 

@@ -14,7 +14,12 @@ Model::Model()
 	m_vecMeshes.clear();
 
 	m_pMaterial = nullptr;
-	m_pShaderUniformsMVP = nullptr;
+	m_pShaderUniformsMVP = new ShaderUniforms();
+
+	m_vecPosition = glm::vec3(0);
+	m_vecRotationAxis = glm::vec3(0, 1, 0);
+	m_vecScale = glm::vec3(1);
+	m_fAngle = 0.0f;
 	
 	m_mapTextures.clear();
 }
@@ -98,6 +103,11 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 				m_mapTextures.emplace(fileName, TextureType::TEXTURE_ALBEDO);
 			}
 		}
+		else
+		{
+			// if there is no texture, fill in BadTexture string into filename!
+			m_mapTextures.emplace("BadTexture.png", TextureType::TEXTURE_ALBEDO);
+		}
 	}
 
 	m_pMaterial = new VulkanMaterial();
@@ -105,14 +115,7 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 	std::map<std::string, TextureType>::iterator iter = m_mapTextures.begin();
 	for (; iter != m_mapTextures.end(); ++iter)
 	{
-		if (iter->first.empty())
-		{
-			// Load default texture (preferably bright pink to show missing texture!)
-		}
-		else
-		{
-			m_pMaterial->LoadTexture(pDevice, iter->first, iter->second);
-		}
+		m_pMaterial->LoadTexture(pDevice, iter->first, iter->second);
 	}
 
 	// Once we have loaded all the textures, create their descriptors!
@@ -182,9 +185,13 @@ void Model::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 	angle += dt;
 	if (angle > 360.0f) { angle = 0.0f; }
 
+	m_fAngle = angle;
+
 	// Update Model matrix!
 	m_pShaderUniformsMVP->shaderData.model = glm::mat4(1);
-	m_pShaderUniformsMVP->shaderData.model = glm::rotate(m_pShaderUniformsMVP->shaderData.model, angle, glm::vec3(0, 1, 0));
+	m_pShaderUniformsMVP->shaderData.model = glm::translate(m_pShaderUniformsMVP->shaderData.model, m_vecPosition);
+	m_pShaderUniformsMVP->shaderData.model = glm::rotate(m_pShaderUniformsMVP->shaderData.model, m_fAngle, glm::vec3(0, 1, 0));
+	m_pShaderUniformsMVP->shaderData.model = glm::scale(m_pShaderUniformsMVP->shaderData.model, m_vecScale);
 
 	// Fetch View & Projection matrices from the Camera!
 	
@@ -193,7 +200,7 @@ void Model::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 																	0.1f,
 																	1000.0f );
 
-	m_pShaderUniformsMVP->shaderData.view = glm::lookAt(glm::vec3(10, 2, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	m_pShaderUniformsMVP->shaderData.view = glm::lookAt(glm::vec3(10, 10, 30), glm::vec3(0, 10, 0), glm::vec3(0, 1, 0));
 	m_pShaderUniformsMVP->shaderData.projection[1][1] *= -1.0f;
 }
 
@@ -271,6 +278,25 @@ void Model::Cleanup(VulkanDevice* pDevice)
 void Model::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
 
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Model::SetPosition(const glm::vec3& _pos)
+{
+	m_vecPosition = _pos;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Model::SetRotation(const glm::vec3& _axis, float angle)
+{
+	m_vecRotationAxis = _axis;
+	m_fAngle = angle;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Model::SetScale(const glm::vec3& _scale)
+{
+	m_vecScale = _scale;
 }
 
 //---------------------------------------------------------------------------------------------------------------------

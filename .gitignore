@@ -36,3 +36,6 @@
 /bin/Release-x64/Playground
 /bin-int/Release-x64/Playground
 /Playground/Textures/.mayaSwatches
+
+# Compiled Shaders
+/Playground/Shaders/*.spv

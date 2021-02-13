@@ -11,7 +11,7 @@ void main()
     vec4 screenColor = subpassLoad(inputColor).rgba;
 
     float depth = subpassLoad(inputDepth).r;
-    float lowerBound = 0.95f;
+    float lowerBound = 0.98f;
     float upperBound = 1.0f;
 
     float scaledDepth = 1.0f - ((depth-lowerBound)/(upperBound-lowerBound));
@@ -19,5 +19,6 @@ void main()
     vec4 normalColor = subpassLoad(inputNormal).rgba;
 
     //outColor = vec4(vec3(scaledDepth), 1.0f);
-    outColor = normalColor;
+    //outColor = normalColor;
+    outColor = screenColor;
 }

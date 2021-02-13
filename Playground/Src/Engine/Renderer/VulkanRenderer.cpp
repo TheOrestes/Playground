@@ -97,11 +97,23 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pDevice->CreateGraphicsCommandPool();
 		m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
-		Model* pModel = new Model();
-		pModel->LoadModel(m_pDevice, "Models/car.fbx");
-		pModel->SetupDescriptors(m_pDevice, m_pSwapChain);
+		// Load Barbarian Model
+		Model* pModelBarb = new Model();
+		pModelBarb->LoadModel(m_pDevice, "Models/barb1.fbx");
+		pModelBarb->SetPosition(glm::vec3(-10, 5, 0));
+		pModelBarb->SetScale(glm::vec3(4));
+		pModelBarb->SetupDescriptors(m_pDevice, m_pSwapChain);
 
-		m_vecModels.push_back(pModel);
+		m_vecModels.push_back(pModelBarb);
+
+		// Load Car Model
+		Model* pModelCar = new Model();
+		pModelCar->LoadModel(m_pDevice, "Models/deer.obj");
+		pModelCar->SetPosition(glm::vec3(10, 5, 0));
+		pModelCar->SetScale(glm::vec3(3));
+		pModelCar->SetupDescriptors(m_pDevice, m_pSwapChain);
+
+		m_vecModels.push_back(pModelCar);
 				
 		CreateGraphicsPipeline();
 
