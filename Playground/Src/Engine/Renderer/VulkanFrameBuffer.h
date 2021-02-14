@@ -5,6 +5,16 @@
 class VulkanDevice;
 class VulkanSwapChain;
 
+enum class AttachmentType
+{
+	FB_ATTACHMENT_ALBEDO,
+	FB_ATTACHMENT_POSITION,
+	FB_ATTACHMENT_NORMAL,
+	FB_ATTACHMENT_DEPTH,
+	FB_ATTACHMENT_REFLECTION,
+	FB_ATTACHMENT_BACKGROUND
+};
+
 struct FramebufferAttachment
 {
 	FramebufferAttachment()
@@ -22,6 +32,8 @@ struct FramebufferAttachment
 	std::vector<VkImage>			vecAttachmentImage;
 	std::vector<VkImageView>		vecAttachmentImageView;
 	std::vector<VkDeviceMemory>		vecAttachmentImageMemory;
+
+	AttachmentType					attachmentType;
 };
 
 class VulkanFrameBuffer
@@ -30,26 +42,23 @@ public:
 	VulkanFrameBuffer();
 	~VulkanFrameBuffer();
 
-	void							CreateColorAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain);
-	void							CreateDepthAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain);
-	void							CreateNormalAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain);
+	void								CreateAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, AttachmentType eType);
+	void								CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, VkRenderPass renderPass);
 
-	void							CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, 
-														VkRenderPass renderPass);
-
-	void							Cleanup(VulkanDevice* pDevice);
-	void							CleanupOnWindowResize(VulkanDevice* pDevice);
+	void								Cleanup(VulkanDevice* pDevice);
+	void								CleanupOnWindowResize(VulkanDevice* pDevice);
 
 private:
-	VkFormat						ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats,
-															VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
+	VkFormat							ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats,
+																VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
 
-	std::array<VkImageView, 4>		m_arrAttachments;
+	std::array<VkImageView, 4>			m_arrAttachments;
 
 public:
-	FramebufferAttachment*			m_pColorAttachment;
-	FramebufferAttachment*			m_pDepthAttachment;
-	FramebufferAttachment*			m_pNormalAttachment;
-	std::vector<VkFramebuffer>		m_vecFramebuffers;
+	FramebufferAttachment*				m_pAlbedoAttachment;
+	FramebufferAttachment*				m_pDepthAttachment;
+	FramebufferAttachment*				m_pNormalAttachment;
+
+	std::vector<VkFramebuffer>			m_vecFramebuffers;
 };
 

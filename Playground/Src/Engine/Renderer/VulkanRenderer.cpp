@@ -86,9 +86,9 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pSwapChain->CreateSwapChain(m_pDevice, m_vkSurface, m_pWindow);
 
 		m_pFrameBuffer = new VulkanFrameBuffer();
-		m_pFrameBuffer->CreateColorAttachment(m_pDevice, m_pSwapChain);
-		m_pFrameBuffer->CreateDepthAttachment(m_pDevice, m_pSwapChain);
-		m_pFrameBuffer->CreateNormalAttachment(m_pDevice, m_pSwapChain);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_ALBEDO);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_DEPTH);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_NORMAL);
 
 		CreateRenderPass();
 
@@ -358,9 +358,9 @@ void VulkanRenderer::HandleWindowResize()
 
 	m_pSwapChain->CreateSwapChain(m_pDevice, m_vkSurface, m_pWindow);
 
-	m_pFrameBuffer->CreateColorAttachment(m_pDevice, m_pSwapChain);
-	m_pFrameBuffer->CreateDepthAttachment(m_pDevice, m_pSwapChain);
-	m_pFrameBuffer->CreateNormalAttachment(m_pDevice, m_pSwapChain);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_ALBEDO);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_DEPTH);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_NORMAL);
 
 	CreateRenderPass();
 	CreateGraphicsPipeline();
@@ -462,8 +462,8 @@ void VulkanRenderer::CreateRenderPass()
 	//--- SUBPASS 1 ATTACHMENTS + REFERENCES (INPUT ATTACHMENTS)
 	// Color Attachment (Input)
 	VkAttachmentDescription colorAttachmentDesc = {};
-	colorAttachmentDesc.format = m_pFrameBuffer->m_pColorAttachment->attachmentFormat;											// format to use for attachment
-	colorAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;										// number of samples for multisampling
+	colorAttachmentDesc.format = m_pFrameBuffer->m_pAlbedoAttachment->attachmentFormat;			// format to use for attachment
+	colorAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;										// number of samples for multi-sampling
 	colorAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;									// describes what to do with attachment before rendering
 	colorAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with attachment after rendering
 	colorAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;						// describes what to do with stencil before rendering
@@ -625,7 +625,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	std::array<VkClearValue, 4> clearValues = {};
 
 	clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-	clearValues[1].color = { 0.6f, 0.65f, 0.4f, 1.0f };
+	clearValues[1].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[2].depthStencil.depth = 1.0f;
 	clearValues[3].color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -774,7 +774,7 @@ void VulkanRenderer::CreateInputBuffersDescriptorSets()
 		// color attachment descriptor
 		VkDescriptorImageInfo colorAttachmentDescriptor = {};
 		colorAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		colorAttachmentDescriptor.imageView = m_pFrameBuffer->m_pColorAttachment->vecAttachmentImageView[i];
+		colorAttachmentDescriptor.imageView = m_pFrameBuffer->m_pAlbedoAttachment->vecAttachmentImageView[i];
 		colorAttachmentDescriptor.sampler = VK_NULL_HANDLE;
 
 		// Color attachment descriptor write
