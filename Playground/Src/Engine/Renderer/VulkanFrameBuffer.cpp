@@ -13,7 +13,7 @@ VulkanFrameBuffer::VulkanFrameBuffer()
 	m_pAlbedoAttachment = nullptr;
 	m_pDepthAttachment = nullptr;
 	m_pNormalAttachment = nullptr;
-
+	m_pPositionAttachment = nullptr;
 
 	m_vecFramebuffers.clear();
 }
@@ -24,6 +24,7 @@ VulkanFrameBuffer::~VulkanFrameBuffer()
 	SAFE_DELETE(m_pAlbedoAttachment);
 	SAFE_DELETE(m_pDepthAttachment);
 	SAFE_DELETE(m_pNormalAttachment);
+	SAFE_DELETE(m_pPositionAttachment);
 
 	m_vecFramebuffers.clear();
 }
@@ -69,7 +70,41 @@ void VulkanFrameBuffer::CreateAttachment(VulkanDevice* pDevice, VulkanSwapChain*
 		}
 			
 		case AttachmentType::FB_ATTACHMENT_POSITION:
+		{
+
+			m_pPositionAttachment = new FramebufferAttachment();
+
+			m_pPositionAttachment->vecAttachmentImage.resize(pSwapChain->m_vecSwapchainImages.size());
+			m_pPositionAttachment->vecAttachmentImageView.resize(pSwapChain->m_vecSwapchainImages.size());
+			m_pPositionAttachment->vecAttachmentImageMemory.resize(pSwapChain->m_vecSwapchainImages.size());
+
+			std::vector<VkFormat> formats = { VK_FORMAT_R8G8B8A8_UNORM };
+			m_pPositionAttachment->attachmentFormat = ChooseSupportedFormats(pDevice, formats, VK_IMAGE_TILING_OPTIMAL,
+				VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
+
+
+			for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
+			{
+				// Create color buffer image
+				m_pPositionAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(pDevice,
+					pSwapChain->m_vkSwapchainExtent.width,
+					pSwapChain->m_vkSwapchainExtent.height,
+					m_pPositionAttachment->attachmentFormat,
+					VK_IMAGE_TILING_OPTIMAL,
+					VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+					&(m_pPositionAttachment->vecAttachmentImageMemory[i]));
+
+				// Create color buffer image view!
+				m_pPositionAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(pDevice,
+					m_pPositionAttachment->vecAttachmentImage[i],
+					m_pPositionAttachment->attachmentFormat,
+					VK_IMAGE_ASPECT_COLOR_BIT);
+			}
+
 			break;
+		}
+			
 
 		case AttachmentType::FB_ATTACHMENT_NORMAL:
 		{
@@ -185,10 +220,11 @@ void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChai
 	// create framebuffer for each swap chain image view
 	for (uint32_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); ++i)
 	{
-		m_arrAttachments = { pSwapChain->m_vecSwapchainImageViews[i],
+		m_arrAttachments = {	pSwapChain->m_vecSwapchainImageViews[i],
 								m_pAlbedoAttachment->vecAttachmentImageView[i],
 								m_pDepthAttachment->vecAttachmentImageView[i],
-								m_pNormalAttachment->vecAttachmentImageView[i] };
+								m_pNormalAttachment->vecAttachmentImageView[i],
+								m_pPositionAttachment->vecAttachmentImageView[i] };
 
 
 		VkFramebufferCreateInfo framebufferCreateInfo{};
@@ -217,6 +253,7 @@ void VulkanFrameBuffer::Cleanup(VulkanDevice* pDevice)
 	m_pAlbedoAttachment->Cleanup(pDevice);
 	m_pDepthAttachment->Cleanup(pDevice);
 	m_pNormalAttachment->Cleanup(pDevice);
+	m_pPositionAttachment->Cleanup(pDevice);
 
 	// Destroy frame buffers!
 	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)
@@ -231,6 +268,7 @@ void VulkanFrameBuffer::CleanupOnWindowResize(VulkanDevice* pDevice)
 	m_pAlbedoAttachment->CleanupOnWindowResize(pDevice);
 	m_pDepthAttachment->CleanupOnWindowResize(pDevice);
 	m_pNormalAttachment->CleanupOnWindowResize(pDevice);
+	m_pPositionAttachment->CleanupOnWindowResize(pDevice);
 
 	// Destroy frame buffers!
 	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)

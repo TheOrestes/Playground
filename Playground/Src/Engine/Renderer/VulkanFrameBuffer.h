@@ -52,12 +52,13 @@ private:
 	VkFormat							ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats,
 																VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
 
-	std::array<VkImageView, 4>			m_arrAttachments;
+	std::array<VkImageView, 5>			m_arrAttachments;
 
 public:
 	FramebufferAttachment*				m_pAlbedoAttachment;
 	FramebufferAttachment*				m_pDepthAttachment;
 	FramebufferAttachment*				m_pNormalAttachment;
+	FramebufferAttachment*				m_pPositionAttachment;
 
 	std::vector<VkFramebuffer>			m_vecFramebuffers;
 };

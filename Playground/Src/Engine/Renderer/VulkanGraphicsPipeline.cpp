@@ -235,8 +235,19 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			colorBlendAttachment2.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 			colorBlendAttachment2.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
 
+			VkPipelineColorBlendAttachmentState colorBlendAttachment3 = {};
+			colorBlendAttachment3.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;	// apply blending on all channels!	
+			colorBlendAttachment3.blendEnable = VK_FALSE;
+			colorBlendAttachment3.alphaBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment3.colorBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment3.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment3.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment3.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+			colorBlendAttachment3.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+
 			m_vecColorBlendAttachments.push_back(colorBlendAttachment1);
 			m_vecColorBlendAttachments.push_back(colorBlendAttachment2);
+			m_vecColorBlendAttachments.push_back(colorBlendAttachment3);
 
 			m_vkColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 			m_vkColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;										// alternative to calculations is to use logical operations

@@ -89,6 +89,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_ALBEDO);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_DEPTH);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_NORMAL);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_POSITION);
 
 		CreateRenderPass();
 
@@ -361,6 +362,7 @@ void VulkanRenderer::HandleWindowResize()
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_ALBEDO);
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_DEPTH);
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_NORMAL);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_POSITION);
 
 	CreateRenderPass();
 	CreateGraphicsPipeline();
@@ -412,16 +414,12 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	colorInputLayoutBinding.descriptorCount = 1;
 	colorInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	inputLayoutBinding.push_back(colorInputLayoutBinding);
-
 	// Depth input binding
 	VkDescriptorSetLayoutBinding depthInputLayoutBinding = {};
 	depthInputLayoutBinding.binding = 1;
 	depthInputLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 	depthInputLayoutBinding.descriptorCount = 1;
 	depthInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	inputLayoutBinding.push_back(depthInputLayoutBinding);
 
 	// Normal Input binding
 	VkDescriptorSetLayoutBinding normalInputLayoutBinding = {};
@@ -430,7 +428,17 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	normalInputLayoutBinding.descriptorCount = 1;
 	normalInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+	// Position Input binding
+	VkDescriptorSetLayoutBinding positionInputLayoutBinding = {};
+	positionInputLayoutBinding.binding = 3;
+	positionInputLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	positionInputLayoutBinding.descriptorCount = 1;
+	positionInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	inputLayoutBinding.push_back(colorInputLayoutBinding);
+	inputLayoutBinding.push_back(depthInputLayoutBinding);
 	inputLayoutBinding.push_back(normalInputLayoutBinding);
+	inputLayoutBinding.push_back(positionInputLayoutBinding);
 
 	VkDescriptorSetLayoutCreateInfo inputLayoutCreateInfo = {};
 	inputLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -493,6 +501,17 @@ void VulkanRenderer::CreateRenderPass()
 	normalAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	normalAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+	// Position attachment (Input)
+	VkAttachmentDescription positionAttachmentDesc = {};
+	positionAttachmentDesc.format = m_pFrameBuffer->m_pPositionAttachment->attachmentFormat;
+	positionAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
+	positionAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	positionAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	positionAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	positionAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	positionAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	positionAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
 	// Color attachment (Input) Reference
 	VkAttachmentReference colorAttachmentRef = {};
 	colorAttachmentRef.attachment = 1;
@@ -508,7 +527,12 @@ void VulkanRenderer::CreateRenderPass()
 	normalAttachmentRef.attachment = 3;
 	normalAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	std::array<VkAttachmentReference, 2> attachmentRefs = { colorAttachmentRef, normalAttachmentRef };
+	// Position attachment (Input) Reference
+	VkAttachmentReference positionAttachmentRef = {};
+	positionAttachmentRef.attachment = 4;
+	positionAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	std::array<VkAttachmentReference, 3> attachmentRefs = { colorAttachmentRef, normalAttachmentRef, positionAttachmentRef };
 
 	// Set up subpass 1
 	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -535,13 +559,15 @@ void VulkanRenderer::CreateRenderPass()
 	swapChainColorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// References to attachments that subpass will take input from
-	std::array<VkAttachmentReference, 3> inputReferences;
+	std::array<VkAttachmentReference, 4> inputReferences;
 	inputReferences[0].attachment = 1;
 	inputReferences[0].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputReferences[1].attachment = 2;
 	inputReferences[1].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputReferences[2].attachment = 3;
 	inputReferences[2].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[3].attachment = 4;
+	inputReferences[3].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	// Set up subpass 2
 	subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -588,7 +614,11 @@ void VulkanRenderer::CreateRenderPass()
 	subpassDependencies[2].dependencyFlags = 0;
 
 	// Render pass!
-	std::array<VkAttachmentDescription, 4> renderPassAttachments = { swapChainColorAttachmentDesc, colorAttachmentDesc, depthAttachmentDesc, normalAttachmentDesc };
+	std::array<VkAttachmentDescription, 5> renderPassAttachments = { swapChainColorAttachmentDesc, 
+																	 colorAttachmentDesc, 
+																	 depthAttachmentDesc, 
+																	 normalAttachmentDesc, 
+																	 positionAttachmentDesc };
 
 	VkRenderPassCreateInfo renderPassCreateInfo{};
 	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -622,12 +652,13 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	renderPassBeginInfo.renderArea.offset = { 0,0 };						// start point of render pass in pixels
 	renderPassBeginInfo.renderArea.extent = m_pSwapChain->m_vkSwapchainExtent;			// size of region to run render pass on (starting at offset) 
 
-	std::array<VkClearValue, 4> clearValues = {};
+	std::array<VkClearValue, 5> clearValues = {};
 
 	clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
 	clearValues[1].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[2].depthStencil.depth = 1.0f;
 	clearValues[3].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+	clearValues[4].color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	renderPassBeginInfo.pClearValues = clearValues.data();								// list of clear values
 	renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -819,8 +850,24 @@ void VulkanRenderer::CreateInputBuffersDescriptorSets()
 		normalWrite.descriptorCount = 1;
 		normalWrite.pImageInfo = &normalAttachmentDescriptor;
 
+		// Position attachment descriptor
+		VkDescriptorImageInfo positionAttachmentDescriptor = {};
+		positionAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		positionAttachmentDescriptor.imageView = m_pFrameBuffer->m_pPositionAttachment->vecAttachmentImageView[i];
+		positionAttachmentDescriptor.sampler = VK_NULL_HANDLE;
+
+		// Normal attachment descriptor write
+		VkWriteDescriptorSet positionWrite = {};
+		positionWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		positionWrite.dstSet = m_vecInputBuffersDescriptorSets[i];
+		positionWrite.dstBinding = 3;
+		positionWrite.dstArrayElement = 0;
+		positionWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		positionWrite.descriptorCount = 1;
+		positionWrite.pImageInfo = &positionAttachmentDescriptor;
+
 		// List of input descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite };
+		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite };
 
 		// Update descriptor sets
 		vkUpdateDescriptorSets(m_pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);

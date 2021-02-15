@@ -33,6 +33,7 @@ void main()
 {
     gl_Position = shaderData.matProjection * shaderData.matView * shaderData.matModel * vec4(in_Position, 1.0f);
 
-    vs_outNormal = in_Normal;
+    vs_outPosition = (shaderData.matModel * vec4(in_Position, 1.0f)).xyz;
+    vs_outNormal = normalize(shaderData.matModel * vec4(in_Normal, 0.0f)).xyz;
     vs_outUV = in_UV;
 }
