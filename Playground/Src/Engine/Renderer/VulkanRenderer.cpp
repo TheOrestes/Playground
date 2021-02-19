@@ -391,9 +391,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	//----- Create GBUFFER_OPAQUE Graphics pipeline!
 	m_pGraphicsPipelineOpaque = new VulkanGraphicsPipeline(PipelineType::GBUFFER_OPAQUE, m_pSwapChain);
 
-	std::vector<VkDescriptorSetLayout> setLayouts;
-	setLayouts.push_back(m_vecModels[0]->m_pShaderUniformsMVP->descriptorSetLayout);
-	setLayouts.push_back(m_vecModels[0]->m_pMaterial->m_vkDescriptorSetLayout);
+	std::vector<VkDescriptorSetLayout> setLayouts = { m_vecModels[0]->m_vkDescriptorSetLayout };
 	
 	VkPushConstantRange pushConstantRange = {};
 

@@ -34,17 +34,10 @@ struct ShaderUniforms
 {
 	ShaderUniforms()
 	{
-		descriptorSetLayout = VK_NULL_HANDLE;
-		descriptorPool = VK_NULL_HANDLE;
-
-		vecDescriptorSets.clear();
 		vecBuffer.clear();
 		vecMemory.clear();
 	}
 
-	void								CreateDescriptorSetLayout(VulkanDevice* pDevice);
-	void								CreateDescriptorPool(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
-	void								CreateDescriptorSet(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
 	void								CreateBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
 
 	void								Cleanup(VulkanDevice* pDevice);
@@ -53,9 +46,6 @@ struct ShaderUniforms
 	ShaderData							shaderData;
 
 	// Vulkan Specific
-	VkDescriptorSetLayout				descriptorSetLayout;
-	VkDescriptorPool					descriptorPool;
-	std::vector<VkDescriptorSet>		vecDescriptorSets;
 	std::vector<VkBuffer>				vecBuffer;
 	std::vector<VkDeviceMemory>			vecMemory;
 };
@@ -75,9 +65,6 @@ public:
 
 	void								SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
 
-	uint64_t							GetMeshCount() const;
-	Mesh*								GetMesh(uint64_t index);
-
 	void								Cleanup(VulkanDevice* pDevice);
 	void								CleanupOnWindowResize(VulkanDevice* pDevice);
 
@@ -88,6 +75,7 @@ public:
 private:
 	std::vector<Mesh>					LoadNode(VulkanDevice* device, aiNode* node, const aiScene* scene);
 
+	void								LoadTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType);
 	void								LoadMaterials(VulkanDevice* device, const aiScene* scene);
 	Mesh								LoadMesh(VulkanDevice* device, aiMesh* mesh, const aiScene* scene);
 
@@ -95,9 +83,13 @@ private:
 	std::vector<Mesh>					m_vecMeshes;
 	std::map<std::string, TextureType>	m_mapTextures;
 
-public:
 	VulkanMaterial*						m_pMaterial;
 	ShaderUniforms*						m_pShaderUniformsMVP;
+
+public:
+	VkDescriptorPool					m_vkDescriptorPool;					// Pool for all descriptors.
+	VkDescriptorSetLayout				m_vkDescriptorSetLayout;			// combination of layouts of uniforms & samplers.
+	std::vector<VkDescriptorSet>		m_vecDescriptorSet;					// combination of sets of uniforms & samplers per swapchain image!
 
 private:
 	glm::vec3							m_vecPosition;

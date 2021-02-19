@@ -4,6 +4,7 @@
 #include "Engine/Renderer/VulkanDevice.h"
 #include "Engine/Renderer/VulkanSwapChain.h"
 #include "Engine/Renderer/VulkanMaterial.h"
+#include "Engine/Renderer/VulkanTexture.h"
 #include "Engine/Renderer/VulkanGraphicsPipeline.h"
 
 #include "Model.h"
@@ -22,6 +23,10 @@ Model::Model()
 	m_fAngle = 0.0f;
 	
 	m_mapTextures.clear();
+
+	m_vkDescriptorPool = VK_NULL_HANDLE;
+	m_vkDescriptorSetLayout = VK_NULL_HANDLE;
+	m_vecDescriptorSet.clear();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -81,6 +86,68 @@ std::vector<Mesh> Model::LoadNode(VulkanDevice* device, aiNode* node, const aiSc
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+void Model::LoadTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType)
+{
+	if (pMaterial->GetTextureCount(eType))
+	{
+		// get the path of the texture file
+		aiString path;
+		if (pMaterial->GetTexture(eType, 0, &path) == AI_SUCCESS)
+		{
+			// cut off any directory information already present
+			int idx = std::string(path.data).rfind("\\");
+			std::string fileName = std::string(path.data).substr(idx + 1);
+
+			switch (eType)
+			{
+				case aiTextureType_DIFFUSE:
+				{
+					m_mapTextures.emplace(fileName, TextureType::TEXTURE_ALBEDO);
+					break;
+				}
+
+				case aiTextureType_SPECULAR:
+				{
+					m_mapTextures.emplace(fileName, TextureType::TEXTURE_SPECULAR);
+					break;
+				}
+
+				case aiTextureType_NORMALS:
+				{
+					m_mapTextures.emplace(fileName, TextureType::TEXTURE_NORMAL);
+					break;
+				}
+			}
+			
+		}
+	}
+	else
+	{
+		switch (eType)
+		{
+			case aiTextureType_DIFFUSE:
+			{
+				// if there is no texture, fill in BadTexture string into filename!
+				m_mapTextures.emplace("MissingAlbedo.png", TextureType::TEXTURE_ALBEDO);
+				break;
+			}
+				
+			case aiTextureType_SPECULAR:
+			{
+				m_mapTextures.emplace("MissingSpecular.png", TextureType::TEXTURE_SPECULAR);
+				break;
+			}
+				
+			case aiTextureType_NORMALS:
+			{
+				m_mapTextures.emplace("MissingNormal.png", TextureType::TEXTURE_NORMAL);
+				break;
+			}		
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 {
 	// Go through each material and copy its texture file name
@@ -90,24 +157,13 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 		aiMaterial* material = scene->mMaterials[i];
 
 		// check for the diffuse texture
-		if (material->GetTextureCount(aiTextureType_DIFFUSE))
-		{
-			// get the path of the texture file
-			aiString path;
-			if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
-			{
-				// cut off any directory information already present
-				int idx = std::string(path.data).rfind("\\");
-				std::string fileName = std::string(path.data).substr(idx + 1);
+		LoadTextureFromMaterial(material, aiTextureType_DIFFUSE);
 
-				m_mapTextures.emplace(fileName, TextureType::TEXTURE_ALBEDO);
-			}
-		}
-		else
-		{
-			// if there is no texture, fill in BadTexture string into filename!
-			m_mapTextures.emplace("BadTexture.png", TextureType::TEXTURE_ALBEDO);
-		}
+		// check for specular texture
+		LoadTextureFromMaterial(material, aiTextureType_SPECULAR);
+
+		// check for normal map texture
+		LoadTextureFromMaterial(material, aiTextureType_NORMALS);
 	}
 
 	m_pMaterial = new VulkanMaterial();
@@ -117,11 +173,6 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 	{
 		m_pMaterial->LoadTexture(pDevice, iter->first, iter->second);
 	}
-
-	// Once we have loaded all the textures, create their descriptors!
-	m_pMaterial->CreateDescriptorPool(pDevice);
-	m_pMaterial->CreateDescriptorSetLayout(pDevice);
-	m_pMaterial->CreateDescriptorSets(pDevice, 0);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -218,15 +269,13 @@ void Model::Render (VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipeline, ui
 		// bind mesh index buffer, with zero offset & using uint32_t type
 		vkCmdBindIndexBuffer(pDevice->m_vecCommandBufferGraphics[index], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-		std::array<VkDescriptorSet, 2> descriptorSetGroup = { m_pShaderUniformsMVP->vecDescriptorSets[index], m_pMaterial->m_vkDescriptorSet };
-
 		// bind descriptor sets
 		vkCmdBindDescriptorSets(pDevice->m_vecCommandBufferGraphics[index],
 								VK_PIPELINE_BIND_POINT_GRAPHICS,
 								pPipeline->m_vkPipelineLayout,
 								0,
-								static_cast<uint32_t>(descriptorSetGroup.size()),
-								descriptorSetGroup.data(),
+								1,
+								&(m_vecDescriptorSet[index]),
 								0,
 								nullptr);
 
@@ -239,26 +288,170 @@ void Model::Render (VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipeline, ui
 void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
 	m_pShaderUniformsMVP = new ShaderUniforms();
-
-	m_pShaderUniformsMVP->CreateDescriptorSetLayout(pDevice);
 	m_pShaderUniformsMVP->CreateBuffers(pDevice, pSwapchain);
-	m_pShaderUniformsMVP->CreateDescriptorPool(pDevice, pSwapchain);
-	m_pShaderUniformsMVP->CreateDescriptorSet(pDevice, pSwapchain);
-}
 
-//---------------------------------------------------------------------------------------------------------------------
-uint64_t Model::GetMeshCount() const
-{
-	return m_vecMeshes.size();
-}
+	// *** Create Descriptor pool
+	std::array<VkDescriptorPoolSize, 2> arrDescriptorPoolSize = {};
 
-//---------------------------------------------------------------------------------------------------------------------
-Mesh* Model::GetMesh(uint64_t index)
-{
-	if (index >= m_vecMeshes.size())
-		LOG_ERROR("Attempting to access Invalid Mesh Index!");
+	//-- Uniform Buffer
+	arrDescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	arrDescriptorPoolSize[0].descriptorCount = static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size());
 
-	return &m_vecMeshes[index];
+	//-- Texture samplers
+	arrDescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorPoolSize[1].descriptorCount = static_cast<uint32_t>(m_mapTextures.size());
+
+	VkDescriptorPoolCreateInfo poolCreateInfo = {};
+	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolCreateInfo.maxSets = static_cast<uint32_t>(m_mapTextures.size()) + static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size());
+	poolCreateInfo.poolSizeCount = static_cast<uint32_t>(arrDescriptorPoolSize.size());
+	poolCreateInfo.pPoolSizes = arrDescriptorPoolSize.data();
+
+	if (vkCreateDescriptorPool(pDevice->m_vkLogicalDevice, &poolCreateInfo, nullptr, &m_vkDescriptorPool) != VK_SUCCESS)
+	{
+		LOG_ERROR("Failed to create Sampler Descriptor Pool");
+	}
+	else
+		LOG_DEBUG("Successfully created Descriptor Pool");
+
+	// *** Create Descriptor Set Layout
+	std::array<VkDescriptorSetLayoutBinding, 4> arrDescriptorSetLayoutBindings = {};
+
+	//-- Uniform Buffer
+	arrDescriptorSetLayoutBindings[0].binding = 0;																// binding point in shader, binding = ?
+	arrDescriptorSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
+	arrDescriptorSetLayoutBindings[0].descriptorCount = 1;														// number of descriptors
+	arrDescriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;									// Shader stage to bind to
+	arrDescriptorSetLayoutBindings[0].pImmutableSamplers = nullptr;												// For textures!
+
+	//-- Albedo Texture
+	arrDescriptorSetLayoutBindings[1].binding = 1;
+	arrDescriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;						
+	arrDescriptorSetLayoutBindings[1].descriptorCount = 1;														
+	arrDescriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;									
+	arrDescriptorSetLayoutBindings[1].pImmutableSamplers = nullptr;
+
+	//-- Specular Texture
+	arrDescriptorSetLayoutBindings[2].binding = 2;
+	arrDescriptorSetLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSetLayoutBindings[2].descriptorCount = 1;
+	arrDescriptorSetLayoutBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSetLayoutBindings[2].pImmutableSamplers = nullptr;
+
+	//-- Normal Texture
+	arrDescriptorSetLayoutBindings[3].binding = 3;
+	arrDescriptorSetLayoutBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSetLayoutBindings[3].descriptorCount = 1;
+	arrDescriptorSetLayoutBindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSetLayoutBindings[3].pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo descSetlayoutCreateInfo = {};
+	descSetlayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descSetlayoutCreateInfo.bindingCount = arrDescriptorSetLayoutBindings.size();
+	descSetlayoutCreateInfo.pBindings = arrDescriptorSetLayoutBindings.data();
+
+	// Create descriptor set layout
+	if (vkCreateDescriptorSetLayout(pDevice->m_vkLogicalDevice, &descSetlayoutCreateInfo, nullptr, &m_vkDescriptorSetLayout) != VK_SUCCESS)
+	{
+		LOG_ERROR("Failed to create a Descriptor set layout");
+	}
+	else
+		LOG_DEBUG("Successfully created a Descriptor set layout");
+
+	// *** Create Descriptor Set per swapchain image!
+	m_vecDescriptorSet.resize(pSwapchain->m_vecSwapchainImages.size());
+
+	// we create copies of DescriptorSetLayout per swapchain image
+	std::vector<VkDescriptorSetLayout> descriptorSetLayouts(pSwapchain->m_vecSwapchainImages.size(), m_vkDescriptorSetLayout);
+
+	// Descriptor set allocation info 
+	VkDescriptorSetAllocateInfo	setAllocInfo = {};
+	setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	setAllocInfo.descriptorPool = m_vkDescriptorPool;													// pool to allocate descriptor set from
+	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size());	// number of sets to allocate
+	setAllocInfo.pSetLayouts = descriptorSetLayouts.data();												// layouts to use to allocate sets
+
+	if (vkAllocateDescriptorSets(pDevice->m_vkLogicalDevice, &setAllocInfo, m_vecDescriptorSet.data()) != VK_SUCCESS)
+	{
+		LOG_ERROR("Failed to allocated Descriptor sets");
+	}
+	else
+		LOG_DEBUG("Successfully created Descriptor sets");
+
+
+	// *** Update all the descriptor set bindings
+	for (uint16_t i = 0; i < pSwapchain->m_vecSwapchainImages.size(); i++)
+	{
+		//-- Uniform Buffer
+		VkDescriptorBufferInfo ubBufferInfo = {};
+		ubBufferInfo.buffer = m_pShaderUniformsMVP->vecBuffer[i];			// buffer to get data from
+		ubBufferInfo.offset = 0;											// position of start of data
+		ubBufferInfo.range = sizeof(ShaderUniforms);						// size of data
+
+		// Data about connection between binding & buffer
+		VkWriteDescriptorSet ubSetWrite = {};
+		ubSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		ubSetWrite.dstSet = m_vecDescriptorSet[i];							// Descriptor set to update
+		ubSetWrite.dstBinding = 0;											// binding to update
+		ubSetWrite.dstArrayElement = 0;										// index in array to update
+		ubSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;		// type of descriptor
+		ubSetWrite.descriptorCount = 1;										// amount to update		
+		ubSetWrite.pBufferInfo = &ubBufferInfo;
+		
+		//-- Albedo Texture
+		VkDescriptorImageInfo albedoImageInfo = {};
+		albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		albedoImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ALBEDO)->m_vkTextureImageView;	// image to bind to set
+		albedoImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ALBEDO)->m_vkTextureSampler;														// sampler to use for the set
+
+		// Descriptor write info
+		VkWriteDescriptorSet albedoSetWrite = {};
+		albedoSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		albedoSetWrite.dstSet = m_vecDescriptorSet[i];
+		albedoSetWrite.dstBinding = 1;
+		albedoSetWrite.dstArrayElement = 0;
+		albedoSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		albedoSetWrite.descriptorCount = 1;
+		albedoSetWrite.pImageInfo = &albedoImageInfo;
+
+		//-- Specular Texture
+		VkDescriptorImageInfo specularImageInfo = {};
+		specularImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		specularImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_SPECULAR)->m_vkTextureImageView;	// image to bind to set
+		specularImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_SPECULAR)->m_vkTextureSampler;														// sampler to use for the set
+
+		// Descriptor write info
+		VkWriteDescriptorSet specularSetWrite = {};
+		specularSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		specularSetWrite.dstSet = m_vecDescriptorSet[i];
+		specularSetWrite.dstBinding = 2;
+		specularSetWrite.dstArrayElement = 0;
+		specularSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		specularSetWrite.descriptorCount = 1;
+		specularSetWrite.pImageInfo = &specularImageInfo;
+
+		//-- Normal Texture
+		VkDescriptorImageInfo normalImageInfo = {};
+		normalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		normalImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_NORMAL)->m_vkTextureImageView;	// image to bind to set
+		normalImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_NORMAL)->m_vkTextureSampler;														// sampler to use for the set
+
+		// Descriptor write info
+		VkWriteDescriptorSet normalSetWrite = {};
+		normalSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		normalSetWrite.dstSet = m_vecDescriptorSet[i];
+		normalSetWrite.dstBinding = 3;
+		normalSetWrite.dstArrayElement = 0;
+		normalSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		normalSetWrite.descriptorCount = 1;
+		normalSetWrite.pImageInfo = &normalImageInfo;
+
+		// List of Descriptor set writes
+		std::vector<VkWriteDescriptorSet> setWrites = { ubSetWrite, albedoSetWrite, specularSetWrite, normalSetWrite };
+
+		// Update the descriptor sets with new buffer/binding info
+		vkUpdateDescriptorSets(pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);
+	}
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -272,6 +465,9 @@ void Model::Cleanup(VulkanDevice* pDevice)
 	{
 		(*iter).Cleanup(pDevice);
 	}
+
+	vkDestroyDescriptorPool(pDevice->m_vkLogicalDevice, m_vkDescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(pDevice->m_vkLogicalDevice, m_vkDescriptorSetLayout, nullptr);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -300,112 +496,6 @@ void Model::SetScale(const glm::vec3& _scale)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void ShaderUniforms::CreateDescriptorSetLayout(VulkanDevice* pDevice)
-{
-	// UNIFORM VALUE DESCRIPTOR SET LAYOUT
-	// Shader Uniforms binding info
-	VkDescriptorSetLayoutBinding uniformLayoutBinding = {};
-	uniformLayoutBinding.binding = 0;																// binding point in shader
-	uniformLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
-	uniformLayoutBinding.descriptorCount = 1;														// number of descriptors
-	uniformLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;									// Shader stage to bind to
-	uniformLayoutBinding.pImmutableSamplers = nullptr;												// For textures!
-
-	std::vector<VkDescriptorSetLayoutBinding> layoutBindings = { uniformLayoutBinding };
-
-	// Create descriptor set layout with given bindings
-	VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {};
-	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutCreateInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
-	layoutCreateInfo.pBindings = layoutBindings.data();
-
-	// Create descriptor set layout
-	if (vkCreateDescriptorSetLayout(pDevice->m_vkLogicalDevice, &layoutCreateInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
-	{
-		LOG_ERROR("Failed to create a Uniform Descriptor set layout");
-	}
-	else
-		LOG_DEBUG("Successfully created a Uniform Descriptor set layout");
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-void ShaderUniforms::CreateDescriptorPool(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain)
-{
-	//--- UNIFORM DESCRIPTOR POOL
-	// type of descriptors & number of descriptors
-	// ViewProjection Pool
-	VkDescriptorPoolSize uniformPoolSize = {};
-	uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformPoolSize.descriptorCount = static_cast<uint32_t>(vecBuffer.size());
-
-	std::vector<VkDescriptorPoolSize> descriptorPoolSizes = { uniformPoolSize };
-
-	// data to create descriptor pool
-	VkDescriptorPoolCreateInfo poolCreateInfo = {};
-	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolCreateInfo.maxSets = static_cast<uint32_t>(pSwapChain->m_vecSwapchainImages.size());	// maximum number of descriptor sets that can be created from pool
-	poolCreateInfo.poolSizeCount = static_cast<uint32_t>(descriptorPoolSizes.size());			// amount of pool sizes being passed
-	poolCreateInfo.pPoolSizes = descriptorPoolSizes.data();										// Pool sizes to create pool with
-
-	if (vkCreateDescriptorPool(pDevice->m_vkLogicalDevice, &poolCreateInfo, nullptr, &descriptorPool) != VK_SUCCESS)
-	{
-		LOG_ERROR("Failed to create Descriptor Pool");
-	}
-	else
-		LOG_DEBUG("Successfully created Descriptor Pool");
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-void ShaderUniforms::CreateDescriptorSet(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain)
-{
-	// Resize descriptor sets so one for every buffer
-	vecDescriptorSets.resize(pSwapChain->m_vecSwapchainImages.size());
-
-	std::vector<VkDescriptorSetLayout> setLayouts(pSwapChain->m_vecSwapchainImages.size(), descriptorSetLayout);
-
-	// Descriptor set allocation info 
-	VkDescriptorSetAllocateInfo	setAllocInfo = {};
-	setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	setAllocInfo.descriptorPool = descriptorPool;											// pool to allocate descriptor set from
-	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(pSwapChain->m_vecSwapchainImages.size());	// number of sets to allocate
-	setAllocInfo.pSetLayouts = setLayouts.data();														// layouts to use to allocate sets
-
-	if (vkAllocateDescriptorSets(pDevice->m_vkLogicalDevice, &setAllocInfo, vecDescriptorSets.data()) != VK_SUCCESS)
-	{
-		LOG_ERROR("Failed to allocated Descriptor sets");
-	}
-	else
-		LOG_DEBUG("Successfully created Descriptor sets");
-
-	// Update all the descriptor set bindings
-	for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
-	{
-		// VIEW PROJECTION DESCRIPTOR
-		// buffer info & data offset info
-		VkDescriptorBufferInfo vpbufferInfo = {};
-		vpbufferInfo.buffer = vecBuffer[i];									// buffer to get data from
-		vpbufferInfo.offset = 0;											// position of start of data
-		vpbufferInfo.range = sizeof(ShaderUniforms);						// size of data
-
-		// Data about connection between binding & buffer
-		VkWriteDescriptorSet vpSetWrite = {};
-		vpSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		vpSetWrite.dstSet = vecDescriptorSets[i];							// Descriptor set to update
-		vpSetWrite.dstBinding = 0;											// binding to update
-		vpSetWrite.dstArrayElement = 0;										// index in array to update
-		vpSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;		// type of descriptor
-		vpSetWrite.descriptorCount = 1;										// amount to update		
-		vpSetWrite.pBufferInfo = &vpbufferInfo;
-
-		// List of Descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { vpSetWrite };
-
-		// Update the descriptor sets with new buffer/binding info
-		vkUpdateDescriptorSets(pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);
-	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
 void ShaderUniforms::CreateBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain)
 {
 	// ViewProjection buffer size
@@ -429,9 +519,6 @@ void ShaderUniforms::CreateBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwap
 //---------------------------------------------------------------------------------------------------------------------
 void ShaderUniforms::Cleanup(VulkanDevice* pDevice)
 {
-	vkDestroyDescriptorPool(pDevice->m_vkLogicalDevice, descriptorPool, nullptr);
-	vkDestroyDescriptorSetLayout(pDevice->m_vkLogicalDevice, descriptorSetLayout, nullptr);
-
 	for (uint16_t i = 0; i < vecBuffer.size(); ++i)
 	{
 		vkDestroyBuffer(pDevice->m_vkLogicalDevice, vecBuffer[i], nullptr);

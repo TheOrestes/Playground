@@ -1,10 +1,10 @@
 #pragma once
 
 #include "vulkan/vulkan.h"
-#include "Engine/Renderer/VulkanTexture.h"
 
 class VulkanDevice;
 class VulkanTexture;
+enum class TextureType;
 
 class VulkanMaterial
 {
@@ -12,20 +12,10 @@ public:
 	VulkanMaterial();
 	~VulkanMaterial();
 
-	void					CreateDescriptorPool(VulkanDevice* pDevice);
-	void					CreateDescriptorSetLayout(VulkanDevice* pDevice);
-	void					CreateDescriptorSets(VulkanDevice* pDevice, uint32_t descriptorBindingFlags);
-	void					LoadTexture(VulkanDevice* pDevice, const std::string& filePath, TextureType type);
-	void					Cleanup(VulkanDevice* pDevice);
-	void					CleanupOnWindowResize(VulkanDevice* pDevice);
+	void									LoadTexture(VulkanDevice* pDevice, const std::string& filePath, TextureType type);
+	void									Cleanup(VulkanDevice* pDevice);
+	void									CleanupOnWindowResize(VulkanDevice* pDevice);
 
-
-private:
-	std::map<VulkanTexture*, TextureType>	m_mapTextures;
-	VkDescriptorPool		m_vkDescriptorPool;
-
-public:
-	VkDescriptorSet			m_vkDescriptorSet;
-	VkDescriptorSetLayout	m_vkDescriptorSetLayout;
+	std::map<TextureType, VulkanTexture*>	m_mapTextures;
 };
 

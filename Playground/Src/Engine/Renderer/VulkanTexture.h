@@ -7,8 +7,8 @@ class VulkanDevice;
 enum class TextureType
 {
 	TEXTURE_ALBEDO,
-	TEXTURE_NORMAL,
 	TEXTURE_SPECULAR,
+	TEXTURE_NORMAL,
 	TEXTURE_ERROR
 };
 
