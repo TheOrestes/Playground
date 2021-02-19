@@ -32,8 +32,8 @@ void main()
 
     float diffuse = attenuation * clamp(dot(normalColor.xyz, -lightDir), 0.0f, 1.0f);
 
-    outColor = vec4(vec3(scaledDepth), 1.0f);
+    //outColor = vec4(vec3(scaledDepth), 1.0f);
     //outColor = normalColor;
     //outColor = positionColor;
-    //outColor = vec4(vec3(diffuse), 1.0f) * albedoColor;
+    outColor = vec4(vec3(diffuse), 1.0f) * albedoColor;
 }

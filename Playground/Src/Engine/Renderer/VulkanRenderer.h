@@ -89,7 +89,6 @@ private:
 	bool							m_bFramebufferResized;
 
 	// Scene Objects
-	std::vector<Mesh>				m_vecMeshes;
 	std::vector<Model*>				m_vecModels;
 
 	//-----------------------------------------------------------------------------------------------------------------
