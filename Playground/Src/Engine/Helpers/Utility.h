@@ -14,9 +14,8 @@ namespace Helper
 	namespace App
 	{
 		const uint32_t	MAX_FRAME_DRAWS = 2;
-		const uint32_t	MAX_OBJECTS = 20;
-		const uint16_t	WINDOW_WIDTH = 960;
-		const uint16_t	WINDOW_HEIGHT = 540;
+		const float WINDOW_WIDTH = 960.0f;
+		const float WINDOW_HEIGHT = 540.0f;
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Vertex data with Position

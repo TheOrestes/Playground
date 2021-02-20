@@ -80,7 +80,6 @@ private:
 	VkDescriptorSetLayout			m_vkInputBuffersDescriptorSetLayout;
 	std::vector<VkDescriptorSet>	m_vecInputBuffersDescriptorSets;
 
-
 	std::vector<VkSemaphore>		m_vecSemaphoreImageAvailable;
 	std::vector<VkSemaphore>		m_vecSemaphoreRenderFinished;
 	std::vector<VkFence>			m_vecFencesRender;

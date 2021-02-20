@@ -6,7 +6,7 @@
 
 int main(int argc, char** argv)
 {
-	Application mainApp("Vulkan Playground", 1280, 800);
+	Application mainApp("Vulkan Playground");
 	mainApp.Run();
 
 	return 0;

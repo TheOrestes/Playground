@@ -3,18 +3,23 @@
 #include "PlaygroundHeaders.h"
 #include "Application.h"
 
+#include "Engine/Helpers/Utility.h"
 #include "Engine/Renderer/IRenderer.h"
 #include "Engine/Renderer/VulkanRenderer.h"
+#include "Engine/Helpers/FreeCamera.h"
 
 
 //---------------------------------------------------------------------------------------------------------------------
-Application::Application(const std::string& _title, uint16_t _width, uint16_t _height)
-    :   m_strWindowTitle(_title),
-        m_uiWindowWidth(_width),
-        m_uiWindowHeight(_height)
+Application::Application(const std::string& _title)
+    :   m_strWindowTitle(_title)
 {
     m_pWindow = nullptr;
     m_pRenderer = nullptr;
+
+    m_uiWindowWidth = Helper::App::WINDOW_WIDTH;
+    m_uiWindowHeight = Helper::App::WINDOW_HEIGHT;
+
+    m_fDelta = 0.0f;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -81,7 +86,6 @@ void Application::Run()
 //---------------------------------------------------------------------------------------------------------------------
 void Application::MainLoop()
 {
-    float delta = 0.0f;
     float lastTime = 0.0f;
 
     while (!glfwWindowShouldClose(m_pWindow))
@@ -89,10 +93,12 @@ void Application::MainLoop()
         glfwPollEvents();
 
         float currTime = glfwGetTime();
-        delta = currTime - lastTime;
+        m_fDelta = currTime - lastTime;
         lastTime = currTime;
 
-        m_pRenderer->Update(delta);
+        m_pRenderer->Update(m_fDelta);
+        FreeCamera::getInstance().Update(m_fDelta);
+
         m_pRenderer->Render();
     }
 }
@@ -121,13 +127,50 @@ void Application::EventWindowResizedCallback(GLFWwindow* pWindow, int width, int
 //---------------------------------------------------------------------------------------------------------------------
 void Application::EventKeyHandlerCallback(GLFWwindow* pWindow, int key, int scancode, int action, int mods)
 {
-    
+    // Application close!
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    {
+        glfwSetWindowShouldClose(pWindow, true);
+    }
+
+    // Camera controls..
+    if (key == GLFW_KEY_W && (action == GLFW_REPEAT || GLFW_PRESS))
+    {
+        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::FORWARD);
+    }
+
+    if (key == GLFW_KEY_S && (action == GLFW_REPEAT || GLFW_PRESS))
+    {
+        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::BACK);
+    }
+
+    if (key == GLFW_KEY_A && (action == GLFW_REPEAT || GLFW_PRESS))
+    {
+        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::LEFT);
+    }
+
+    if (key == GLFW_KEY_D && (action == GLFW_REPEAT || GLFW_PRESS))
+    {
+        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::RIGHT);
+    }
 }
 
+float lastX = Helper::App::WINDOW_WIDTH / 2.0f;
+float lastY = Helper::App::WINDOW_HEIGHT / 2.0f;
 //---------------------------------------------------------------------------------------------------------------------
 void Application::EventMousePositionCallback(GLFWwindow* pWindow, double xPos, double yPos)
 {
-    
+    float xOffset = xPos - lastX;
+    float yOffset = lastY - yPos;
+
+    lastX = xPos;
+    lastY = yPos;
+
+    // Rotate only when RIGHT CLICK is down!
+    if (glfwGetMouseButton(pWindow, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+    {
+        FreeCamera::getInstance().ProcessMouseMove(xOffset, yOffset);
+    }
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -138,4 +181,5 @@ void Application::EventMouseButtonCallback(GLFWwindow* pWindow, int button, int 
 //---------------------------------------------------------------------------------------------------------------------
 void Application::EventMouseScrollCallback(GLFWwindow* pWindow, double xOffset, double yOffset)
 {
+    FreeCamera::getInstance().ProcessMouseScroll(yOffset);
 }

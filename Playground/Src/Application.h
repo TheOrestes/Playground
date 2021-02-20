@@ -11,7 +11,7 @@ class Application
 {
 public:
 	Application() {};
-	Application(const std::string& _title, uint16_t _width, uint16_t _height);
+	Application(const std::string& _title);
 		
 	~Application();
 
@@ -34,6 +34,8 @@ private:
 	uint16_t		m_uiWindowWidth;
 	uint16_t		m_uiWindowHeight;
 	std::string		m_strWindowTitle;
+
+	float			m_fDelta;
 
 	void			MainLoop();
 };
