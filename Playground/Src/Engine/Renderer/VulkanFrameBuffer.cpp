@@ -10,293 +10,147 @@
 //---------------------------------------------------------------------------------------------------------------------
 VulkanFrameBuffer::VulkanFrameBuffer()
 {
-	m_pAlbedoAttachment = nullptr;
-	m_pDepthAttachment = nullptr;
-	m_pNormalAttachment = nullptr;
-	m_pPositionAttachment = nullptr;
+    m_attachmentFormat = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
 
-	m_vecFramebuffers.clear();
+    m_vecAttachmentImage.clear();
+    m_vecAttachmentImageMemory.clear();
+    m_vecAttachmentImageView.clear();
+    
+    m_vecFramebuffer.clear();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 VulkanFrameBuffer::~VulkanFrameBuffer()
 {
-	SAFE_DELETE(m_pAlbedoAttachment);
-	SAFE_DELETE(m_pDepthAttachment);
-	SAFE_DELETE(m_pNormalAttachment);
-	SAFE_DELETE(m_pPositionAttachment);
+    m_vecAttachmentImage.clear();
+    m_vecAttachmentImageMemory.clear();
+    m_vecAttachmentImageView.clear();
 
-	m_vecFramebuffers.clear();
+    m_vecFramebuffer.clear();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanFrameBuffer::CreateAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, AttachmentType eType)
+void VulkanFrameBuffer::CreateAttachment(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain)
 {
-	switch (eType)
-	{
-		case AttachmentType::FB_ATTACHMENT_ALBEDO:
-		{
-			m_pAlbedoAttachment = new FramebufferAttachment();
+    m_vecAttachmentImage.resize(pSwapChain->m_vecSwapchainImages.size());
+    m_vecAttachmentImageView.resize(pSwapChain->m_vecSwapchainImages.size());
+    m_vecAttachmentImageMemory.resize(pSwapChain->m_vecSwapchainImages.size());	
 
-			m_pAlbedoAttachment->vecAttachmentImage.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pAlbedoAttachment->vecAttachmentImageView.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pAlbedoAttachment->vecAttachmentImageMemory.resize(pSwapChain->m_vecSwapchainImages.size());
+    std::vector<VkFormat> formats = { pSwapChain->m_vkSwapchainImageFormat };//{ VK_FORMAT_R8G8B8A8_UNORM };
+    m_attachmentFormat = ChooseSupportedFormats(pDevice, formats, 
+                                                VK_IMAGE_TILING_OPTIMAL, 
+                                                VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
 
-			std::vector<VkFormat> formats = { VK_FORMAT_R8G8B8A8_UNORM };
-			m_pAlbedoAttachment->attachmentFormat = ChooseSupportedFormats(pDevice, formats, VK_IMAGE_TILING_OPTIMAL,
-				VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
+    for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
+    {
+        // Create color buffer image
+        m_vecAttachmentImage[i] = Helper::Vulkan::CreateImage(	pDevice,
+                                                                pSwapChain->m_vkSwapchainExtent.width,
+                                                                pSwapChain->m_vkSwapchainExtent.height,
+                                                                m_attachmentFormat,
+                                                                VK_IMAGE_TILING_OPTIMAL,
+                                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                                                &(m_vecAttachmentImageMemory[i]));
 
-
-			for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
-			{
-				// Create color buffer image
-				m_pAlbedoAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(pDevice,
-					pSwapChain->m_vkSwapchainExtent.width,
-					pSwapChain->m_vkSwapchainExtent.height,
-					m_pAlbedoAttachment->attachmentFormat,
-					VK_IMAGE_TILING_OPTIMAL,
-					VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-					&(m_pAlbedoAttachment->vecAttachmentImageMemory[i]));
-
-				// Create color buffer image view!
-				m_pAlbedoAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(pDevice,
-					m_pAlbedoAttachment->vecAttachmentImage[i],
-					m_pAlbedoAttachment->attachmentFormat,
-					VK_IMAGE_ASPECT_COLOR_BIT);
-			}
-
-			break;
-		}
-			
-		case AttachmentType::FB_ATTACHMENT_POSITION:
-		{
-
-			m_pPositionAttachment = new FramebufferAttachment();
-
-			m_pPositionAttachment->vecAttachmentImage.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pPositionAttachment->vecAttachmentImageView.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pPositionAttachment->vecAttachmentImageMemory.resize(pSwapChain->m_vecSwapchainImages.size());
-
-			std::vector<VkFormat> formats = { VK_FORMAT_R8G8B8A8_UNORM };
-			m_pPositionAttachment->attachmentFormat = ChooseSupportedFormats(pDevice, formats, VK_IMAGE_TILING_OPTIMAL,
-				VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
-
-
-			for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
-			{
-				// Create color buffer image
-				m_pPositionAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(pDevice,
-					pSwapChain->m_vkSwapchainExtent.width,
-					pSwapChain->m_vkSwapchainExtent.height,
-					m_pPositionAttachment->attachmentFormat,
-					VK_IMAGE_TILING_OPTIMAL,
-					VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-					&(m_pPositionAttachment->vecAttachmentImageMemory[i]));
-
-				// Create color buffer image view!
-				m_pPositionAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(pDevice,
-					m_pPositionAttachment->vecAttachmentImage[i],
-					m_pPositionAttachment->attachmentFormat,
-					VK_IMAGE_ASPECT_COLOR_BIT);
-			}
-
-			break;
-		}
-			
-
-		case AttachmentType::FB_ATTACHMENT_NORMAL:
-		{
-			m_pNormalAttachment = new FramebufferAttachment();
-
-			m_pNormalAttachment->vecAttachmentImage.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pNormalAttachment->vecAttachmentImageView.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pNormalAttachment->vecAttachmentImageMemory.resize(pSwapChain->m_vecSwapchainImages.size());
-
-			std::vector<VkFormat> formats = { VK_FORMAT_R8G8B8A8_UNORM };
-			m_pNormalAttachment->attachmentFormat = ChooseSupportedFormats(pDevice, formats, VK_IMAGE_TILING_OPTIMAL,
-				VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
-
-
-			for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
-			{
-				// Create Normal buffer image
-				m_pNormalAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(pDevice,
-					pSwapChain->m_vkSwapchainExtent.width,
-					pSwapChain->m_vkSwapchainExtent.height,
-					m_pNormalAttachment->attachmentFormat,
-					VK_IMAGE_TILING_OPTIMAL,
-					VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-					&(m_pNormalAttachment->vecAttachmentImageMemory[i]));
-
-				// Create normal buffer image view!
-				m_pNormalAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(pDevice,
-					m_pNormalAttachment->vecAttachmentImage[i],
-					m_pNormalAttachment->attachmentFormat,
-					VK_IMAGE_ASPECT_COLOR_BIT);
-			}
-
-			break;
-		}
-			
-		case AttachmentType::FB_ATTACHMENT_DEPTH:
-		{
-			m_pDepthAttachment = new FramebufferAttachment();
-
-			m_pDepthAttachment->vecAttachmentImage.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pDepthAttachment->vecAttachmentImageView.resize(pSwapChain->m_vecSwapchainImages.size());
-			m_pDepthAttachment->vecAttachmentImageMemory.resize(pSwapChain->m_vecSwapchainImages.size());
-
-			std::vector<VkFormat> formats = { VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT };
-			m_pDepthAttachment->attachmentFormat = ChooseSupportedFormats(pDevice, formats, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-
-			for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
-			{
-				// Create color buffer image
-				m_pDepthAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(pDevice,
-					pSwapChain->m_vkSwapchainExtent.width,
-					pSwapChain->m_vkSwapchainExtent.height,
-					m_pDepthAttachment->attachmentFormat,
-					VK_IMAGE_TILING_OPTIMAL,
-					VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-					&(m_pDepthAttachment->vecAttachmentImageMemory[i]));
-
-				// Create color buffer image view!
-				m_pDepthAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(pDevice,
-					m_pDepthAttachment->vecAttachmentImage[i],
-					m_pDepthAttachment->attachmentFormat,
-					VK_IMAGE_ASPECT_DEPTH_BIT);
-			}
-
-			break;
-		}
-			
-		case AttachmentType::FB_ATTACHMENT_REFLECTION:
-			break;
-
-		case AttachmentType::FB_ATTACHMENT_BACKGROUND:
-			break;
-	}
-	
+        // Create color buffer image view!
+        m_vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(	pDevice,
+                                                                        m_vecAttachmentImage[i],
+                                                                        m_attachmentFormat,
+                                                                        VK_IMAGE_ASPECT_COLOR_BIT);
+    }
 }
-
-//---------------------------------------------------------------------------------------------------------------------
-VkFormat VulkanFrameBuffer::ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags)
-{
-	// Loop through options & find the compatible one
-	for (VkFormat format : formats)
-	{
-		// Get properties for given formats on this device
-		VkFormatProperties properties;
-		vkGetPhysicalDeviceFormatProperties(pDevice->m_vkPhysicalDevice, format, &properties);
-
-		// depending on tiling choice, need to check for different bit flag
-		if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & featureFlags) == featureFlags)
-		{
-			return format;
-		}
-		else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & featureFlags) == featureFlags)
-		{
-			return format;
-		}
-
-		LOG_ERROR("Failed to find matching format!");
-	}
-}
-
 
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapChain, VkRenderPass renderPass)
 {
-	if (!pDevice || !pSwapChain)
-		return;
+    if (!pDevice || !pSwapChain)
+        return;
 
-	// resize framebuffer count to equal swap chain image views count
-	m_vecFramebuffers.resize(pSwapChain->m_vecSwapchainImages.size());
+	
+	
+    // resize framebuffer count to equal swap chain image views count
+    m_vecFramebuffer.resize(pSwapChain->m_vecSwapchainImages.size());
+    
+    // create framebuffer for each swap chain image view
+    for (uint32_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); ++i)
+    {
+        VkFramebufferCreateInfo framebufferCreateInfo{};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass = renderPass;											// Render pass layout the framebuffer will be used with					 
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = &(m_vecAttachmentImageView[i]);					    // List of attachments
+        framebufferCreateInfo.width = pSwapChain->m_vkSwapchainExtent.width;					// framebuffer width
+        framebufferCreateInfo.height = pSwapChain->m_vkSwapchainExtent.height;					// framebuffer height
+        framebufferCreateInfo.layers = 1;														// framebuffer layers
+        framebufferCreateInfo.flags = 0;
+        framebufferCreateInfo.pNext = nullptr;
 
-	// create framebuffer for each swap chain image view
-	for (uint32_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); ++i)
-	{
-		m_arrAttachments = {	pSwapChain->m_vecSwapchainImageViews[i],
-								m_pAlbedoAttachment->vecAttachmentImageView[i],
-								m_pDepthAttachment->vecAttachmentImageView[i],
-								m_pNormalAttachment->vecAttachmentImageView[i],
-								m_pPositionAttachment->vecAttachmentImageView[i] };
-
-
-		VkFramebufferCreateInfo framebufferCreateInfo{};
-		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferCreateInfo.renderPass = renderPass;											// Render pass layout the framebuffer will be used with					 
-		framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(m_arrAttachments.size());
-		framebufferCreateInfo.pAttachments = m_arrAttachments.data();							// List of attachments
-		framebufferCreateInfo.width = pSwapChain->m_vkSwapchainExtent.width;					// framebuffer width
-		framebufferCreateInfo.height = pSwapChain->m_vkSwapchainExtent.height;					// framebuffer height
-		framebufferCreateInfo.layers = 1;														// framebuffer layers
-		framebufferCreateInfo.flags = 0;
-		framebufferCreateInfo.pNext = nullptr;
-
-		if (vkCreateFramebuffer(pDevice->m_vkLogicalDevice, &framebufferCreateInfo, nullptr, &m_vecFramebuffers[i]) != VK_SUCCESS)
-		{
-			LOG_ERROR("Failed to create Framebuffer");
-		}
-		else
-			LOG_INFO("Framebuffer created!");
-	}
+        if (vkCreateFramebuffer(pDevice->m_vkLogicalDevice, &framebufferCreateInfo, nullptr, &m_vecFramebuffer[i]) != VK_SUCCESS)
+        {
+            LOG_ERROR("Failed to create Framebuffer");
+        }
+        else
+            LOG_INFO("Framebuffer created!");
+    }
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::Cleanup(VulkanDevice* pDevice)
 {
-	m_pAlbedoAttachment->Cleanup(pDevice);
-	m_pDepthAttachment->Cleanup(pDevice);
-	m_pNormalAttachment->Cleanup(pDevice);
-	m_pPositionAttachment->Cleanup(pDevice);
-
-	// Destroy frame buffers!
-	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)
-	{
-		vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
-	}
+    // Cleanup image, imageview, memory etc.
+    for (uint16_t i = 0; i < m_vecAttachmentImage.size(); i++)
+    {
+        vkDestroyImageView(pDevice->m_vkLogicalDevice, m_vecAttachmentImageView[i], nullptr);
+        vkDestroyImage(pDevice->m_vkLogicalDevice, m_vecAttachmentImage[i], nullptr);
+        vkFreeMemory(pDevice->m_vkLogicalDevice, m_vecAttachmentImageMemory[i], nullptr);
+    }
+	
+    // Destroy frame buffers!
+    for (uint16_t i = 0; i < m_vecFramebuffer.size(); ++i)
+    {
+        vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffer[i], nullptr);
+    }
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanFrameBuffer::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
-	m_pAlbedoAttachment->CleanupOnWindowResize(pDevice);
-	m_pDepthAttachment->CleanupOnWindowResize(pDevice);
-	m_pNormalAttachment->CleanupOnWindowResize(pDevice);
-	m_pPositionAttachment->CleanupOnWindowResize(pDevice);
-
-	// Destroy frame buffers!
-	for (uint32_t i = 0; i < m_vecFramebuffers.size(); ++i)
-	{
-		vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
-	}
+    // Cleanup image, imageview, memory etc.
+    for (uint16_t i = 0; i < m_vecAttachmentImage.size(); i++)
+    {
+        vkDestroyImageView(pDevice->m_vkLogicalDevice, m_vecAttachmentImageView[i], nullptr);
+        vkDestroyImage(pDevice->m_vkLogicalDevice, m_vecAttachmentImage[i], nullptr);
+        vkFreeMemory(pDevice->m_vkLogicalDevice, m_vecAttachmentImageMemory[i], nullptr);
+    }
+	
+    // Destroy frame buffers!
+    for (uint16_t i = 0; i < m_vecFramebuffer.size(); ++i)
+    {
+        vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffer[i], nullptr);
+    }
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void FramebufferAttachment::Cleanup(VulkanDevice* pDevice)
+VkFormat VulkanFrameBuffer::ChooseSupportedFormats(VulkanDevice* pDevice, const std::vector<VkFormat>& formats, VkImageTiling tiling, VkFormatFeatureFlags featureFlags)
 {
-	// Cleanup depth related buffers, textures, memory etc.
-	for (uint16_t i = 0; i < vecAttachmentImage.size(); i++)
-	{
-		vkDestroyImageView(pDevice->m_vkLogicalDevice, vecAttachmentImageView[i], nullptr);
-		vkDestroyImage(pDevice->m_vkLogicalDevice, vecAttachmentImage[i], nullptr);
-		vkFreeMemory(pDevice->m_vkLogicalDevice, vecAttachmentImageMemory[i], nullptr);
-	}
-}
+    // Loop through options & find the compatible one
+    for (VkFormat format : formats)
+    {
+        // Get properties for given formats on this device
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(pDevice->m_vkPhysicalDevice, format, &properties);
 
-//---------------------------------------------------------------------------------------------------------------------
-void FramebufferAttachment::CleanupOnWindowResize(VulkanDevice* pDevice)
-{
-	// Cleanup depth related buffers, textures, memory etc.
-	for (uint16_t i = 0; i < vecAttachmentImage.size(); i++)
-	{
-		vkDestroyImageView(pDevice->m_vkLogicalDevice, vecAttachmentImageView[i], nullptr);
-		vkDestroyImage(pDevice->m_vkLogicalDevice, vecAttachmentImage[i], nullptr);
-		vkFreeMemory(pDevice->m_vkLogicalDevice, vecAttachmentImageMemory[i], nullptr);
-	}
+        // depending on tiling choice, need to check for different bit flag
+        if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & featureFlags) == featureFlags)
+        {
+            return format;
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & featureFlags) == featureFlags)
+        {
+            return format;
+        }
+
+        LOG_ERROR("Failed to find matching format!");
+    }
 }

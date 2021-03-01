@@ -14,6 +14,8 @@
     <ClCompile Include="Src\Engine\Helpers\FreeCamera.cpp" />
     <ClCompile Include="Src\Application.cpp" />
     <ClCompile Include="Src\Engine\Helpers\Log.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\imgui_impl_glfw.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\imgui_impl_vulkan.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanRenderer.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\Mesh.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\Model.cpp" />
@@ -26,16 +28,31 @@
     </ClCompile>
     <ClCompile Include="Src\Engine\Renderer\VulkanDevice.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanSwapChain.cpp" />
-    <ClCompile Include="Src\Engine\Renderer\VulkanFrameBuffer.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\DeferredFrameBuffer.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanTexture.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanGraphicsPipeline.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanMaterial.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\imgui.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="Src\Engine\ImGui\UIManager.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\VulkanFrameBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Src\Engine\Helpers\FreeCamera.h" />
     <ClInclude Include="Src\Application.h" />
     <ClInclude Include="Src\Engine\Helpers\Log.h" />
     <ClInclude Include="Src\Engine\Helpers\Utility.h" />
+    <ClInclude Include="Src\Engine\ImGui\imconfig.h" />
+    <ClInclude Include="Src\Engine\ImGui\imgui.h" />
+    <ClInclude Include="Src\Engine\ImGui\imgui_impl_glfw.h" />
+    <ClInclude Include="Src\Engine\ImGui\imgui_impl_vulkan.h" />
+    <ClInclude Include="Src\Engine\ImGui\imgui_internal.h" />
+    <ClInclude Include="Src\Engine\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="Src\Engine\ImGui\imstb_textedit.h" />
+    <ClInclude Include="Src\Engine\ImGui\imstb_truetype.h" />
     <ClInclude Include="Src\Engine\Renderer\IRenderer.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanRenderer.h" />
     <ClInclude Include="Src\Engine\RenderObjects\Mesh.h" />
@@ -44,10 +61,12 @@
     <ClInclude Include="Src\PlaygroundPCH.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanDevice.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanSwapChain.h" />
-    <ClInclude Include="Src\Engine\Renderer\VulkanFrameBuffer.h" />
+    <ClInclude Include="Src\Engine\Renderer\DeferredFrameBuffer.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanTexture.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanGraphicsPipeline.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanMaterial.h" />
+    <ClInclude Include="Src\Engine\ImGui\UIManager.h" />
+    <ClInclude Include="Src\Engine\Renderer\VulkanFrameBuffer.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -99,7 +118,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.162.1\Include;$(SolutionDir)\Playground\ThirdParty\spdlog\include;$(SolutionDir)\Playground\ThirdParty\glfw\include;$(SolutionDir)\Playground\ThirdParty\glm;$(SolutionDir)\Playground\ThirdParty\assimp\include;$(SolutionDir)\Playground\ThirdParty\stb;$(SolutionDir)\Playground\Src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.162.1\Include;$(SolutionDir)Playground\ThirdParty\spdlog\include;$(SolutionDir)Playground\ThirdParty\glfw\include;$(SolutionDir)Playground\ThirdParty\glm;$(SolutionDir)Playground\ThirdParty\assimp\include;$(SolutionDir)Playground\ThirdParty\stb;$(SolutionDir)Playground\Src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PlaygroundPCH.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -128,7 +147,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.162.1\Include;$(SolutionDir)\Playground\ThirdParty\spdlog\include;$(SolutionDir)\Playground\ThirdParty\glfw\include;$(SolutionDir)\Playground\ThirdParty\glm;$(SolutionDir)\Playground\ThirdParty\assimp\include;$(SolutionDir)\Playground\ThirdParty\stb;$(SolutionDir)\Playground\Src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.162.1\Include;$(SolutionDir)Playground\ThirdParty\spdlog\include;$(SolutionDir)Playground\ThirdParty\glfw\include;$(SolutionDir)Playground\ThirdParty\glm;$(SolutionDir)Playground\ThirdParty\assimp\include;$(SolutionDir)Playground\ThirdParty\stb;$(SolutionDir)Playground\Src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PlaygroundPCH.h</PrecompiledHeaderFile>
     </ClCompile>

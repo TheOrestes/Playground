@@ -215,6 +215,8 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			m_vkVertexInputStateCreateInfo.pNext = nullptr;
 
 			//--- Color blending
+			m_vecColorBlendAttachments.clear();
+				
 			VkPipelineColorBlendAttachmentState colorBlendAttachment1 = {};
 			colorBlendAttachment1.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;	// apply blending on all channels!	
 			colorBlendAttachment1.blendEnable = VK_FALSE;
@@ -284,6 +286,8 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			m_vkDepthStencilCreateInfo.depthWriteEnable = VK_FALSE;
 
 			//--- Color blending
+			m_vecColorBlendAttachments.clear();
+				
 			VkPipelineColorBlendAttachmentState colorBlendAttachment1 = {};
 			colorBlendAttachment1.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;	// apply blending on all channels!	
 			colorBlendAttachment1.blendEnable = VK_FALSE;

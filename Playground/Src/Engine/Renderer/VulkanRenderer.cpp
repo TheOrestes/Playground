@@ -5,14 +5,17 @@
 #include "VulkanRenderer.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapChain.h"
-#include "VulkanFrameBuffer.h"
+#include "DeferredFrameBuffer.h"
 #include "VulkanMaterial.h"
 #include "VulkanTexture.h"
 #include "VulkanGraphicsPipeline.h"
 
 #include "Engine/RenderObjects/Model.h"
-
 #include "Engine/Helpers/Utility.h"
+#include "Engine/ImGui/UIManager.h"
+#include "Engine/ImGui/imgui.h"
+#include "Engine/ImGui/imgui_impl_glfw.h"
+#include "Engine/ImGui/imgui_impl_vulkan.h"
 
 //---------------------------------------------------------------------------------------------------------------------
 VulkanRenderer::VulkanRenderer()
@@ -85,7 +88,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pSwapChain = new VulkanSwapChain();
 		m_pSwapChain->CreateSwapChain(m_pDevice, m_vkSurface, m_pWindow);
 
-		m_pFrameBuffer = new VulkanFrameBuffer();
+		m_pFrameBuffer = new DeferredFrameBuffer();
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_ALBEDO);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_DEPTH);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_NORMAL);
@@ -95,8 +98,13 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 
 		m_pFrameBuffer->CreateFrameBuffers(m_pDevice, m_pSwapChain, m_vkRenderPass);
 
+		// Command pool & Command buffer for Graphics!
 		m_pDevice->CreateGraphicsCommandPool();
 		m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
+
+		// Command pool & Command buffer for UI! 
+		//m_pDevice->CreateGUICommandPool();
+		//m_pDevice->CreateGUICommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
 		// Load Barbarian Model
 		Model* pModelBarb = new Model();
@@ -109,9 +117,9 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 
 		// Load Car Model
 		Model* pModelCar = new Model();
-		pModelCar->LoadModel(m_pDevice, "Models/deer.obj");
+		pModelCar->LoadModel(m_pDevice, "Models/car_detailed.fbx");
 		pModelCar->SetPosition(glm::vec3(10, 0, 0));
-		pModelCar->SetScale(glm::vec3(3));
+		pModelCar->SetScale(glm::vec3(4));
 		pModelCar->SetupDescriptors(m_pDevice, m_pSwapChain);
 
 		m_vecModels.push_back(pModelCar);
@@ -125,6 +133,8 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 
 		CreateSyncObjects();
 
+		// Initialize UI Manager!
+		// UIManager::getInstance().Initialize(m_pWindow, m_vkInstance, m_pDevice, m_pSwapChain, m_vkRenderPass);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -144,6 +154,14 @@ void VulkanRenderer::Update(float dt)
 	{
 		(*iter)->Update(m_pDevice, m_pSwapChain, dt);
 	}
+
+	// UIManager::getInstance().BeginRender();
+	// 
+	// ImGui::Begin("Hello, world!");                          
+	// ImGui::Text("This is some useful text.");               
+	// ImGui::End();
+	// 
+	// UIManager::getInstance().EndRender();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -372,14 +390,6 @@ void VulkanRenderer::HandleWindowResize()
 	CreateInputBuffersDescriptorPool();
 	CreateInputBuffersDescriptorSets();
 
-	//CreateUniformBuffers();
-	//CreateDescriptorPool();
-	//CreateDescriptorSetLayout();
-	//CreatePushConstantRange();
-	//CreateDescriptorSets();
-	//CreateInputDescriptorSets();
-	//CreateCommandBuffers();
-
 	m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
 	LOG_DEBUG("Recreating SwapChain End");
@@ -547,7 +557,7 @@ void VulkanRenderer::CreateRenderPass()
 	swapChainColorAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;				// describes what to do with stencil before rendering
 	swapChainColorAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;				// describes what to do with stencil after rendering
 	swapChainColorAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;						// image data layout before render pass starts
-	swapChainColorAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;					// image data layout after render pass
+	swapChainColorAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;					//? changed from VK_IMAGE_LAYOUT_PRESENT_SRC_KHR since UI gets drawn last! 					
 
 	// Swap chain Color attachment Reference
 	VkAttachmentReference swapChainColorAttachmentRef = {};
@@ -639,7 +649,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	// Information about how to begin each command buffer
 	VkCommandBufferBeginInfo bufferBeginInfo = {};
 	bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	bufferBeginInfo.flags = 0;												// buffer cab be re-submitted when it has already been submitted & is awaiting execution!
+	bufferBeginInfo.flags = 0;												// buffer can be re-submitted when it has already been submitted & is awaiting execution!
 
 	// Information about how to begin a render pass (only needed for graphical applications) 
 	VkRenderPassBeginInfo renderPassBeginInfo = {};
@@ -663,37 +673,45 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 
 	// start recording commands to command buffer
 	if (vkBeginCommandBuffer(m_pDevice->m_vecCommandBufferGraphics[currentImage], &bufferBeginInfo) != VK_SUCCESS)
-		LOG_ERROR("Failed to begin recording command buffer...");
-
-	// Begin Render Pass
-	vkCmdBeginRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-	// Bind Pipeline to be used in render pass
-	vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineOpaque->m_vkGraphicsPipeline);
-	
-	// Draw Cubes
-
-
-	// Draw 3D Meshes! 
-	for (uint16_t j = 0; j < m_vecModels.size(); j++)
 	{
-		m_vecModels[j]->Render(m_pDevice, m_pGraphicsPipelineOpaque, currentImage);
+		LOG_ERROR("Failed to begin recording command buffer...");
 	}
+	else
+	{
+		// Begin Render Pass
+		vkCmdBeginRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	// Start second subpass
-	vkCmdNextSubpass(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineDeferred->m_vkGraphicsPipeline);
-	vkCmdBindDescriptorSets(m_pDevice->m_vecCommandBufferGraphics[currentImage], 
-							VK_PIPELINE_BIND_POINT_GRAPHICS, 
-							m_pGraphicsPipelineDeferred->m_vkPipelineLayout, 
-							0, 1, &m_vecInputBuffersDescriptorSets[currentImage], 
-							0, nullptr);
+		// Bind Pipeline to be used in render pass
+		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineOpaque->m_vkGraphicsPipeline);
 
-	// Draw full screen triangle
-	vkCmdDraw(m_pDevice->m_vecCommandBufferGraphics[currentImage], 3, 1, 0, 0);
+		// Draw Cubes
 
-	// End Render Pass
-	vkCmdEndRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage]);
+
+		// Draw 3D Meshes! 
+		for (uint16_t j = 0; j < m_vecModels.size(); j++)
+		{
+			m_vecModels[j]->Render(m_pDevice, m_pGraphicsPipelineOpaque, currentImage);
+		}
+
+		// Start second subpass
+		vkCmdNextSubpass(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineDeferred->m_vkGraphicsPipeline);
+		vkCmdBindDescriptorSets(m_pDevice->m_vecCommandBufferGraphics[currentImage],
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			m_pGraphicsPipelineDeferred->m_vkPipelineLayout,
+			0, 1, &m_vecInputBuffersDescriptorSets[currentImage],
+			0, nullptr);
+
+		// Draw full screen triangle
+		vkCmdDraw(m_pDevice->m_vecCommandBufferGraphics[currentImage], 3, 1, 0, 0);
+
+		// Draw UI
+		//ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_pDevice->m_vecCommandBufferGraphics[currentImage]);
+
+		// End Render Pass
+		vkCmdEndRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage]);
+	}
+	
 
 	// finish recording to command buffer
 	if (vkEndCommandBuffer(m_pDevice->m_vecCommandBufferGraphics[currentImage]) != VK_SUCCESS)
@@ -903,7 +921,11 @@ void VulkanRenderer::Render()
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(m_pDevice->m_vkLogicalDevice, m_pSwapChain->m_vkSwapchain, UINT64_MAX, m_vecSemaphoreImageAvailable[m_uiCurrentFrame], VK_NULL_HANDLE, &imageIndex);
 
+	// Record Graphics command
 	RecordCommands(imageIndex);
+
+	// Record GUI commands
+	//UIManager::getInstance().RecordCommands(m_pDevice, m_pSwapChain, imageIndex);
 
 	// Update all models!
 	std::vector<Model*>::iterator iter = m_vecModels.begin();
@@ -936,6 +958,11 @@ void VulkanRenderer::Render()
 	VkSemaphore waitSemaphores[] = { m_vecSemaphoreImageAvailable[m_uiCurrentFrame] };
 	VkSemaphore signalSemaphores[] = { m_vecSemaphoreRenderFinished[m_uiCurrentFrame] };
 
+	std::array<VkCommandBuffer, 1> commandBuffers = {
+														m_pDevice->m_vecCommandBufferGraphics[imageIndex]
+														//m_pDevice->m_vecCommandBufferGUI[imageIndex]
+													};
+
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;														// Number of semaphores to wait on
@@ -944,8 +971,8 @@ void VulkanRenderer::Render()
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submitInfo.pWaitDstStageMask = waitStages;												// stages to check semaphores at
 
-	submitInfo.commandBufferCount = 1;														// number of command buffers to submit
-	submitInfo.pCommandBuffers = &m_pDevice->m_vecCommandBufferGraphics[imageIndex];							// command buffers to submit
+	submitInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());			// number of command buffers to submit
+	submitInfo.pCommandBuffers = commandBuffers.data();										// command buffers to submit
 	submitInfo.signalSemaphoreCount = 1;													// number of semaphores to signal
 	submitInfo.pSignalSemaphores = signalSemaphores;										// semaphores to signal when command buffer finishes
 	submitInfo.pNext = nullptr;

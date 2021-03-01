@@ -20,7 +20,7 @@
 
 class VulkanDevice;
 class VulkanSwapChain;
-class VulkanFrameBuffer;
+class DeferredFrameBuffer;
 class VulkanGraphicsPipeline;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,7 +66,7 @@ private:
 
 	VulkanDevice*					m_pDevice;
 	VulkanSwapChain*				m_pSwapChain;
-	VulkanFrameBuffer*				m_pFrameBuffer;
+	DeferredFrameBuffer*			m_pFrameBuffer;
 
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineOpaque;
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineDeferred;

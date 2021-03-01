@@ -244,10 +244,10 @@ void VulkanDevice::CreateGraphicsCommandPool()
 	// Create a Graphics queue family Command Pool
 	if (vkCreateCommandPool(m_vkLogicalDevice, &commandPoolCreateInfo, nullptr, &m_vkCommandPoolGraphics) != VK_SUCCESS)
 	{
-		LOG_ERROR("Failed to create Command Pool!");
+		LOG_ERROR("Failed to create Graphics Command Pool!");
 	}
 	else
-		LOG_DEBUG("Created Command Pool!");
+		LOG_DEBUG("Created Graphics Command Pool!");
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -266,10 +266,50 @@ void VulkanDevice::CreateGraphicsCommandBuffers(uint32_t size)
 	// Allocate command buffers & place handles in array of buffers!
 	if (vkAllocateCommandBuffers(m_vkLogicalDevice, &commandBufferAllocInfo, m_vecCommandBufferGraphics.data()) != VK_SUCCESS)
 	{
-		LOG_ERROR("Failed to create Command buffer!");
+		LOG_ERROR("Failed to create Graphics Command buffer!");
 	}
 	else
-		LOG_INFO("Created Command buffers!");
+		LOG_INFO("Created Graphics Command buffers!");
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void VulkanDevice::CreateGUICommandPool()
+{
+	VkCommandPoolCreateInfo commandPoolCreateInfo{};
+	commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	commandPoolCreateInfo.queueFamilyIndex = m_pQueueFamilyIndices->m_uiGraphicsFamily.value();
+	commandPoolCreateInfo.pNext = nullptr;
+
+	// Create a Graphics queue family Command Pool
+	if (vkCreateCommandPool(m_vkLogicalDevice, &commandPoolCreateInfo, nullptr, &m_vkCommandPoolGUI) != VK_SUCCESS)
+	{
+		LOG_ERROR("Failed to create GUI Command Pool!");
+	}
+	else
+		LOG_DEBUG("Created GUI Command Pool!");
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void VulkanDevice::CreateGUICommandBuffers(uint32_t size)
+{
+	m_vecCommandBufferGUI.resize(size);
+
+	VkCommandBufferAllocateInfo commandBufferAllocInfo{};
+	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	commandBufferAllocInfo.commandPool = m_vkCommandPoolGUI;
+	commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;						// Buffer you submit directly to the queue. can't be called by other buffers!
+																						// BUFFER_LEVEL_SECONDARY can't be called directly but can be called from other buffers via "vkCmdExecuteCommands"
+	commandBufferAllocInfo.commandBufferCount = (uint32_t)m_vecCommandBufferGUI.size();
+	commandBufferAllocInfo.pNext = nullptr;
+
+	// Allocate command buffers & place handles in array of buffers!
+	if (vkAllocateCommandBuffers(m_vkLogicalDevice, &commandBufferAllocInfo, m_vecCommandBufferGUI.data()) != VK_SUCCESS)
+	{
+		LOG_ERROR("Failed to create GUI Command buffer!");
+	}
+	else
+		LOG_INFO("Created GUI Command buffers!");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -397,9 +437,11 @@ void VulkanDevice::Cleanup()
 {
 	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!
 	vkFreeCommandBuffers(m_vkLogicalDevice, m_vkCommandPoolGraphics, static_cast<uint32_t>(m_vecCommandBufferGraphics.size()), m_vecCommandBufferGraphics.data());
+	//vkFreeCommandBuffers(m_vkLogicalDevice, m_vkCommandPoolGUI, static_cast<uint32_t>(m_vecCommandBufferGUI.size()), m_vecCommandBufferGUI.data());
 
 	// Destroy command pool
 	vkDestroyCommandPool(m_vkLogicalDevice, m_vkCommandPoolGraphics, nullptr);
+	//vkDestroyCommandPool(m_vkLogicalDevice, m_vkCommandPoolGUI, nullptr);
 	vkDestroyDevice(m_vkLogicalDevice, nullptr);
 }
 
@@ -408,4 +450,5 @@ void VulkanDevice::CleanupOnWindowResize()
 {
 	// clean-up existing command buffer & reuse existing pool to allocate new command buffers instead of recreating it!
 	vkFreeCommandBuffers(m_vkLogicalDevice, m_vkCommandPoolGraphics, static_cast<uint32_t>(m_vecCommandBufferGraphics.size()), m_vecCommandBufferGraphics.data());
+	//vkFreeCommandBuffers(m_vkLogicalDevice, m_vkCommandPoolGUI, static_cast<uint32_t>(m_vecCommandBufferGUI.size()), m_vecCommandBufferGUI.data());
 }
