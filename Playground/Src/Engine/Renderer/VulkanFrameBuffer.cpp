@@ -66,8 +66,6 @@ void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChai
 {
     if (!pDevice || !pSwapChain)
         return;
-
-	
 	
     // resize framebuffer count to equal swap chain image views count
     m_vecFramebuffer.resize(pSwapChain->m_vecSwapchainImages.size());

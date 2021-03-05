@@ -20,27 +20,31 @@ public:
 		return manager;
 	}
 
-	void						Initialize(GLFWwindow* pWindow, VkInstance instance, VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, VkRenderPass renderPass);
-	//void						RecordCommands(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, VulkanFrameBuffer* pFrameBuffer, VkRenderPass renderPass, uint32_t currentImage);
-
-	void						HandleWindowResize(GLFWwindow* pWindow, VkInstance instance, VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
-	void						Cleanup(VulkanDevice* pDevice);
-	void						CleanupOnWindowResize(VulkanDevice* pDevice);
-
-	void						BeginRender();
-	void						EndRender();
+	void							Initialize(GLFWwindow* pWindow, VkInstance instance, VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
+	void							HandleWindowResize(GLFWwindow* pWindow, VkInstance instance, VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
+	void							Cleanup(VulkanDevice* pDevice);
+	void							CleanupOnWindowResize(VulkanDevice* pDevice);
+	void							BeginRender();
+	void							EndRender(VulkanSwapChain* pSwapchain, uint32_t imageIndex);
 
 private:
 	UIManager();
 	UIManager(const UIManager&);
 	void operator=(const UIManager&);
 
-	void						InitDescriptorPool(VulkanDevice* pDevice);
-	//void						InitRenderPass(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
+	void							InitDescriptorPool(VulkanDevice* pDevice);
+	void							InitCommandBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
+	void							InitFramebuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
+	void							InitRenderPass(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
 
 private:
-	VkDescriptorPool			m_vkDescriptorPool;
-	//VkRenderPass				m_vkRenderPass;
-	//VulkanFrameBuffer*			m_pFramebuffer;
+	VkDescriptorPool				m_vkDescriptorPool;
+	
+	VkRenderPass					m_vkRenderPass;
+	std::vector<VkFramebuffer>		m_vecFramebuffers;
+	VkCommandPool					m_vkCommandPool;
+
+public:
+	std::vector<VkCommandBuffer>	m_vecCommandBuffers;
 };
 

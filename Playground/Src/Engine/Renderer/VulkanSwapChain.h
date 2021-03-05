@@ -45,6 +45,8 @@ private:
 	VkExtent2D						ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* pWindow);
 
 public:
+	uint32_t						m_uiMinImageCount;
+	uint32_t						m_uiImageCount;
 	VkSwapchainKHR					m_vkSwapchain;
 	VkFormat						m_vkSwapchainImageFormat;
 	VkExtent2D						m_vkSwapchainExtent;

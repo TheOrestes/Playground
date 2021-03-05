@@ -134,7 +134,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		CreateSyncObjects();
 
 		// Initialize UI Manager!
-		// UIManager::getInstance().Initialize(m_pWindow, m_vkInstance, m_pDevice, m_pSwapChain, m_vkRenderPass);
+		UIManager::getInstance().Initialize(m_pWindow, m_vkInstance, m_pDevice, m_pSwapChain);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -154,14 +154,6 @@ void VulkanRenderer::Update(float dt)
 	{
 		(*iter)->Update(m_pDevice, m_pSwapChain, dt);
 	}
-
-	// UIManager::getInstance().BeginRender();
-	// 
-	// ImGui::Begin("Hello, world!");                          
-	// ImGui::Text("This is some useful text.");               
-	// ImGui::End();
-	// 
-	// UIManager::getInstance().EndRender();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -392,6 +384,8 @@ void VulkanRenderer::HandleWindowResize()
 
 	m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
+	UIManager::getInstance().HandleWindowResize(m_pWindow, m_vkInstance, m_pDevice, m_pSwapChain);
+
 	LOG_DEBUG("Recreating SwapChain End");
 }
 
@@ -476,111 +470,111 @@ void VulkanRenderer::CreateRenderPass()
 	// *** SUBPASS 1 ATTACHMENTS + REFERENCES (INPUT ATTACHMENTS)
 	// Color Attachment (Input)
 	VkAttachmentDescription colorAttachmentDesc = {};
-	colorAttachmentDesc.format = m_pFrameBuffer->m_pAlbedoAttachment->attachmentFormat;			// format to use for attachment
-	colorAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;										// number of samples for multi-sampling
-	colorAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;									// describes what to do with attachment before rendering
-	colorAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with attachment after rendering
-	colorAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;						// describes what to do with stencil before rendering
-	colorAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;						// describes what to do with stencil after rendering
-	colorAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;								// image data layout before render pass starts
-	colorAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;					// image data layout after render pass
+	colorAttachmentDesc.format				= m_pFrameBuffer->m_pAlbedoAttachment->attachmentFormat;		// format to use for attachment
+	colorAttachmentDesc.samples				= VK_SAMPLE_COUNT_1_BIT;										// number of samples for multi-sampling
+	colorAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;									// describes what to do with attachment before rendering
+	colorAttachmentDesc.storeOp				= VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with attachment after rendering
+	colorAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;								// describes what to do with stencil before rendering
+	colorAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with stencil after rendering
+	colorAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;									// image data layout before render pass starts
+	colorAttachmentDesc.finalLayout			= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;						// image data layout after render pass
 
 	// Depth attachment (Input)
 	VkAttachmentDescription depthAttachmentDesc = {};
-	depthAttachmentDesc.format = m_pFrameBuffer->m_pDepthAttachment->attachmentFormat;
-	depthAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
-	depthAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depthAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	depthAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthAttachmentDesc.format				= m_pFrameBuffer->m_pDepthAttachment->attachmentFormat;
+	depthAttachmentDesc.samples				= VK_SAMPLE_COUNT_1_BIT;
+	depthAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachmentDesc.storeOp				= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
+	depthAttachmentDesc.finalLayout			= VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	// Normal Attachment (Input)
 	VkAttachmentDescription normalAttachmentDesc = {};
-	normalAttachmentDesc.format = m_pFrameBuffer->m_pNormalAttachment->attachmentFormat;
-	normalAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
-	normalAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	normalAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	normalAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	normalAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	normalAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	normalAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	normalAttachmentDesc.format				= m_pFrameBuffer->m_pNormalAttachment->attachmentFormat;
+	normalAttachmentDesc.samples			= VK_SAMPLE_COUNT_1_BIT;
+	normalAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	normalAttachmentDesc.storeOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	normalAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	normalAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	normalAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
+	normalAttachmentDesc.finalLayout		= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// Position attachment (Input)
 	VkAttachmentDescription positionAttachmentDesc = {};
-	positionAttachmentDesc.format = m_pFrameBuffer->m_pPositionAttachment->attachmentFormat;
-	positionAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
-	positionAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	positionAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	positionAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	positionAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	positionAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	positionAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	positionAttachmentDesc.format			= m_pFrameBuffer->m_pPositionAttachment->attachmentFormat;
+	positionAttachmentDesc.samples			= VK_SAMPLE_COUNT_1_BIT;
+	positionAttachmentDesc.loadOp			= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	positionAttachmentDesc.storeOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	positionAttachmentDesc.stencilLoadOp	= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	positionAttachmentDesc.stencilStoreOp	= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	positionAttachmentDesc.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;
+	positionAttachmentDesc.finalLayout		= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// Color attachment (Input) Reference
 	VkAttachmentReference colorAttachmentRef = {};
-	colorAttachmentRef.attachment = 1;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	colorAttachmentRef.attachment			 = 1;
+	colorAttachmentRef.layout				 = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// Depth attachment (Input) Reference
 	VkAttachmentReference depthAttachmentRef = {};
-	depthAttachmentRef.attachment = 2;
-	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthAttachmentRef.attachment			 = 2;
+	depthAttachmentRef.layout				 = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	// Normal attachment (Input) Reference
 	VkAttachmentReference normalAttachmentRef = {};
-	normalAttachmentRef.attachment = 3;
-	normalAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	normalAttachmentRef.attachment			  = 3;
+	normalAttachmentRef.layout				  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// Position attachment (Input) Reference
 	VkAttachmentReference positionAttachmentRef = {};
-	positionAttachmentRef.attachment = 4;
-	positionAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	positionAttachmentRef.attachment			= 4;
+	positionAttachmentRef.layout				= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	std::array<VkAttachmentReference, 3> attachmentRefs = { colorAttachmentRef, normalAttachmentRef, positionAttachmentRef };
 
-	// Set up subpass 1
-	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpasses[0].colorAttachmentCount = attachmentRefs.size();
-	subpasses[0].pColorAttachments = attachmentRefs.data();
-	subpasses[0].pDepthStencilAttachment = &depthAttachmentRef;
+	// Set up subpass 1 (Outputs 3 Color + 1 Depth attachment) 
+	subpasses[0].pipelineBindPoint			= VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpasses[0].colorAttachmentCount		= attachmentRefs.size();
+	subpasses[0].pColorAttachments			= attachmentRefs.data();
+	subpasses[0].pDepthStencilAttachment	= &depthAttachmentRef;
 
 
 	//--- SUBPASS 2 ATTACHMENTS + REFERENCES
 	// Swap chain Color Attachment 
 	VkAttachmentDescription swapChainColorAttachmentDesc = {};
-	swapChainColorAttachmentDesc.format = m_pSwapChain->m_vkSwapchainImageFormat;				// format to use for attachment
-	swapChainColorAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;								// number of samples for multi sampling
-	swapChainColorAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;							// describes what to do with attachment before rendering
-	swapChainColorAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;						// describes what to do with attachment after rendering
-	swapChainColorAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;				// describes what to do with stencil before rendering
+	swapChainColorAttachmentDesc.format			= m_pSwapChain->m_vkSwapchainImageFormat;		// format to use for attachment
+	swapChainColorAttachmentDesc.samples		= VK_SAMPLE_COUNT_1_BIT;						// number of samples for multi sampling
+	swapChainColorAttachmentDesc.loadOp			= VK_ATTACHMENT_LOAD_OP_CLEAR;					// describes what to do with attachment before rendering
+	swapChainColorAttachmentDesc.storeOp		= VK_ATTACHMENT_STORE_OP_STORE;					// describes what to do with attachment after rendering
+	swapChainColorAttachmentDesc.stencilLoadOp	= VK_ATTACHMENT_LOAD_OP_DONT_CARE;				// describes what to do with stencil before rendering
 	swapChainColorAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;				// describes what to do with stencil after rendering
-	swapChainColorAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;						// image data layout before render pass starts
-	swapChainColorAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;					//? changed from VK_IMAGE_LAYOUT_PRESENT_SRC_KHR since UI gets drawn last! 					
+	swapChainColorAttachmentDesc.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;					// image data layout before render pass starts
+	swapChainColorAttachmentDesc.finalLayout	= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;		//? changed from VK_IMAGE_LAYOUT_PRESENT_SRC_KHR since UI gets drawn last! 					
 
 	// Swap chain Color attachment Reference
 	VkAttachmentReference swapChainColorAttachmentRef = {};
-	swapChainColorAttachmentRef.attachment = 0;
-	swapChainColorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	swapChainColorAttachmentRef.attachment			  = 0;
+	swapChainColorAttachmentRef.layout				  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// References to attachments that subpass will take input from
 	std::array<VkAttachmentReference, 4> inputReferences;
-	inputReferences[0].attachment = 1;
-	inputReferences[0].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	inputReferences[1].attachment = 2;
-	inputReferences[1].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	inputReferences[2].attachment = 3;
-	inputReferences[2].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	inputReferences[3].attachment = 4;
-	inputReferences[3].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[0].attachment	= 1;
+	inputReferences[0].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[1].attachment	= 2;
+	inputReferences[1].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[2].attachment	= 3;
+	inputReferences[2].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[3].attachment	= 4;
+	inputReferences[3].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	// Set up subpass 2
-	subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpasses[1].colorAttachmentCount = 1;												
-	subpasses[1].pColorAttachments = &swapChainColorAttachmentRef;
-	subpasses[1].inputAttachmentCount = static_cast<uint32_t>(inputReferences.size());
-	subpasses[1].pInputAttachments = inputReferences.data();
+	// Set up subpass 2 (Takes in 4 input attachments from subpass 1 & outputs one color output for final present!)
+	subpasses[1].pipelineBindPoint		= VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpasses[1].colorAttachmentCount	= 1;												
+	subpasses[1].pColorAttachments		= &swapChainColorAttachmentRef;
+	subpasses[1].inputAttachmentCount	= static_cast<uint32_t>(inputReferences.size());
+	subpasses[1].pInputAttachments		= inputReferences.data();
 
 	// SUBPASS DEPENDENCIES
 	// Need to determine when layout transition occurs using subpass dependencies
@@ -588,36 +582,35 @@ void VulkanRenderer::CreateRenderPass()
 
 	// Conversion from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL & VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
 	// Transition must happen after...
-	subpassDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;						// Sub pass index
-	subpassDependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;		// pipeline stage
-	subpassDependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;				// stage access mask (memory access)
+	subpassDependencies[0].srcSubpass		= VK_SUBPASS_EXTERNAL;						// Sub pass index
+	subpassDependencies[0].srcStageMask		= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;		// pipeline stage
+	subpassDependencies[0].srcAccessMask	= VK_ACCESS_MEMORY_READ_BIT;				// stage access mask (memory access)
 	// But must happen before...
-	subpassDependencies[0].dstSubpass = 0;
-	subpassDependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpassDependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	subpassDependencies[0].dependencyFlags = 0;
+	subpassDependencies[0].dstSubpass		= 0;
+	subpassDependencies[0].dstStageMask		= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependencies[0].dstAccessMask	= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpassDependencies[0].dependencyFlags	= 0;
 
 	// Sub pass 1 layout (color+depth) to subpass 2 layout (shader read) i.e.
 	// Conversion from VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL & VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL to 
 	// VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-	subpassDependencies[1].srcSubpass = 0;
-	subpassDependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpassDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	subpassDependencies[1].dstSubpass = 1;
-	subpassDependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	subpassDependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	subpassDependencies[1].dependencyFlags = 0;
+	subpassDependencies[1].srcSubpass		= 0;
+	subpassDependencies[1].srcStageMask		= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependencies[1].srcAccessMask	= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpassDependencies[1].dstSubpass		= 1;
+	subpassDependencies[1].dstStageMask		= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	subpassDependencies[1].dstAccessMask	= VK_ACCESS_SHADER_READ_BIT;
+	subpassDependencies[1].dependencyFlags	= 0;
 
 	// Conversion from VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 	// Transition must happen after...
-	subpassDependencies[2].srcSubpass = 1;
-	subpassDependencies[2].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpassDependencies[2].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;;
-	// But must happen before...
-	subpassDependencies[2].dstSubpass = VK_SUBPASS_EXTERNAL;
-	subpassDependencies[2].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-	subpassDependencies[2].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	subpassDependencies[2].dependencyFlags = 0;
+	subpassDependencies[2].srcSubpass		= 1;
+	subpassDependencies[2].srcStageMask		= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependencies[2].srcAccessMask	= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;;
+	subpassDependencies[2].dstSubpass		= VK_SUBPASS_EXTERNAL;
+	subpassDependencies[2].dstStageMask		= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	subpassDependencies[2].dstAccessMask	= VK_ACCESS_MEMORY_READ_BIT;
+	subpassDependencies[2].dependencyFlags	= 0;
 
 	// Render pass!
 	std::array<VkAttachmentDescription, 5> renderPassAttachments = { swapChainColorAttachmentDesc, 
@@ -627,13 +620,13 @@ void VulkanRenderer::CreateRenderPass()
 																	 positionAttachmentDesc };
 
 	VkRenderPassCreateInfo renderPassCreateInfo{};
-	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassCreateInfo.attachmentCount = static_cast<uint32_t>(renderPassAttachments.size());
-	renderPassCreateInfo.pAttachments = renderPassAttachments.data();
-	renderPassCreateInfo.subpassCount = static_cast<uint32_t>(subpasses.size());
-	renderPassCreateInfo.pSubpasses = subpasses.data();
-	renderPassCreateInfo.dependencyCount = static_cast<uint32_t>(subpassDependencies.size());
-	renderPassCreateInfo.pDependencies = subpassDependencies.data();
+	renderPassCreateInfo.sType				= VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassCreateInfo.attachmentCount	= static_cast<uint32_t>(renderPassAttachments.size());
+	renderPassCreateInfo.pAttachments		= renderPassAttachments.data();
+	renderPassCreateInfo.subpassCount		= static_cast<uint32_t>(subpasses.size());
+	renderPassCreateInfo.pSubpasses			= subpasses.data();
+	renderPassCreateInfo.dependencyCount	= static_cast<uint32_t>(subpassDependencies.size());
+	renderPassCreateInfo.pDependencies		= subpassDependencies.data();
 
 	if (vkCreateRenderPass(m_pDevice->m_vkLogicalDevice, &renderPassCreateInfo, nullptr, &m_vkRenderPass) != VK_SUCCESS)
 	{
@@ -924,6 +917,8 @@ void VulkanRenderer::Render()
 	// Record Graphics command
 	RecordCommands(imageIndex);
 
+	
+
 	// Record GUI commands
 	//UIManager::getInstance().RecordCommands(m_pDevice, m_pSwapChain, imageIndex);
 
@@ -933,6 +928,15 @@ void VulkanRenderer::Render()
 	{
 		(*iter)->UpdateUniformBuffers(m_pDevice, imageIndex);
 	}
+
+	//UIManager::getInstance().BeginRender();
+	//ImGui::ShowDemoWindow();
+	//UIManager::getInstance().EndRender(m_pSwapChain, imageIndex);
+
+	UIManager::getInstance().BeginRender();
+	ImGui::ShowDemoWindow();
+	ImGui::ShowAboutWindow();
+	UIManager::getInstance().EndRender(m_pSwapChain, imageIndex);
 
 	// During any event such as window size change etc. we need to check if swap chain recreation is necessary
 	// Vulkan tells us that swap chain in no longer adequate during presentation
@@ -958,9 +962,9 @@ void VulkanRenderer::Render()
 	VkSemaphore waitSemaphores[] = { m_vecSemaphoreImageAvailable[m_uiCurrentFrame] };
 	VkSemaphore signalSemaphores[] = { m_vecSemaphoreRenderFinished[m_uiCurrentFrame] };
 
-	std::array<VkCommandBuffer, 1> commandBuffers = {
-														m_pDevice->m_vecCommandBufferGraphics[imageIndex]
-														//m_pDevice->m_vecCommandBufferGUI[imageIndex]
+	std::array<VkCommandBuffer, 2> commandBuffers = {
+														m_pDevice->m_vecCommandBufferGraphics[imageIndex],
+														UIManager::getInstance().m_vecCommandBuffers[imageIndex]
 													};
 
 	VkSubmitInfo submitInfo{};
@@ -1022,6 +1026,8 @@ void VulkanRenderer::AllocateDynamicBufferTransferSpace()
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::CleanupOnWindowResize()
 {
+	UIManager::getInstance().CleanupOnWindowResize(m_pDevice);
+	
 	m_pGraphicsPipelineOpaque->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineDeferred->CleanupOnWindowResize(m_pDevice);
 
@@ -1044,6 +1050,8 @@ void VulkanRenderer::Cleanup()
 	// Wait until no action being run on device before destroying! 
 	vkDeviceWaitIdle(m_pDevice->m_vkLogicalDevice);
 
+	UIManager::getInstance().Cleanup(m_pDevice);
+	
 	m_pFrameBuffer->Cleanup(m_pDevice);
 
 	m_pGraphicsPipelineDeferred->Cleanup(m_pDevice);

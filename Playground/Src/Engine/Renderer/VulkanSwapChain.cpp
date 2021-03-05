@@ -38,11 +38,12 @@ void VulkanSwapChain::CreateSwapChain(VulkanDevice* pDevice, VkSurfaceKHR surfac
     VkExtent2D extent = ChooseSwapExtent(pSwapChainSupport->capabilities, pWindow);
 
     // decide how many images to have in the swap chain, it's good practice to have an extra count.
-    // Also make sure it does not exceed maximum number of images 
-    uint32_t imageCount = pSwapChainSupport->capabilities.minImageCount + 1;
-    if (pSwapChainSupport->capabilities.maxImageCount > 0 && imageCount > pSwapChainSupport->capabilities.maxImageCount)
+    // Also make sure it does not exceed maximum number of images
+    m_uiMinImageCount = pSwapChainSupport->capabilities.minImageCount;
+    m_uiImageCount = m_uiMinImageCount + 1;
+    if (pSwapChainSupport->capabilities.maxImageCount > 0 && m_uiImageCount > pSwapChainSupport->capabilities.maxImageCount)
     {
-        imageCount = pSwapChainSupport->capabilities.maxImageCount;
+        m_uiImageCount = pSwapChainSupport->capabilities.maxImageCount;
     }
 
     // Create SwapChain object
@@ -55,7 +56,7 @@ void VulkanSwapChain::CreateSwapChain(VulkanDevice* pDevice, VkSurfaceKHR surfac
     createInfo.imageExtent = extent;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;	// use image as color attachment
-    createInfo.minImageCount = imageCount;
+    createInfo.minImageCount = m_uiImageCount;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
     createInfo.pNext = nullptr;
     createInfo.presentMode = presentMode;
@@ -97,9 +98,9 @@ void VulkanSwapChain::CreateSwapChain(VulkanDevice* pDevice, VkSurfaceKHR surfac
     LOG_INFO("Swapchain created!");
 
     // Retrieve handle to swapchain images...
-    vkGetSwapchainImagesKHR(pDevice->m_vkLogicalDevice, m_vkSwapchain, &imageCount, nullptr);
-    m_vecSwapchainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(pDevice->m_vkLogicalDevice, m_vkSwapchain, &imageCount, m_vecSwapchainImages.data());
+    vkGetSwapchainImagesKHR(pDevice->m_vkLogicalDevice, m_vkSwapchain, &m_uiImageCount, nullptr);
+    m_vecSwapchainImages.resize(m_uiImageCount);
+    vkGetSwapchainImagesKHR(pDevice->m_vkLogicalDevice, m_vkSwapchain, &m_uiImageCount, m_vecSwapchainImages.data());
 
     LOG_INFO("Swapchain images created!");
 

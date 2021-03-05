@@ -15,18 +15,31 @@
 //---------------------------------------------------------------------------------------------------------------------
 UIManager::UIManager()
 {
-	//m_pFramebuffer = nullptr; 
+	
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 UIManager::~UIManager()
 {
-	//SAFE_DELETE(m_pFramebuffer);
+	
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void UIManager::Initialize(GLFWwindow* pWindow, VkInstance instance, VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, VkRenderPass renderPass)
+void UIManager::Initialize(GLFWwindow* pWindow, VkInstance instance, VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
+	// Initialize Render Pass
+	InitRenderPass(pDevice, pSwapchain);
+	
+	// Initialize Framebuffers
+	InitFramebuffers(pDevice, pSwapchain);
+
+	// Initialize Command Pool & Command Buffers
+	InitCommandBuffers(pDevice, pSwapchain);
+	
+	// Initialize Descriptor Pool
+	InitDescriptorPool(pDevice);
+
+	// **** Initialize ImGui
 	// Setup ImGui context!
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -35,19 +48,6 @@ void UIManager::Initialize(GLFWwindow* pWindow, VkInstance instance, VulkanDevic
 	// setup ImGui style
 	ImGui::StyleColorsDark();
 	
-	// Initialize Descriptor Pool
-	InitDescriptorPool(pDevice);
-
-	// Create Framebuffer
-	//m_pFramebuffer = new VulkanFrameBuffer();
-	//m_pFramebuffer->CreateAttachment(pDevice, pSwapchain);
-	
-	// Initialize Render Pass
-	//InitRenderPass(pDevice, pSwapchain);
-
-	//m_pFramebuffer->CreateFrameBuffers(pDevice, pSwapchain, m_vkRenderPass);
-
-	// **** Initialize ImGui
 	ImGui_ImplGlfw_InitForVulkan(pWindow, true);
 	ImGui_ImplVulkan_InitInfo initInfo = {};
 	initInfo.Instance = instance;
@@ -58,10 +58,10 @@ void UIManager::Initialize(GLFWwindow* pWindow, VkInstance instance, VulkanDevic
 	initInfo.PipelineCache = VK_NULL_HANDLE;
 	initInfo.DescriptorPool = m_vkDescriptorPool;
 	initInfo.Allocator = nullptr;
-	initInfo.MinImageCount = static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size());
-	initInfo.ImageCount = static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size());
+	initInfo.MinImageCount = pSwapchain->m_uiMinImageCount;
+	initInfo.ImageCount = pSwapchain->m_uiImageCount;
 	initInfo.CheckVkResultFn = nullptr;
-	ImGui_ImplVulkan_Init(&initInfo, renderPass);
+	ImGui_ImplVulkan_Init(&initInfo, m_vkRenderPass);
 
 	// Upload fonts to the GPU 
 	VkCommandBuffer commandBuffer = pDevice->BeginCommandBuffer();
@@ -102,93 +102,130 @@ void UIManager::InitDescriptorPool(VulkanDevice* pDevice)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-//void UIManager::InitRenderPass(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
-//{
-//	// **** First create attachment description
-//	VkAttachmentDescription attachment = {};
-//	attachment.format = m_pFramebuffer->m_attachmentFormat;						// format to use for attachment : same as framebuffer
-//	attachment.samples = VK_SAMPLE_COUNT_1_BIT;									// number of samples for multi-sampling
-//	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;								// we want to draw GUI over main rendering, hence we don't clear it. 
-//	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;							// describes what to do with attachment after rendering
-//	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;					// describes what to do with stencil before rendering
-//	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;				// describes what to do with stencil after rendering
-//	attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;		// image data layout before render pass starts
-//	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;					// image data layout after render pass
-//
-//	// Actual reference to the attachment
-//	VkAttachmentReference attachRef = {};
-//	attachRef.attachment = 0;
-//	attachRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-//
-//	// **** Create subpass for our Render pass
-//	VkSubpassDescription subpass = {};
-//	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-//	subpass.colorAttachmentCount = 1;
-//	subpass.pColorAttachments = &attachRef;
-//
-//	// Create subpass dependency 
-//	VkSubpassDependency dependency = {};
-//	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-//	dependency.dstSubpass = 0;
-//	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-//	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-//	dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-//	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-//
-//	// **** Create Render Pass! 
-//	VkRenderPassCreateInfo renderPassCreateInfo = {};
-//	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-//	renderPassCreateInfo.attachmentCount = 1;
-//	renderPassCreateInfo.pAttachments = &attachment;
-//	renderPassCreateInfo.subpassCount = 1;
-//	renderPassCreateInfo.pSubpasses = &subpass;
-//	renderPassCreateInfo.dependencyCount = 1;
-//	renderPassCreateInfo.pDependencies = &dependency;
-//
-//	if (vkCreateRenderPass(pDevice->m_vkLogicalDevice, &renderPassCreateInfo, nullptr, &m_vkRenderPass) != VK_SUCCESS)
-//	{
-//		LOG_ERROR("ImGui Render pass creation failed!");
-//	}
-//	else
-//		LOG_DEBUG("ImGui Render pass created!");
-//}
+void UIManager::InitCommandBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
+{
+	// Create Command Pool
+	VkCommandPoolCreateInfo commandPoolCreateInfo{};
+	commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	commandPoolCreateInfo.queueFamilyIndex = pDevice->m_pQueueFamilyIndices->m_uiGraphicsFamily.value();
+	commandPoolCreateInfo.pNext = nullptr;
+
+	// Create a Graphics queue family Command Pool
+	if (vkCreateCommandPool(pDevice->m_vkLogicalDevice, &commandPoolCreateInfo, nullptr, &m_vkCommandPool) != VK_SUCCESS)
+	{
+		LOG_ERROR("Failed to create GUI Command Pool!");
+	}
+	else
+		LOG_DEBUG("Created GUI Command Pool!");
+
+	// Create Command Buffers!
+	m_vecCommandBuffers.resize(pSwapchain->m_vecSwapchainImages.size());
+
+	for (uint32_t i = 0 ; i < m_vecCommandBuffers.size() ; i++)
+	{
+		VkCommandBuffer commandBuffer;
+		
+		VkCommandBufferAllocateInfo commandBufferAllocInfo{};
+		commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		commandBufferAllocInfo.commandPool = m_vkCommandPool;
+		commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;						// Buffer you submit directly to the queue. can't be called by other buffers!
+																							// BUFFER_LEVEL_SECONDARY can't be called directly but can be called from other buffers via "vkCmdExecuteCommands"
+		commandBufferAllocInfo.commandBufferCount = 1;
+		commandBufferAllocInfo.pNext = nullptr;
+
+		// Allocate command buffers & place handles in array of buffers!
+		if (vkAllocateCommandBuffers(pDevice->m_vkLogicalDevice, &commandBufferAllocInfo, &m_vecCommandBuffers[i]) != VK_SUCCESS)
+		{
+			LOG_ERROR("Failed to create GUI Command buffer!");
+		}
+		else
+			LOG_INFO("Created GUI Command buffers!");
+	}
+}
 
 //---------------------------------------------------------------------------------------------------------------------
-//void UIManager::RecordCommands(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, VulkanFrameBuffer* pFrameBuffer, VkRenderPass renderPass, uint32_t currentImage)
-//{	
-//	// Information about how to begin each command buffer
-//	VkCommandBufferBeginInfo bufferBeginInfo = {};
-//	bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-//	bufferBeginInfo.flags = 0;
-//
-//	// Information about how to begin a render pass (only needed for graphical applications) 
-//	VkRenderPassBeginInfo renderPassBeginInfo = {};
-//	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-//	renderPassBeginInfo.framebuffer = pFrameBuffer->m_vecFramebuffer[currentImage];
-//	renderPassBeginInfo.renderPass = renderPass;									// Render pass to begin
-//	renderPassBeginInfo.renderArea.offset = { 0,0 };									// start point of render pass in pixels
-//	renderPassBeginInfo.renderArea.extent = pSwapchain->m_vkSwapchainExtent;			// size of region to run render pass on (starting at offset)
-//
-//	VkClearValue clearValue = {};
-//	clearValue.color = { 0.2f, 0.2f, 0.2f, 1.0f };
-//
-//	renderPassBeginInfo.clearValueCount = 1;
-//	renderPassBeginInfo.pClearValues = &clearValue;
-//
-//	if(vkBeginCommandBuffer(pDevice->m_vecCommandBufferGUI[currentImage], &bufferBeginInfo) != VK_SUCCESS)
-//	{
-//		LOG_ERROR("UIManager: Failed to begin recording to Command Buffer");
-//	}
-//	else
-//	{
-//		vkCmdBeginRenderPass(pDevice->m_vecCommandBufferGUI[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-//		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), pDevice->m_vecCommandBufferGUI[currentImage]);
-//		vkCmdEndRenderPass(pDevice->m_vecCommandBufferGUI[currentImage]);
-//	}
-//
-//	if (vkEndCommandBuffer(pDevice->m_vecCommandBufferGUI[currentImage]) != VK_SUCCESS)
-//		LOG_ERROR("UIManager: Failed to end recording to command buffer");
-//}
+void UIManager::InitFramebuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
+{
+	// resize framebuffer count to equal swap chain image views count
+	m_vecFramebuffers.resize(pSwapchain->m_vecSwapchainImages.size());
+
+	// create framebuffer for each swap chain image view
+	for (uint32_t i = 0; i < pSwapchain->m_vecSwapchainImages.size(); ++i)
+	{
+		VkImageView attachments[] = { pSwapchain->m_vecSwapchainImageViews[i] };
+		
+		VkFramebufferCreateInfo framebufferCreateInfo{};
+		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferCreateInfo.renderPass = m_vkRenderPass;									// Render pass layout the framebuffer will be used with					 
+		framebufferCreateInfo.attachmentCount = 1;
+		framebufferCreateInfo.pAttachments = attachments;									// List of attachments
+		framebufferCreateInfo.width = pSwapchain->m_vkSwapchainExtent.width;				// framebuffer width
+		framebufferCreateInfo.height = pSwapchain->m_vkSwapchainExtent.height;				// framebuffer height
+		framebufferCreateInfo.layers = 1;													// framebuffer layers
+		framebufferCreateInfo.flags = 0;
+		framebufferCreateInfo.pNext = nullptr;
+
+		if (vkCreateFramebuffer(pDevice->m_vkLogicalDevice, &framebufferCreateInfo, nullptr, &m_vecFramebuffers[i]) != VK_SUCCESS)
+		{
+			LOG_ERROR("Failed to create GUI Framebuffer");
+		}
+		else
+			LOG_INFO("GUI Framebuffer created!");
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void UIManager::InitRenderPass(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
+{
+	// **** First create attachment description
+	VkAttachmentDescription attachment = {};
+	attachment.format = pSwapchain->m_vkSwapchainImageFormat;					// format to use for attachment : same as framebuffer
+	attachment.samples = VK_SAMPLE_COUNT_1_BIT;									// number of samples for multi-sampling
+	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;								// we want to draw GUI over main rendering, hence we don't clear it. 
+	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;							// describes what to do with attachment after rendering
+	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;					// describes what to do with stencil before rendering
+	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;				// describes what to do with stencil after rendering
+	attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;		// image data layout before render pass starts
+	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;					// image data layout after render pass
+
+	// Actual reference to the attachment
+	VkAttachmentReference attachRef = {};
+	attachRef.attachment = 0;
+	attachRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// **** Create subpass for our Render pass
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &attachRef;
+
+	// Create subpass dependency 
+	VkSubpassDependency dependency = {};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+	// **** Create Render Pass! 
+	VkRenderPassCreateInfo renderPassCreateInfo = {};
+	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassCreateInfo.attachmentCount = 1;
+	renderPassCreateInfo.pAttachments = &attachment;
+	renderPassCreateInfo.subpassCount = 1;
+	renderPassCreateInfo.pSubpasses = &subpass;
+	renderPassCreateInfo.dependencyCount = 1;
+	renderPassCreateInfo.pDependencies = &dependency;
+
+	if (vkCreateRenderPass(pDevice->m_vkLogicalDevice, &renderPassCreateInfo, nullptr, &m_vkRenderPass) != VK_SUCCESS)
+	{
+		LOG_ERROR("ImGui Render pass creation failed!");
+	}
+	else
+		LOG_DEBUG("ImGui Render pass created!");
+}
 
 //---------------------------------------------------------------------------------------------------------------------
 void UIManager::BeginRender()
@@ -199,9 +236,33 @@ void UIManager::BeginRender()
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void UIManager::EndRender()
+void UIManager::EndRender(VulkanSwapChain* pSwapchain, uint32_t imageIndex)
 {
 	ImGui::Render();
+
+	VkCommandBufferBeginInfo commandBufferBeginInfo = {};
+	commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	commandBufferBeginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(m_vecCommandBuffers[imageIndex], &commandBufferBeginInfo);
+
+	VkRenderPassBeginInfo renderPassBeginInfo = {};
+	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassBeginInfo.renderPass = m_vkRenderPass;
+	renderPassBeginInfo.framebuffer = m_vecFramebuffers[imageIndex];
+	renderPassBeginInfo.renderArea.extent.width = pSwapchain->m_vkSwapchainExtent.width;
+	renderPassBeginInfo.renderArea.extent.height = pSwapchain->m_vkSwapchainExtent.height;
+	renderPassBeginInfo.clearValueCount = 1;
+
+	VkClearValue clearValue;
+	clearValue.color = { 0.2f, 0.2f, 0.2f, 1.0f };
+	clearValue.depthStencil = { 1.0f, 1 };
+	
+	renderPassBeginInfo.pClearValues = &clearValue;
+	vkCmdBeginRenderPass(m_vecCommandBuffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_vecCommandBuffers[imageIndex]);
+	vkCmdEndRenderPass(m_vecCommandBuffers[imageIndex]);
+	vkEndCommandBuffer(m_vecCommandBuffers[imageIndex]);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -212,29 +273,67 @@ void UIManager::HandleWindowResize(GLFWwindow* pWindow, VkInstance instance, Vul
 	if (width > 0 && height > 0)
 	{
 		ImGui_ImplVulkan_SetMinImageCount(static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size()));
-		//ImGui_ImplVulkanH_CreateOrResizeWindow(	instance,
-		//										pDevice->m_vkPhysicalDevice,
-		//										pDevice->m_vkLogicalDevice,
-		//										m_pMainWindowData,
-		//										pDevice->m_pQueueFamilyIndices->m_uiGraphicsFamily.value(),
-		//										nullptr,
-		//										width,
-		//										height,
-		//										static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size()));
-
-		// m_pMainWindowData->FrameIndex = 0;
 	}
+
+	// Re-Initialize Render Pass
+	InitRenderPass(pDevice, pSwapchain);
+
+	// Re-Initialize Framebuffers
+	InitFramebuffers(pDevice, pSwapchain);
+
+	// Re-Initialize Command Pool & Command Buffers
+	InitCommandBuffers(pDevice, pSwapchain);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 void UIManager::Cleanup(VulkanDevice* pDevice)
 {
-	//m_pFramebuffer->Cleanup(pDevice);
+	// Cleanup Framebuffers
+	for (int i = 0; i < m_vecFramebuffers.size(); ++i)
+	{
+		vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
+	}
+
+	// Cleanup Render Pass
+	vkDestroyRenderPass(pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
+
+	// Cleanup Command Buffers
+	for (int j = 0; j < m_vecCommandBuffers.size(); ++j)
+	{
+		vkFreeCommandBuffers(pDevice->m_vkLogicalDevice, m_vkCommandPool, 1, &m_vecCommandBuffers[j]);
+	}
+
+	// Cleanup Command Pool
+	vkDestroyCommandPool(pDevice->m_vkLogicalDevice, m_vkCommandPool, nullptr);
+
+	// Cleanup ImGui stuff...
+	vkDeviceWaitIdle(pDevice->m_vkLogicalDevice);
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+
+	// Cleanup Descriptor Pool
 	vkDestroyDescriptorPool(pDevice->m_vkLogicalDevice, m_vkDescriptorPool, nullptr);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 void UIManager::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
-	//m_pFramebuffer->CleanupOnWindowResize(pDevice);
+	// Cleanup Framebuffers
+	for (int i = 0; i < m_vecFramebuffers.size(); ++i)
+	{
+		vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
+	}
+
+	// Cleanup Render Pass
+	vkDestroyRenderPass(pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
+
+	// Cleanup Command Buffers
+	for (int j = 0; j < m_vecCommandBuffers.size(); ++j)
+	{
+		vkFreeCommandBuffers(pDevice->m_vkLogicalDevice, m_vkCommandPool, 1, &m_vecCommandBuffers[j]);
+	}
+
+	// Cleanup Command Pool
+	vkDestroyCommandPool(pDevice->m_vkLogicalDevice, m_vkCommandPool, nullptr);
 }

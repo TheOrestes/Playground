@@ -36,9 +36,6 @@ public:
 	void								CreateGraphicsCommandPool();
 	void								CreateGraphicsCommandBuffers(uint32_t size);
 
-	void								CreateGUICommandPool();
-	void								CreateGUICommandBuffers(uint32_t size);
-
 	uint32_t							FindMemoryTypeIndex(uint32_t allowedTypeIndex, VkMemoryPropertyFlags props);
 
 	void								CreateBuffer(VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsageFlags, 
@@ -74,9 +71,6 @@ public:
 
 	VkCommandPool						m_vkCommandPoolGraphics;
 	std::vector<VkCommandBuffer>		m_vecCommandBufferGraphics;
-
-	VkCommandPool						m_vkCommandPoolGUI;
-	std::vector<VkCommandBuffer>		m_vecCommandBufferGUI;
 
 	VkQueue								m_vkQueueGraphics;
 	VkQueue								m_vkQueuePresent;

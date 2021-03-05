@@ -51,20 +51,20 @@ void DeferredFrameBuffer::CreateAttachment(VulkanDevice* pDevice, VulkanSwapChai
 			for (uint16_t i = 0; i < pSwapChain->m_vecSwapchainImages.size(); i++)
 			{
 				// Create color buffer image
-				m_pAlbedoAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(pDevice,
-					pSwapChain->m_vkSwapchainExtent.width,
-					pSwapChain->m_vkSwapchainExtent.height,
-					m_pAlbedoAttachment->attachmentFormat,
-					VK_IMAGE_TILING_OPTIMAL,
-					VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-					&(m_pAlbedoAttachment->vecAttachmentImageMemory[i]));
+				m_pAlbedoAttachment->vecAttachmentImage[i] = Helper::Vulkan::CreateImage(	pDevice,
+																							pSwapChain->m_vkSwapchainExtent.width,
+																							pSwapChain->m_vkSwapchainExtent.height,
+																							m_pAlbedoAttachment->attachmentFormat,
+																							VK_IMAGE_TILING_OPTIMAL,
+																							VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+																							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+																							&(m_pAlbedoAttachment->vecAttachmentImageMemory[i]));
 
 				// Create color buffer image view!
-				m_pAlbedoAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(pDevice,
-					m_pAlbedoAttachment->vecAttachmentImage[i],
-					m_pAlbedoAttachment->attachmentFormat,
-					VK_IMAGE_ASPECT_COLOR_BIT);
+				m_pAlbedoAttachment->vecAttachmentImageView[i] = Helper::Vulkan::CreateImageView(	pDevice,
+																									m_pAlbedoAttachment->vecAttachmentImage[i],
+																									m_pAlbedoAttachment->attachmentFormat,
+																									VK_IMAGE_ASPECT_COLOR_BIT);
 			}
 
 			break;
@@ -225,6 +225,7 @@ void DeferredFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapCh
 								m_pAlbedoAttachment->vecAttachmentImageView[i],
 								m_pDepthAttachment->vecAttachmentImageView[i],
 								m_pNormalAttachment->vecAttachmentImageView[i],
+								
 								m_pPositionAttachment->vecAttachmentImageView[i] };
 
 
