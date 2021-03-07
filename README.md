@@ -1,4 +1,4 @@
-* Playground 
+# Playground
 Vulkan Rendering Framework for learning purpose. 
 
 ## Features
