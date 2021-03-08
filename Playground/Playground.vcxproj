@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Engine\Scene.cpp" />
     <ClCompile Include="Src\Engine\Helpers\FreeCamera.cpp" />
     <ClCompile Include="Src\Application.cpp" />
     <ClCompile Include="Src\Engine\Helpers\Log.cpp" />
@@ -41,6 +42,7 @@
     <ClCompile Include="Src\Engine\Renderer\VulkanFrameBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Engine\Scene.h" />
     <ClInclude Include="Src\Engine\Helpers\FreeCamera.h" />
     <ClInclude Include="Src\Application.h" />
     <ClInclude Include="Src\Engine\Helpers\Log.h" />

@@ -61,6 +61,7 @@ public:
 
 	void								UpdateUniformBuffers(VulkanDevice* pDevice, uint32_t index);
 	void								Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt);
+	
 	void								Render(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipeline, uint32_t index);
 
 	void								SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
@@ -68,9 +69,17 @@ public:
 	void								Cleanup(VulkanDevice* pDevice);
 	void								CleanupOnWindowResize(VulkanDevice* pDevice);
 
-	void								SetPosition(const glm::vec3& _pos);
-	void								SetRotation(const glm::vec3& _axis, float angle);
-	void								SetScale(const glm::vec3& _scale);
+	// --- SETTERS!
+	inline void							SetPosition(const glm::vec3& _pos)		{ m_vecPosition = _pos; }
+	inline void							SetRotationAxis(const glm::vec3& _axis) { m_vecRotationAxis = _axis; }
+	inline void							SetRotationAngle(float angle)			{ m_fAngle = angle; }
+	inline void							SetScale(const glm::vec3& _scale)		{ m_vecScale = _scale; }
+
+	// --- GETTERS!
+	inline	glm::vec3					GetPosition()							{ return m_vecPosition; }
+	inline	glm::vec3					GetRotationAxis()						{ return  m_vecRotationAxis; }
+	inline  float						GetRotationAngle()						{ return m_fAngle; }
+	inline	glm::vec3					GetScale()								{ return m_vecScale; }
 
 private:
 	std::vector<Mesh>					LoadNode(VulkanDevice* device, aiNode* node, const aiScene* scene);
@@ -96,5 +105,11 @@ private:
 	glm::vec3							m_vecRotationAxis;
 	float								m_fAngle;
 	glm::vec3							m_vecScale;
+
+public:
+	float								m_fCurrentAngle;
+	bool								m_bAutoRotate;
+	float								m_fAutoRotateSpeed;
+	std::string							m_strName;
 };
 

@@ -66,7 +66,7 @@ void VulkanFrameBuffer::CreateFrameBuffers(VulkanDevice* pDevice, VulkanSwapChai
 {
     if (!pDevice || !pSwapChain)
         return;
-	
+    
     // resize framebuffer count to equal swap chain image views count
     m_vecFramebuffer.resize(pSwapChain->m_vecSwapchainImages.size());
     
@@ -103,7 +103,7 @@ void VulkanFrameBuffer::Cleanup(VulkanDevice* pDevice)
         vkDestroyImage(pDevice->m_vkLogicalDevice, m_vecAttachmentImage[i], nullptr);
         vkFreeMemory(pDevice->m_vkLogicalDevice, m_vecAttachmentImageMemory[i], nullptr);
     }
-	
+    
     // Destroy frame buffers!
     for (uint16_t i = 0; i < m_vecFramebuffer.size(); ++i)
     {
@@ -121,7 +121,7 @@ void VulkanFrameBuffer::CleanupOnWindowResize(VulkanDevice* pDevice)
         vkDestroyImage(pDevice->m_vkLogicalDevice, m_vecAttachmentImage[i], nullptr);
         vkFreeMemory(pDevice->m_vkLogicalDevice, m_vecAttachmentImageMemory[i], nullptr);
     }
-	
+    
     // Destroy frame buffers!
     for (uint16_t i = 0; i < m_vecFramebuffer.size(); ++i)
     {

@@ -8,6 +8,7 @@
 class VulkanDevice;
 class VulkanSwapChain;
 class VulkanFrameBuffer;
+class Scene;
 
 class UIManager
 {
@@ -26,6 +27,9 @@ public:
 	void							CleanupOnWindowResize(VulkanDevice* pDevice);
 	void							BeginRender();
 	void							EndRender(VulkanSwapChain* pSwapchain, uint32_t imageIndex);
+
+	void							RenderSceneUI(Scene* pScene);
+	void							RenderDebugStats();
 
 private:
 	UIManager();

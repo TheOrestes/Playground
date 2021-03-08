@@ -30,7 +30,8 @@ void main()
 
     float attenuation = 1 / 1;
 
-    float diffuse = attenuation * clamp(dot(normalColor.xyz, -lightDir), 0.0f, 1.0f);
+    vec3 N = normalize(normalColor.xyz);
+    float diffuse = attenuation * clamp(dot(N, -lightDir), 0.0f, 1.0f);
 
     //outColor = vec4(vec3(scaledDepth), 1.0f);
     //outColor = normalColor;

@@ -4,9 +4,11 @@
 #include "Engine/Renderer/VulkanDevice.h"
 #include "Engine/Renderer/VulkanSwapChain.h"
 #include "Engine/Renderer/VulkanFrameBuffer.h"
+#include "Engine/RenderObjects/Model.h"
 #include "PlaygroundHeaders.h"
 #include "Engine/Helpers/Log.h"
 #include "Engine/Helpers/Utility.h"
+#include "Engine/Scene.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -44,6 +46,8 @@ void UIManager::Initialize(GLFWwindow* pWindow, VkInstance instance, VulkanDevic
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
+
+	io.Fonts->AddFontFromFileTTF("Fonts/SFMono-Regular.otf", 13.0f);
 
 	// setup ImGui style
 	ImGui::StyleColorsDark();
@@ -263,6 +267,72 @@ void UIManager::EndRender(VulkanSwapChain* pSwapchain, uint32_t imageIndex)
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_vecCommandBuffers[imageIndex]);
 	vkCmdEndRenderPass(m_vecCommandBuffers[imageIndex]);
 	vkEndCommandBuffer(m_vecCommandBuffers[imageIndex]);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void UIManager::RenderSceneUI(Scene* pScene)
+{
+	ImGui::Begin("Scene Properties");
+
+	if(ImGui::CollapsingHeader("Scene Objects"))
+	{
+		// All 3D Models!
+		
+		for (uint32_t i = 0 ; i < pScene->GetModelList().size() ; ++i)
+		{
+			ImGui::PushID(i);
+			ImGui::AlignTextToFramePadding();
+
+			Model* pModel = pScene->GetModelList().at(i);
+
+			// Transforms
+			std::string nodeName = "Model" + std::to_string(i);
+			if (ImGui::TreeNode(nodeName.c_str()))
+			{
+				// Position
+				glm::vec3 pos = pModel->GetPosition();
+
+				if (ImGui::SliderFloat3("Position", glm::value_ptr(pos), -100, 100))
+					pModel->SetPosition(pos);
+
+				// Rotation Axis
+				glm::vec3 rot = pModel->GetRotationAxis();
+				if (ImGui::InputFloat3("Rotation Axis", glm::value_ptr(rot)))
+					pModel->SetRotationAxis(rot);
+
+				// Rotation Angle
+				float rotAngle = pModel->GetRotationAngle();
+				if (ImGui::SliderAngle("Rotation Angle", &rotAngle))
+					pModel->SetRotationAngle(rotAngle);
+
+				// Scale
+				glm::vec3 scale = pModel->GetScale();
+				if (ImGui::InputFloat3("Scale", glm::value_ptr(scale)))
+					pModel->SetScale(scale);
+
+				// AutoUpdate
+				bool autoRotate = pModel->m_bAutoRotate;
+				if (ImGui::Checkbox("Auto Rotate", &autoRotate))
+					pModel->m_bAutoRotate = autoRotate;
+
+				// AutoRotate Speed
+				float autoSpeed = pModel->m_fAutoRotateSpeed;
+				if (ImGui::SliderFloat("Rotation Speed", &autoSpeed, 0.01f, 1.0f))
+					pModel->m_fAutoRotateSpeed = autoSpeed;
+
+				ImGui::TreePop();
+			}
+
+			ImGui::PopID();
+		}
+	}
+	
+	ImGui::End();
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void UIManager::RenderDebugStats()
+{
 }
 
 //---------------------------------------------------------------------------------------------------------------------

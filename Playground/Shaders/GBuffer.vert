@@ -27,13 +27,21 @@ layout(set = 0, binding = 0) uniform ShaderData
 
 layout(location=0) out vec3 vs_outPosition;
 layout(location=1) out vec3 vs_outNormal;
-layout(location=2) out vec2 vs_outUV;
+layout(location=2) out vec3 vs_outTangent;
+layout(location=3) out vec3 vs_outBiNormal;
+layout(location=4) out vec2 vs_outUV;
 
 void main()
 {
-    gl_Position = shaderData.matProjection * shaderData.matView * shaderData.matModel * vec4(in_Position, 1.0f);
+    gl_Position     = shaderData.matProjection * shaderData.matView * shaderData.matModel * vec4(in_Position, 1.0f);
 
-    vs_outPosition = (shaderData.matModel * vec4(in_Position, 1.0f)).xyz;
-    vs_outNormal = normalize(shaderData.matModel * vec4(in_Normal, 0.0f)).xyz;
+    // World Space Position 
+    vs_outPosition  = (shaderData.matModel * vec4(in_Position, 1.0f)).xyz;
+
+    // World Space Normal, Tangent & BiNormal
+    vs_outNormal    = normalize(shaderData.matModel * vec4(in_Normal, 0.0f)).xyz;
+    vs_outTangent   = normalize(shaderData.matModel * vec4(in_Tangent, 0.0f)).xyz;
+    vs_outBiNormal  = normalize(shaderData.matModel * vec4(in_BiNormal, 0.0f)).xyz;
+
     vs_outUV = in_UV;
 }

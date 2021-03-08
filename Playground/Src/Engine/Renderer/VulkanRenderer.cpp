@@ -10,6 +10,7 @@
 #include "VulkanTexture.h"
 #include "VulkanGraphicsPipeline.h"
 
+#include "Engine/Scene.h"
 #include "Engine/RenderObjects/Model.h"
 #include "Engine/Helpers/Utility.h"
 #include "Engine/ImGui/UIManager.h"
@@ -20,42 +21,40 @@
 //---------------------------------------------------------------------------------------------------------------------
 VulkanRenderer::VulkanRenderer()
 {
-	m_pWindow = nullptr;
+	m_pWindow							= nullptr;
 
-	m_pDevice = nullptr;
-	m_pSwapChain = nullptr;
-	m_pFrameBuffer = nullptr;
+	m_pDevice							= nullptr;
+	m_pSwapChain						= nullptr;
+	m_pFrameBuffer						= nullptr;
+	m_pScene							= nullptr;
 
-	m_pGraphicsPipelineOpaque = nullptr;
-	m_pGraphicsPipelineDeferred = nullptr;
+	m_pGraphicsPipelineOpaque			= nullptr;
+	m_pGraphicsPipelineDeferred			= nullptr;
 	
-	m_uiCurrentFrame = 0;
-	m_bFramebufferResized = false;
+	m_uiCurrentFrame					= 0;
+	m_bFramebufferResized				= false;
 
-	m_vkInstance = VK_NULL_HANDLE;
-	m_vkDebugMessenger = VK_NULL_HANDLE;
-	m_vkSurface = VK_NULL_HANDLE;
+	m_vkInstance						= VK_NULL_HANDLE;
+	m_vkDebugMessenger					= VK_NULL_HANDLE;
+	m_vkSurface							= VK_NULL_HANDLE;
 
-	m_vkRenderPass = VK_NULL_HANDLE;
+	m_vkRenderPass						= VK_NULL_HANDLE;
 
 	m_vkInputBuffersDescriptorSetLayout = VK_NULL_HANDLE;
 	
 	m_vecSemaphoreImageAvailable.clear();
 	m_vecSemaphoreRenderFinished.clear();
 	m_vecFencesRender.clear();
-
-	m_vecModels.clear();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 VulkanRenderer::~VulkanRenderer()
 {
-	m_vecModels.clear();
-
 	m_vecSemaphoreImageAvailable.clear();
 	m_vecSemaphoreRenderFinished.clear();
 	m_vecFencesRender.clear();
 
+	SAFE_DELETE(m_pScene);
 	SAFE_DELETE(m_pGraphicsPipelineOpaque);
 	SAFE_DELETE(m_pGraphicsPipelineDeferred);
 	SAFE_DELETE(m_pFrameBuffer);
@@ -105,25 +104,9 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		// Command pool & Command buffer for UI! 
 		//m_pDevice->CreateGUICommandPool();
 		//m_pDevice->CreateGUICommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
-
-		// Load Barbarian Model
-		Model* pModelBarb = new Model();
-		pModelBarb->LoadModel(m_pDevice, "Models/barb1.fbx");
-		pModelBarb->SetPosition(glm::vec3(-10, 0, 0));
-		pModelBarb->SetScale(glm::vec3(4));
-		pModelBarb->SetupDescriptors(m_pDevice, m_pSwapChain);
-
-		m_vecModels.push_back(pModelBarb);
-
-		// Load Car Model
-		Model* pModelCar = new Model();
-		pModelCar->LoadModel(m_pDevice, "Models/car_detailed.fbx");
-		pModelCar->SetPosition(glm::vec3(10, 0, 0));
-		pModelCar->SetScale(glm::vec3(4));
-		pModelCar->SetupDescriptors(m_pDevice, m_pSwapChain);
-
-		m_vecModels.push_back(pModelCar);
-				
+		m_pScene = new Scene();
+		m_pScene->LoadScene(m_pDevice, m_pSwapChain);
+		
 		CreateGraphicsPipeline();
 
 		//AllocateDynamicBufferTransferSpace();
@@ -148,11 +131,12 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::Update(float dt)
 {
-	// Update all models!
-	std::vector<Model*>::iterator iter = m_vecModels.begin();
-	for ( ; iter != m_vecModels.end() ; ++iter)
+	for (Model* element : m_pScene->GetModelList())
 	{
-		(*iter)->Update(m_pDevice, m_pSwapChain, dt);
+		if(element != nullptr)
+		{
+			element->Update(m_pDevice, m_pSwapChain, dt);
+		}
 	}
 }
 
@@ -395,7 +379,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	//----- Create GBUFFER_OPAQUE Graphics pipeline!
 	m_pGraphicsPipelineOpaque = new VulkanGraphicsPipeline(PipelineType::GBUFFER_OPAQUE, m_pSwapChain);
 
-	std::vector<VkDescriptorSetLayout> setLayouts = { m_vecModels[0]->m_vkDescriptorSetLayout };
+	std::vector<VkDescriptorSetLayout> setLayouts = { m_pScene->GetModelList().at(0)->m_vkDescriptorSetLayout };
 	
 	VkPushConstantRange pushConstantRange = {};
 
@@ -676,30 +660,27 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 
 		// Bind Pipeline to be used in render pass
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineOpaque->m_vkGraphicsPipeline);
-
-		// Draw Cubes
-
-
-		// Draw 3D Meshes! 
-		for (uint16_t j = 0; j < m_vecModels.size(); j++)
+		
+		// Draw Scene!
+		for (Model* element : m_pScene->GetModelList())
 		{
-			m_vecModels[j]->Render(m_pDevice, m_pGraphicsPipelineOpaque, currentImage);
-		}
+			if(element != nullptr)
+			{
+				element->Render(m_pDevice, m_pGraphicsPipelineOpaque, currentImage);
+			}
+		} 
 
 		// Start second subpass
 		vkCmdNextSubpass(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineDeferred->m_vkGraphicsPipeline);
 		vkCmdBindDescriptorSets(m_pDevice->m_vecCommandBufferGraphics[currentImage],
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			m_pGraphicsPipelineDeferred->m_vkPipelineLayout,
-			0, 1, &m_vecInputBuffersDescriptorSets[currentImage],
-			0, nullptr);
+								VK_PIPELINE_BIND_POINT_GRAPHICS,
+								m_pGraphicsPipelineDeferred->m_vkPipelineLayout,
+								0, 1, &m_vecInputBuffersDescriptorSets[currentImage],
+								0, nullptr);
 
 		// Draw full screen triangle
 		vkCmdDraw(m_pDevice->m_vecCommandBufferGraphics[currentImage], 3, 1, 0, 0);
-
-		// Draw UI
-		//ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_pDevice->m_vecCommandBufferGraphics[currentImage]);
 
 		// End Render Pass
 		vkCmdEndRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage]);
@@ -917,25 +898,19 @@ void VulkanRenderer::Render()
 	// Record Graphics command
 	RecordCommands(imageIndex);
 
+	// Update all models!
+	for (Model* element : m_pScene->GetModelList())
+	{
+		if(element != nullptr)
+		{
+			element->UpdateUniformBuffers(m_pDevice, imageIndex);
+		}
+	}
 	
 
-	// Record GUI commands
-	//UIManager::getInstance().RecordCommands(m_pDevice, m_pSwapChain, imageIndex);
-
-	// Update all models!
-	std::vector<Model*>::iterator iter = m_vecModels.begin();
-	for (; iter != m_vecModels.end(); ++iter)
-	{
-		(*iter)->UpdateUniformBuffers(m_pDevice, imageIndex);
-	}
-
-	//UIManager::getInstance().BeginRender();
-	//ImGui::ShowDemoWindow();
-	//UIManager::getInstance().EndRender(m_pSwapChain, imageIndex);
-
 	UIManager::getInstance().BeginRender();
-	ImGui::ShowDemoWindow();
-	ImGui::ShowAboutWindow();
+	UIManager::getInstance().RenderSceneUI(m_pScene);
+	UIManager::getInstance().RenderDebugStats();
 	UIManager::getInstance().EndRender(m_pSwapChain, imageIndex);
 
 	// During any event such as window size change etc. we need to check if swap chain recreation is necessary
@@ -1062,11 +1037,14 @@ void VulkanRenderer::Cleanup()
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorSetLayout, nullptr);
 
-	for (uint32_t i = 0; i < m_vecModels.size(); i++)
+	for (Model* element : m_pScene->GetModelList())
 	{
-		m_vecModels[i]->Cleanup(m_pDevice);
+		if(element != nullptr)
+		{
+			element->Cleanup(m_pDevice);
+		}
 	}
-
+	
 	// Destroy semaphores
 	for (uint32_t i = 0; i < Helper::App::MAX_FRAME_DRAWS; ++i)
 	{

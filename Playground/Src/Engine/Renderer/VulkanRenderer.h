@@ -22,6 +22,7 @@ class VulkanDevice;
 class VulkanSwapChain;
 class DeferredFrameBuffer;
 class VulkanGraphicsPipeline;
+class Scene;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class VulkanRenderer : public IRenderer
@@ -88,7 +89,7 @@ private:
 	bool							m_bFramebufferResized;
 
 	// Scene Objects
-	std::vector<Model*>				m_vecModels;
+	Scene*							m_pScene;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,

@@ -8,6 +8,8 @@
 #include "Engine/Renderer/VulkanTexture.h"
 #include "Engine/Renderer/VulkanGraphicsPipeline.h"
 
+#include "Engine/ImGui/imgui.h"
+
 #include "Model.h"
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -22,6 +24,9 @@ Model::Model()
 	m_vecRotationAxis = glm::vec3(0, 1, 0);
 	m_vecScale = glm::vec3(1);
 	m_fAngle = 0.0f;
+	m_fCurrentAngle = 0.0f;
+	m_bAutoRotate = false;
+	m_fAutoRotateSpeed = 1.0f;
 	
 	m_mapTextures.clear();
 
@@ -45,7 +50,7 @@ std::vector<Mesh> Model::LoadModel(VulkanDevice* device, const std::string& file
 {
 	// Import Model scene
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(filePath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices);
+	const aiScene* scene = importer.ReadFile(filePath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
 	if (!scene)
 		LOG_CRITICAL("Failed to load model!");
 
@@ -233,11 +238,13 @@ Mesh Model::LoadMesh(VulkanDevice* pDevice, aiMesh* mesh, const aiScene* scene)
 void Model::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 {
 	// Update angle
-	static float angle = 0.0f;
-	angle += dt;
-	if (angle > 360.0f) { angle = 0.0f; }
-
-	m_fAngle = angle;
+	if (m_bAutoRotate)
+	{
+		m_fCurrentAngle += dt * m_fAutoRotateSpeed;
+		if (m_fCurrentAngle > 360.0f) { m_fCurrentAngle = 0.0f; }
+	}
+	
+	m_fAngle = m_fCurrentAngle;
 
 	// Update Model matrix!
 	m_pShaderUniformsMVP->shaderData.model = glm::mat4(1);
@@ -472,25 +479,6 @@ void Model::Cleanup(VulkanDevice* pDevice)
 void Model::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
 
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-void Model::SetPosition(const glm::vec3& _pos)
-{
-	m_vecPosition = _pos;
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-void Model::SetRotation(const glm::vec3& _axis, float angle)
-{
-	m_vecRotationAxis = _axis;
-	m_fAngle = angle;
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-void Model::SetScale(const glm::vec3& _scale)
-{
-	m_vecScale = _scale;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
