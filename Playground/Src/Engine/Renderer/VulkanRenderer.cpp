@@ -40,7 +40,7 @@ VulkanRenderer::VulkanRenderer()
 
 	m_vkRenderPass						= VK_NULL_HANDLE;
 
-	m_vkInputBuffersDescriptorSetLayout = VK_NULL_HANDLE;
+	m_vkDeferredPassDescriptorSetLayout = VK_NULL_HANDLE;
 	
 	m_vecSemaphoreImageAvailable.clear();
 	m_vecSemaphoreRenderFinished.clear();
@@ -111,8 +111,8 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 
 		//AllocateDynamicBufferTransferSpace();
 
-		CreateInputBuffersDescriptorPool();
-		CreateInputBuffersDescriptorSets();
+		CreateDeferredPassDescriptorPool();
+		CreateDeferredPassDescriptorSets();
 
 		CreateSyncObjects();
 
@@ -363,8 +363,8 @@ void VulkanRenderer::HandleWindowResize()
 
 	m_pFrameBuffer->CreateFrameBuffers(m_pDevice, m_pSwapChain, m_vkRenderPass);
 
-	CreateInputBuffersDescriptorPool();
-	CreateInputBuffersDescriptorSets();
+	CreateDeferredPassDescriptorPool();
+	CreateDeferredPassDescriptorSets();
 
 	m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
@@ -432,14 +432,14 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	inputLayoutCreateInfo.pBindings = inputLayoutBinding.data();
 
 	// Create descriptor set layout
-	if (vkCreateDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, &inputLayoutCreateInfo, nullptr, &m_vkInputBuffersDescriptorSetLayout) != VK_SUCCESS)
+	if (vkCreateDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, &inputLayoutCreateInfo, nullptr, &m_vkDeferredPassDescriptorSetLayout) != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to create a Input Image Descriptor set layout");
 	}
 	else
 		LOG_DEBUG("Successfully created a Input Image Descriptor set layout");
 
-	std::vector<VkDescriptorSetLayout> deferredSetLayouts = { m_vkInputBuffersDescriptorSetLayout };
+	std::vector<VkDescriptorSetLayout> deferredSetLayouts = { m_vkDeferredPassDescriptorSetLayout };
 
 	m_pGraphicsPipelineDeferred->CreatePipelineLayout(m_pDevice, deferredSetLayouts, pushConstantRange);
 	m_pGraphicsPipelineDeferred->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 1);
@@ -676,7 +676,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 		vkCmdBindDescriptorSets(m_pDevice->m_vecCommandBufferGraphics[currentImage],
 								VK_PIPELINE_BIND_POINT_GRAPHICS,
 								m_pGraphicsPipelineDeferred->m_vkPipelineLayout,
-								0, 1, &m_vecInputBuffersDescriptorSets[currentImage],
+								0, 1, &m_vecDeferredPassDescriptorSets[currentImage],
 								0, nullptr);
 
 		// Draw full screen triangle
@@ -725,7 +725,7 @@ void VulkanRenderer::CreateSyncObjects()
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanRenderer::CreateInputBuffersDescriptorPool()
+void VulkanRenderer::CreateDeferredPassDescriptorPool()
 {
 	// INPUT ATTACHMENT DESCRIPTOR POOL
 	// Color attachment 
@@ -752,7 +752,7 @@ void VulkanRenderer::CreateInputBuffersDescriptorPool()
 	inputPoolCreateInfo.poolSizeCount = static_cast<uint32_t>(inputPoolSizes.size());
 	inputPoolCreateInfo.pPoolSizes = inputPoolSizes.data();
 
-	if (vkCreateDescriptorPool(m_pDevice->m_vkLogicalDevice, &inputPoolCreateInfo, nullptr, &m_vkInputBuffersDescriptorPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(m_pDevice->m_vkLogicalDevice, &inputPoolCreateInfo, nullptr, &m_vkDeferredPassDescriptorPool) != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to create Input Descriptor Pool");
 	}
@@ -762,23 +762,23 @@ void VulkanRenderer::CreateInputBuffersDescriptorPool()
 
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanRenderer::CreateInputBuffersDescriptorSets()
+void VulkanRenderer::CreateDeferredPassDescriptorSets()
 {
 	// Resize array to hold descriptor set for each swap chain image
-	m_vecInputBuffersDescriptorSets.resize(m_pSwapChain->m_vecSwapchainImages.size());
+	m_vecDeferredPassDescriptorSets.resize(m_pSwapChain->m_vecSwapchainImages.size());
 
 	// Fill array of layouts ready for set creation
-	std::vector<VkDescriptorSetLayout> setLayouts(m_pSwapChain->m_vecSwapchainImages.size(), m_vkInputBuffersDescriptorSetLayout);
+	std::vector<VkDescriptorSetLayout> setLayouts(m_pSwapChain->m_vecSwapchainImages.size(), m_vkDeferredPassDescriptorSetLayout);
 
 	VkDescriptorSetAllocateInfo setAllocInfo = {};
 	setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	setAllocInfo.descriptorPool = m_vkInputBuffersDescriptorPool;
+	setAllocInfo.descriptorPool = m_vkDeferredPassDescriptorPool;
 	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 	setAllocInfo.pSetLayouts = setLayouts.data();
 
 	// Allocate Descriptor Sets
 	VkResult result;
-	result = vkAllocateDescriptorSets(m_pDevice->m_vkLogicalDevice, &setAllocInfo, m_vecInputBuffersDescriptorSets.data());
+	result = vkAllocateDescriptorSets(m_pDevice->m_vkLogicalDevice, &setAllocInfo, m_vecDeferredPassDescriptorSets.data());
 
 	if (result != VK_SUCCESS)
 	{
@@ -799,7 +799,7 @@ void VulkanRenderer::CreateInputBuffersDescriptorSets()
 		// Color attachment descriptor write
 		VkWriteDescriptorSet colorWrite = {};
 		colorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		colorWrite.dstSet = m_vecInputBuffersDescriptorSets[i];
+		colorWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
 		colorWrite.dstBinding = 0;
 		colorWrite.dstArrayElement = 0;
 		colorWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -815,7 +815,7 @@ void VulkanRenderer::CreateInputBuffersDescriptorSets()
 		// depth attachment descriptor write
 		VkWriteDescriptorSet depthWrite = {};
 		depthWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		depthWrite.dstSet = m_vecInputBuffersDescriptorSets[i];
+		depthWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
 		depthWrite.dstBinding = 1;
 		depthWrite.dstArrayElement = 0;
 		depthWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -831,7 +831,7 @@ void VulkanRenderer::CreateInputBuffersDescriptorSets()
 		// Normal attachment descriptor write
 		VkWriteDescriptorSet normalWrite = {};
 		normalWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		normalWrite.dstSet = m_vecInputBuffersDescriptorSets[i];
+		normalWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
 		normalWrite.dstBinding = 2;
 		normalWrite.dstArrayElement = 0;
 		normalWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -847,7 +847,7 @@ void VulkanRenderer::CreateInputBuffersDescriptorSets()
 		// Normal attachment descriptor write
 		VkWriteDescriptorSet positionWrite = {};
 		positionWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		positionWrite.dstSet = m_vecInputBuffersDescriptorSets[i];
+		positionWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
 		positionWrite.dstBinding = 3;
 		positionWrite.dstArrayElement = 0;
 		positionWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -1008,8 +1008,8 @@ void VulkanRenderer::CleanupOnWindowResize()
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
 
-	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorPool, nullptr);
-	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorSetLayout, nullptr);
 
 	m_pFrameBuffer->CleanupOnWindowResize(m_pDevice);
 	m_pSwapChain->CleanupOnWindowResize(m_pDevice);
@@ -1034,8 +1034,8 @@ void VulkanRenderer::Cleanup()
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
 
-	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorPool, nullptr);
-	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkInputBuffersDescriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorSetLayout, nullptr);
 
 	for (Model* element : m_pScene->GetModelList())
 	{

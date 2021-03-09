@@ -51,8 +51,8 @@ private:
 	void							CreateRenderPass();
 	void							CreateSyncObjects();
 
-	void							CreateInputBuffersDescriptorPool();
-	void							CreateInputBuffersDescriptorSets();
+	void							CreateDeferredPassDescriptorPool();
+	void							CreateDeferredPassDescriptorSets();
 
 	void							RecordCommands(uint32_t currentImage);
 
@@ -77,9 +77,9 @@ private:
 
 	VkRenderPass					m_vkRenderPass;
 
-	VkDescriptorPool				m_vkInputBuffersDescriptorPool;
-	VkDescriptorSetLayout			m_vkInputBuffersDescriptorSetLayout;
-	std::vector<VkDescriptorSet>	m_vecInputBuffersDescriptorSets;
+	VkDescriptorPool				m_vkDeferredPassDescriptorPool;
+	VkDescriptorSetLayout			m_vkDeferredPassDescriptorSetLayout;
+	std::vector<VkDescriptorSet>	m_vecDeferredPassDescriptorSets;
 
 	std::vector<VkSemaphore>		m_vecSemaphoreImageAvailable;
 	std::vector<VkSemaphore>		m_vecSemaphoreRenderFinished;

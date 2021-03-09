@@ -333,6 +333,10 @@ void UIManager::RenderSceneUI(Scene* pScene)
 //---------------------------------------------------------------------------------------------------------------------
 void UIManager::RenderDebugStats()
 {
+	ImGui::Begin("Debug Statistics");
+	ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
+	ImGui::Text("ms Per Frame: %f", 1000.0f / ImGui::GetIO().Framerate);
+	ImGui::End();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -363,7 +367,7 @@ void UIManager::Cleanup(VulkanDevice* pDevice)
 	{
 		vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vecFramebuffers[i], nullptr);
 	}
-
+	
 	// Cleanup Render Pass
 	vkDestroyRenderPass(pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
 
