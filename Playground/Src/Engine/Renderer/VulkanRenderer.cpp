@@ -728,29 +728,20 @@ void VulkanRenderer::CreateSyncObjects()
 void VulkanRenderer::CreateDeferredPassDescriptorPool()
 {
 	// INPUT ATTACHMENT DESCRIPTOR POOL
-	// Color attachment 
-	VkDescriptorPoolSize colorInputPoolSize = {};
-	colorInputPoolSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	colorInputPoolSize.descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
-	
-	// Depth attachment 
-	VkDescriptorPoolSize depthInputPoolSize = {};
-	depthInputPoolSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	depthInputPoolSize.descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
-
-	// Normal attachment
-	VkDescriptorPoolSize normalInputPoolSize = {};
-	normalInputPoolSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	normalInputPoolSize.descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
-
-	std::vector<VkDescriptorPoolSize> inputPoolSizes = { colorInputPoolSize, depthInputPoolSize, normalInputPoolSize };
+	// 4 Attachments : Color + Depth + Normal + Position
+	std::array<VkDescriptorPoolSize, 4> arrDescriptorPoolSize = {};
+	for (int i = 0; i < arrDescriptorPoolSize.size(); ++i)
+	{
+		arrDescriptorPoolSize[i].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		arrDescriptorPoolSize[i].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
+	}
 
 	// Create input attachment pool
 	VkDescriptorPoolCreateInfo inputPoolCreateInfo = {};
 	inputPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	inputPoolCreateInfo.maxSets = m_pSwapChain->m_vecSwapchainImages.size();
-	inputPoolCreateInfo.poolSizeCount = static_cast<uint32_t>(inputPoolSizes.size());
-	inputPoolCreateInfo.pPoolSizes = inputPoolSizes.data();
+	inputPoolCreateInfo.poolSizeCount = static_cast<uint32_t>(arrDescriptorPoolSize.size());
+	inputPoolCreateInfo.pPoolSizes = arrDescriptorPoolSize.data();
 
 	if (vkCreateDescriptorPool(m_pDevice->m_vkLogicalDevice, &inputPoolCreateInfo, nullptr, &m_vkDeferredPassDescriptorPool) != VK_SUCCESS)
 	{
