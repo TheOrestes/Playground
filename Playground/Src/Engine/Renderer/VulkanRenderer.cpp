@@ -13,6 +13,7 @@
 #include "Engine/Scene.h"
 #include "Engine/RenderObjects/Model.h"
 #include "Engine/Helpers/Utility.h"
+#include "Engine/Helpers/FreeCamera.h"
 #include "Engine/ImGui/UIManager.h"
 #include "Engine/ImGui/imgui.h"
 #include "Engine/ImGui/imgui_impl_glfw.h"
@@ -28,7 +29,7 @@ VulkanRenderer::VulkanRenderer()
 	m_pFrameBuffer						= nullptr;
 	m_pScene							= nullptr;
 
-	m_pGraphicsPipelineOpaque			= nullptr;
+	m_pGraphicsPipelineGBuffer			= nullptr;
 	m_pGraphicsPipelineDeferred			= nullptr;
 	
 	m_uiCurrentFrame					= 0;
@@ -40,7 +41,10 @@ VulkanRenderer::VulkanRenderer()
 
 	m_vkRenderPass						= VK_NULL_HANDLE;
 
+	m_pDeferredUniforms					= nullptr;
+	m_vkDeferredPassDescriptorPool		= VK_NULL_HANDLE;
 	m_vkDeferredPassDescriptorSetLayout = VK_NULL_HANDLE;
+	m_vecDeferredPassDescriptorSets.clear();
 	
 	m_vecSemaphoreImageAvailable.clear();
 	m_vecSemaphoreRenderFinished.clear();
@@ -55,7 +59,8 @@ VulkanRenderer::~VulkanRenderer()
 	m_vecFencesRender.clear();
 
 	SAFE_DELETE(m_pScene);
-	SAFE_DELETE(m_pGraphicsPipelineOpaque);
+	SAFE_DELETE(m_pDeferredUniforms);
+	SAFE_DELETE(m_pGraphicsPipelineGBuffer);
 	SAFE_DELETE(m_pGraphicsPipelineDeferred);
 	SAFE_DELETE(m_pFrameBuffer);
 	SAFE_DELETE(m_pSwapChain);
@@ -101,9 +106,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pDevice->CreateGraphicsCommandPool();
 		m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
-		// Command pool & Command buffer for UI! 
-		//m_pDevice->CreateGUICommandPool();
-		//m_pDevice->CreateGUICommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
+		// Load Scene
 		m_pScene = new Scene();
 		m_pScene->LoadScene(m_pDevice, m_pSwapChain);
 		
@@ -131,6 +134,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::Update(float dt)
 {
+	// Update each model's uniform data
 	for (Model* element : m_pScene->GetModelList())
 	{
 		if(element != nullptr)
@@ -138,6 +142,10 @@ void VulkanRenderer::Update(float dt)
 			element->Update(m_pDevice, m_pSwapChain, dt);
 		}
 	}
+
+	// Update deferred pass uniform data
+	// Contains : CameraPosition
+	m_pDeferredUniforms->shaderData.cameraPosition = FreeCamera::getInstance().m_vecPosition;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -377,67 +385,65 @@ void VulkanRenderer::HandleWindowResize()
 void VulkanRenderer::CreateGraphicsPipeline()
 {
 	//----- Create GBUFFER_OPAQUE Graphics pipeline!
-	m_pGraphicsPipelineOpaque = new VulkanGraphicsPipeline(PipelineType::GBUFFER_OPAQUE, m_pSwapChain);
+	m_pGraphicsPipelineGBuffer = new VulkanGraphicsPipeline(PipelineType::GBUFFER_OPAQUE, m_pSwapChain);
 
 	std::vector<VkDescriptorSetLayout> setLayouts = { m_pScene->GetModelList().at(0)->m_vkDescriptorSetLayout };
 	
 	VkPushConstantRange pushConstantRange = {};
 
-	m_pGraphicsPipelineOpaque->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRange);
-	m_pGraphicsPipelineOpaque->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0);
+	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRange);
+	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0);
 
 	
 	//----- Create GBUFFER_BEAUTY Graphics pipeline!
-	m_pGraphicsPipelineDeferred = new VulkanGraphicsPipeline(PipelineType::FINAL_BEAUTY, m_pSwapChain);
+	m_pGraphicsPipelineDeferred = new VulkanGraphicsPipeline(PipelineType::DEFERRED, m_pSwapChain);
 
 	//-- Create Descriptor Set Layout! 
-	std::vector<VkDescriptorSetLayoutBinding> inputLayoutBinding;
+	std::array<VkDescriptorSetLayoutBinding, 5> arrDescriptorSeLayoutBindings;
 
 	// Color input binding 
-	VkDescriptorSetLayoutBinding colorInputLayoutBinding = {};
-	colorInputLayoutBinding.binding = 0;
-	colorInputLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	colorInputLayoutBinding.descriptorCount = 1;
-	colorInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSeLayoutBindings[0].binding = 0;
+	arrDescriptorSeLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[0].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	// Depth input binding
-	VkDescriptorSetLayoutBinding depthInputLayoutBinding = {};
-	depthInputLayoutBinding.binding = 1;
-	depthInputLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	depthInputLayoutBinding.descriptorCount = 1;
-	depthInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSeLayoutBindings[1].binding = 1;
+	arrDescriptorSeLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[1].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	// Normal Input binding
-	VkDescriptorSetLayoutBinding normalInputLayoutBinding = {};
-	normalInputLayoutBinding.binding = 2;
-	normalInputLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	normalInputLayoutBinding.descriptorCount = 1;
-	normalInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSeLayoutBindings[2].binding = 2;
+	arrDescriptorSeLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[2].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	// Position Input binding
-	VkDescriptorSetLayoutBinding positionInputLayoutBinding = {};
-	positionInputLayoutBinding.binding = 3;
-	positionInputLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	positionInputLayoutBinding.descriptorCount = 1;
-	positionInputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSeLayoutBindings[3].binding = 3;
+	arrDescriptorSeLayoutBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[3].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	inputLayoutBinding.push_back(colorInputLayoutBinding);
-	inputLayoutBinding.push_back(depthInputLayoutBinding);
-	inputLayoutBinding.push_back(normalInputLayoutBinding);
-	inputLayoutBinding.push_back(positionInputLayoutBinding);
-
+	// Uniform Buffer binding
+	arrDescriptorSeLayoutBindings[4].binding = 4;																// binding point in shader, binding = ?
+	arrDescriptorSeLayoutBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
+	arrDescriptorSeLayoutBindings[4].descriptorCount = 1;														// number of descriptors
+	arrDescriptorSeLayoutBindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
+	arrDescriptorSeLayoutBindings[4].pImmutableSamplers = nullptr;
+	
 	VkDescriptorSetLayoutCreateInfo inputLayoutCreateInfo = {};
 	inputLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	inputLayoutCreateInfo.bindingCount = inputLayoutBinding.size();
-	inputLayoutCreateInfo.pBindings = inputLayoutBinding.data();
+	inputLayoutCreateInfo.bindingCount = arrDescriptorSeLayoutBindings.size();
+	inputLayoutCreateInfo.pBindings = arrDescriptorSeLayoutBindings.data();
 
 	// Create descriptor set layout
 	if (vkCreateDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, &inputLayoutCreateInfo, nullptr, &m_vkDeferredPassDescriptorSetLayout) != VK_SUCCESS)
 	{
-		LOG_ERROR("Failed to create a Input Image Descriptor set layout");
+		LOG_ERROR("Failed to create a Deferred Descriptor set layout");
 	}
 	else
-		LOG_DEBUG("Successfully created a Input Image Descriptor set layout");
+		LOG_DEBUG("Successfully created a Deferred Descriptor set layout");
 
 	std::vector<VkDescriptorSetLayout> deferredSetLayouts = { m_vkDeferredPassDescriptorSetLayout };
 
@@ -659,14 +665,14 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 		vkCmdBeginRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		// Bind Pipeline to be used in render pass
-		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineOpaque->m_vkGraphicsPipeline);
+		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineGBuffer->m_vkGraphicsPipeline);
 		
 		// Draw Scene!
 		for (Model* element : m_pScene->GetModelList())
 		{
 			if(element != nullptr)
 			{
-				element->Render(m_pDevice, m_pGraphicsPipelineOpaque, currentImage);
+				element->Render(m_pDevice, m_pGraphicsPipelineGBuffer, currentImage);
 			}
 		} 
 
@@ -725,16 +731,33 @@ void VulkanRenderer::CreateSyncObjects()
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+void VulkanRenderer::UpdateDeferredUniforms(uint32_t index)
+{
+	// Copy Shader data
+	void* data;
+	vkMapMemory(m_pDevice->m_vkLogicalDevice, m_pDeferredUniforms->vecMemory[index], 0, sizeof(DeferredPassShaderData), 0, &data);
+	memcpy(data, &m_pDeferredUniforms->shaderData, sizeof(ShaderData));
+	vkUnmapMemory(m_pDevice->m_vkLogicalDevice, m_pDeferredUniforms->vecMemory[index]);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::CreateDeferredPassDescriptorPool()
 {
-	// INPUT ATTACHMENT DESCRIPTOR POOL
+	m_pDeferredUniforms = new DeferredPassUniforms();
+	m_pDeferredUniforms->CreateBuffers(m_pDevice, m_pSwapChain);
+	
+	// *** INPUT ATTACHMENT DESCRIPTOR POOL
 	// 4 Attachments : Color + Depth + Normal + Position
-	std::array<VkDescriptorPoolSize, 4> arrDescriptorPoolSize = {};
-	for (int i = 0; i < arrDescriptorPoolSize.size(); ++i)
+	std::array<VkDescriptorPoolSize, 5> arrDescriptorPoolSize = {};
+	for (int i = 0; i < arrDescriptorPoolSize.size() - 1; ++i)
 	{
 		arrDescriptorPoolSize[i].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		arrDescriptorPoolSize[i].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 	}
+
+	// Uniform Buffer data
+	arrDescriptorPoolSize[4].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	arrDescriptorPoolSize[4].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 
 	// Create input attachment pool
 	VkDescriptorPoolCreateInfo inputPoolCreateInfo = {};
@@ -835,7 +858,7 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		positionAttachmentDescriptor.imageView = m_pFrameBuffer->m_pPositionAttachment->vecAttachmentImageView[i];
 		positionAttachmentDescriptor.sampler = VK_NULL_HANDLE;
 
-		// Normal attachment descriptor write
+		// Position attachment descriptor write
 		VkWriteDescriptorSet positionWrite = {};
 		positionWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		positionWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
@@ -845,8 +868,24 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		positionWrite.descriptorCount = 1;
 		positionWrite.pImageInfo = &positionAttachmentDescriptor;
 
+		//-- Uniform Buffer
+		VkDescriptorBufferInfo ubBufferInfo = {};
+		ubBufferInfo.buffer = m_pDeferredUniforms->vecBuffer[i];			
+		ubBufferInfo.offset = 0;											
+		ubBufferInfo.range = sizeof(DeferredPassUniforms);						
+
+		// Data about connection between binding & buffer
+		VkWriteDescriptorSet ubSetWrite = {};
+		ubSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		ubSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];							
+		ubSetWrite.dstBinding = 4;											
+		ubSetWrite.dstArrayElement = 0;										
+		ubSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;		
+		ubSetWrite.descriptorCount = 1;										
+		ubSetWrite.pBufferInfo = &ubBufferInfo;
+
 		// List of input descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite };
+		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, ubSetWrite };
 
 		// Update descriptor sets
 		vkUpdateDescriptorSets(m_pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);
@@ -897,6 +936,8 @@ void VulkanRenderer::Render()
 			element->UpdateUniformBuffers(m_pDevice, imageIndex);
 		}
 	}
+
+	UpdateDeferredUniforms(imageIndex);
 	
 
 	UIManager::getInstance().BeginRender();
@@ -994,11 +1035,12 @@ void VulkanRenderer::CleanupOnWindowResize()
 {
 	UIManager::getInstance().CleanupOnWindowResize(m_pDevice);
 	
-	m_pGraphicsPipelineOpaque->CleanupOnWindowResize(m_pDevice);
+	m_pGraphicsPipelineGBuffer->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineDeferred->CleanupOnWindowResize(m_pDevice);
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
 
+	m_pDeferredUniforms->CleanupOnWindowResize(m_pDevice);
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorSetLayout, nullptr);
 
@@ -1021,10 +1063,11 @@ void VulkanRenderer::Cleanup()
 	m_pFrameBuffer->Cleanup(m_pDevice);
 
 	m_pGraphicsPipelineDeferred->Cleanup(m_pDevice);
-	m_pGraphicsPipelineOpaque->Cleanup(m_pDevice);
+	m_pGraphicsPipelineGBuffer->Cleanup(m_pDevice);
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
 
+	m_pDeferredUniforms->Cleanup(m_pDevice);
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorSetLayout, nullptr);
 
@@ -1056,3 +1099,43 @@ void VulkanRenderer::Cleanup()
 	vkDestroyInstance(m_vkInstance, nullptr);
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+void DeferredPassUniforms::CreateBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
+{
+	// ViewProjection buffer size
+	VkDeviceSize deferredBufferSize = sizeof(DeferredPassUniforms);
+
+	// one uniform buffer for each image (and by extension command buffer)
+	vecBuffer.resize(pSwapchain->m_vecSwapchainImages.size());
+	vecMemory.resize(pSwapchain->m_vecSwapchainImages.size());
+
+	// create uniform buffers
+	for (uint16_t i = 0; i < pSwapchain->m_vecSwapchainImages.size(); i++)
+	{
+		pDevice->CreateBuffer(deferredBufferSize,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			&vecBuffer[i],
+			&vecMemory[i]);
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void DeferredPassUniforms::Cleanup(VulkanDevice* pDevice)
+{
+	for (uint16_t i = 0; i < vecBuffer.size(); ++i)
+	{
+		vkDestroyBuffer(pDevice->m_vkLogicalDevice, vecBuffer[i], nullptr);
+		vkFreeMemory(pDevice->m_vkLogicalDevice, vecMemory[i], nullptr);
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void DeferredPassUniforms::CleanupOnWindowResize(VulkanDevice* pDevice)
+{
+	for (uint16_t i = 0; i < vecBuffer.size(); ++i)
+	{
+		vkDestroyBuffer(pDevice->m_vkLogicalDevice, vecBuffer[i], nullptr);
+		vkFreeMemory(pDevice->m_vkLogicalDevice, vecMemory[i], nullptr);
+	}
+}

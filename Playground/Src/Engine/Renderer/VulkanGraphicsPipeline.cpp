@@ -267,7 +267,7 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			break;
 		}
 			
-		case PipelineType::FINAL_BEAUTY:
+		case PipelineType::DEFERRED:
 		{
 			m_strVertexShader = "Shaders/Deferred.vert.spv";
 			m_strFragmentShader = "Shaders/Deferred.frag.spv";

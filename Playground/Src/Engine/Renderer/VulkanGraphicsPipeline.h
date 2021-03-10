@@ -8,7 +8,7 @@ class VulkanSwapChain;
 enum class PipelineType
 {
 	GBUFFER_OPAQUE,
-	FINAL_BEAUTY
+	DEFERRED
 };
 
 class VulkanGraphicsPipeline

@@ -24,7 +24,40 @@ class DeferredFrameBuffer;
 class VulkanGraphicsPipeline;
 class Scene;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------------------------------------------
+struct DeferredPassShaderData
+{
+	DeferredPassShaderData()
+	{
+		cameraPosition = glm::vec3(0);
+	}
+
+	// Data
+	glm::vec3	cameraPosition;
+};
+
+//---------------------------------------------------------------------------------------------------------------------
+struct DeferredPassUniforms
+{
+	DeferredPassUniforms()
+	{
+		vecBuffer.clear();
+		vecMemory.clear();
+	}
+
+	void							CreateBuffers(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
+
+	void							Cleanup(VulkanDevice* pDevice);
+	void							CleanupOnWindowResize(VulkanDevice* pDevice);
+	
+	DeferredPassShaderData			shaderData;
+
+	// Vulkan Specific
+	std::vector<VkBuffer>			vecBuffer;
+	std::vector<VkDeviceMemory>		vecMemory;
+};
+
+//---------------------------------------------------------------------------------------------------------------------
 class VulkanRenderer : public IRenderer
 {
 public:
@@ -51,6 +84,7 @@ private:
 	void							CreateRenderPass();
 	void							CreateSyncObjects();
 
+	void							UpdateDeferredUniforms(uint32_t index);
 	void							CreateDeferredPassDescriptorPool();
 	void							CreateDeferredPassDescriptorSets();
 
@@ -69,7 +103,7 @@ private:
 	VulkanSwapChain*				m_pSwapChain;
 	DeferredFrameBuffer*			m_pFrameBuffer;
 
-	VulkanGraphicsPipeline*			m_pGraphicsPipelineOpaque;
+	VulkanGraphicsPipeline*			m_pGraphicsPipelineGBuffer;
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineDeferred;
 	
 	VkDebugUtilsMessengerEXT		m_vkDebugMessenger;
@@ -77,6 +111,7 @@ private:
 
 	VkRenderPass					m_vkRenderPass;
 
+	DeferredPassUniforms*			m_pDeferredUniforms;
 	VkDescriptorPool				m_vkDeferredPassDescriptorPool;
 	VkDescriptorSetLayout			m_vkDeferredPassDescriptorSetLayout;
 	std::vector<VkDescriptorSet>	m_vecDeferredPassDescriptorSets;
