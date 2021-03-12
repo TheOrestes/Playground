@@ -9,18 +9,33 @@ layout(location = 3) in vec3 vs_outBiNormal;
 layout(location = 4) in vec2 vs_outUV;
 
 // Uniform variable
-layout(set = 0, binding = 1) uniform sampler2D samplerAlbedo;
-layout(set = 0, binding = 2) uniform sampler2D samplerSpecular;
-layout(set = 0, binding = 3) uniform sampler2D samplerNormal;
+layout(set = 0, binding = 1) uniform sampler2D samplerBaseTexture;
+layout(set = 0, binding = 2) uniform sampler2D samplerMetalnessTexture;
+layout(set = 0, binding = 3) uniform sampler2D samplerNormalTexture;
+layout(set = 0, binding = 4) uniform sampler2D samplerRoughnessTexture;
+layout(set = 0, binding = 5) uniform sampler2D samplerAOTexture;
+layout(set = 0, binding = 6) uniform sampler2D samplerEmissionTexture;
 
 // output to second subpass!
 layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outNormal;        // RGB - Normal | A - Specular
+layout(location = 1) out vec4 outNormal;        // RGB - Normal | A- unused
 layout(location = 2) out vec4 outPosition;
+layout(location = 3) out vec4 outPBR;           // R - Metalness | G - Roughness | B - AO | A - Unused
+layout(location = 4) out vec4 outEmission;      // RGB - Emission / A - Unused
+layout(location = 5) out vec4 outBackground;    // RGB - BG Color / A - Unused
 
 void main() 
 {
-    outColor = texture(samplerAlbedo, vs_outUV);
+    // Sampler Input Textures!
+    vec4 baseColor      = texture(samplerBaseTexture, vs_outUV);
+    vec4 MetalNessColor = texture(samplerMetalnessTexture, vs_outUV);
+    vec4 NormalColor    = texture(samplerNormalTexture, vs_outUV);
+    vec4 RoughnessColor = texture(samplerRoughnessTexture, vs_outUV);
+    vec4 AOColor        = texture(samplerAOTexture, vs_outUV);
+    vec4 EmissionColor  = texture(samplerEmissionTexture, vs_outUV);    
+
+    // Write to Color G-Buffer
+    outColor = baseColor;
 
     // Calculate normal in Tangent space
     vec3 N = normalize(vs_outNormal);
@@ -28,12 +43,20 @@ void main()
     vec3 B = normalize(cross(N,T));
 
     mat3 TBN = mat3(T, B, N);
-    vec3 tNormal = TBN * normalize(texture(samplerNormal, vs_outUV).xyz * 2.0f - vec3(1.0f));
+    vec3 tNormal = TBN * normalize(NormalColor.rgb * 2.0f - vec3(1.0f));
 
-    outNormal.rgb = tNormal;
+    // Write to Normal G-Buffer
+    outNormal = vec4(tNormal, 0.0f);
 
-    // Pack Specular color into Alpha channel 
-    outNormal.a = texture(samplerSpecular, vs_outUV).r;
-
+    // Write to Position G-Buffer
     outPosition = vec4(vs_outPosition, 1.0f);
+
+    // Write to PBR G-Buffer
+    outPBR = vec4(MetalNessColor.r, RoughnessColor.r, AOColor.r, 0.0f);
+
+    // Write to Emission G-Buffer
+    outEmission = vec4(EmissionColor.rgb, 0.0f);
+
+    //**** TODO - Write to Background G-Buffer
+    outBackground = vec4(0);
 }

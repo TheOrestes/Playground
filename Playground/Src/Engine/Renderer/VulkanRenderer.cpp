@@ -97,6 +97,9 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_DEPTH);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_NORMAL);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_POSITION);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_PBR);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_EMISSION);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_BACKGROUND);
 
 		CreateRenderPass();
 
@@ -365,6 +368,9 @@ void VulkanRenderer::HandleWindowResize()
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_DEPTH);
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_NORMAL);
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_POSITION);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_PBR);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_EMISSION);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_BACKGROUND);
 
 	CreateRenderPass();
 	CreateGraphicsPipeline();
@@ -392,14 +398,14 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	VkPushConstantRange pushConstantRange = {};
 
 	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRange);
-	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0);
+	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 6);
 
 	
 	//----- Create GBUFFER_BEAUTY Graphics pipeline!
 	m_pGraphicsPipelineDeferred = new VulkanGraphicsPipeline(PipelineType::DEFERRED, m_pSwapChain);
 
 	//-- Create Descriptor Set Layout! 
-	std::array<VkDescriptorSetLayoutBinding, 5> arrDescriptorSeLayoutBindings;
+	std::array<VkDescriptorSetLayoutBinding, 8> arrDescriptorSeLayoutBindings;
 
 	// Color input binding 
 	arrDescriptorSeLayoutBindings[0].binding = 0;
@@ -425,12 +431,30 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	arrDescriptorSeLayoutBindings[3].descriptorCount = 1;
 	arrDescriptorSeLayoutBindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+	// PBR Input binding
+	arrDescriptorSeLayoutBindings[4].binding = 4;
+	arrDescriptorSeLayoutBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[4].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Emission Input binding
+	arrDescriptorSeLayoutBindings[5].binding = 5;
+	arrDescriptorSeLayoutBindings[5].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[5].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Position Input binding
+	arrDescriptorSeLayoutBindings[6].binding = 6;
+	arrDescriptorSeLayoutBindings[6].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[6].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	// Uniform Buffer binding
-	arrDescriptorSeLayoutBindings[4].binding = 4;																// binding point in shader, binding = ?
-	arrDescriptorSeLayoutBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
-	arrDescriptorSeLayoutBindings[4].descriptorCount = 1;														// number of descriptors
-	arrDescriptorSeLayoutBindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
-	arrDescriptorSeLayoutBindings[4].pImmutableSamplers = nullptr;
+	arrDescriptorSeLayoutBindings[7].binding = 7;																// binding point in shader, binding = ?
+	arrDescriptorSeLayoutBindings[7].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
+	arrDescriptorSeLayoutBindings[7].descriptorCount = 1;														// number of descriptors
+	arrDescriptorSeLayoutBindings[7].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
+	arrDescriptorSeLayoutBindings[7].pImmutableSamplers = nullptr;
 	
 	VkDescriptorSetLayoutCreateInfo inputLayoutCreateInfo = {};
 	inputLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -448,7 +472,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	std::vector<VkDescriptorSetLayout> deferredSetLayouts = { m_vkDeferredPassDescriptorSetLayout };
 
 	m_pGraphicsPipelineDeferred->CreatePipelineLayout(m_pDevice, deferredSetLayouts, pushConstantRange);
-	m_pGraphicsPipelineDeferred->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 1);
+	m_pGraphicsPipelineDeferred->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 1, 1);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -457,82 +481,132 @@ void VulkanRenderer::CreateRenderPass()
 	// Array of subpasses
 	std::array<VkSubpassDescription, 2> subpasses = {};
 
-	// *** SUBPASS 1 ATTACHMENTS + REFERENCES (INPUT ATTACHMENTS)
-	// Color Attachment (Input)
+	// *** SUBPASS 1 ATTACHMENTS
+	// These are output from first subpass to second subpass!
+	// Color Attachment 
 	VkAttachmentDescription colorAttachmentDesc = {};
-	colorAttachmentDesc.format				= m_pFrameBuffer->m_pAlbedoAttachment->attachmentFormat;		// format to use for attachment
-	colorAttachmentDesc.samples				= VK_SAMPLE_COUNT_1_BIT;										// number of samples for multi-sampling
-	colorAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;									// describes what to do with attachment before rendering
-	colorAttachmentDesc.storeOp				= VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with attachment after rendering
-	colorAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;								// describes what to do with stencil before rendering
-	colorAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with stencil after rendering
-	colorAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;									// image data layout before render pass starts
-	colorAttachmentDesc.finalLayout			= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;						// image data layout after render pass
+	colorAttachmentDesc.format					= m_pFrameBuffer->m_pAlbedoAttachment->attachmentFormat;		// format to use for attachment
+	colorAttachmentDesc.samples					= VK_SAMPLE_COUNT_1_BIT;										// number of samples for multi-sampling
+	colorAttachmentDesc.loadOp					= VK_ATTACHMENT_LOAD_OP_CLEAR;									// describes what to do with attachment before rendering
+	colorAttachmentDesc.storeOp					= VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with attachment after rendering
+	colorAttachmentDesc.stencilLoadOp			= VK_ATTACHMENT_LOAD_OP_DONT_CARE;								// describes what to do with stencil before rendering
+	colorAttachmentDesc.stencilStoreOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;								// describes what to do with stencil after rendering
+	colorAttachmentDesc.initialLayout			= VK_IMAGE_LAYOUT_UNDEFINED;									// image data layout before render pass starts
+	colorAttachmentDesc.finalLayout				= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;						// image data layout after render pass
 
-	// Depth attachment (Input)
+	// Depth attachment 
 	VkAttachmentDescription depthAttachmentDesc = {};
-	depthAttachmentDesc.format				= m_pFrameBuffer->m_pDepthAttachment->attachmentFormat;
-	depthAttachmentDesc.samples				= VK_SAMPLE_COUNT_1_BIT;
-	depthAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachmentDesc.storeOp				= VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depthAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
-	depthAttachmentDesc.finalLayout			= VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthAttachmentDesc.format					= m_pFrameBuffer->m_pDepthAttachment->attachmentFormat;
+	depthAttachmentDesc.samples					= VK_SAMPLE_COUNT_1_BIT;
+	depthAttachmentDesc.loadOp					= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachmentDesc.storeOp					= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachmentDesc.stencilStoreOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachmentDesc.stencilLoadOp			= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthAttachmentDesc.initialLayout			= VK_IMAGE_LAYOUT_UNDEFINED;
+	depthAttachmentDesc.finalLayout				= VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-	// Normal Attachment (Input)
+	// Normal Attachment
 	VkAttachmentDescription normalAttachmentDesc = {};
-	normalAttachmentDesc.format				= m_pFrameBuffer->m_pNormalAttachment->attachmentFormat;
-	normalAttachmentDesc.samples			= VK_SAMPLE_COUNT_1_BIT;
-	normalAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;
-	normalAttachmentDesc.storeOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	normalAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	normalAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	normalAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
-	normalAttachmentDesc.finalLayout		= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	normalAttachmentDesc.format					= m_pFrameBuffer->m_pNormalAttachment->attachmentFormat;
+	normalAttachmentDesc.samples				= VK_SAMPLE_COUNT_1_BIT;
+	normalAttachmentDesc.loadOp					= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	normalAttachmentDesc.storeOp				= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	normalAttachmentDesc.stencilLoadOp			= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	normalAttachmentDesc.stencilStoreOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	normalAttachmentDesc.initialLayout			= VK_IMAGE_LAYOUT_UNDEFINED;
+	normalAttachmentDesc.finalLayout			= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Position attachment (Input)
+	// Position attachment 
 	VkAttachmentDescription positionAttachmentDesc = {};
-	positionAttachmentDesc.format			= m_pFrameBuffer->m_pPositionAttachment->attachmentFormat;
-	positionAttachmentDesc.samples			= VK_SAMPLE_COUNT_1_BIT;
-	positionAttachmentDesc.loadOp			= VK_ATTACHMENT_LOAD_OP_CLEAR;
-	positionAttachmentDesc.storeOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	positionAttachmentDesc.stencilLoadOp	= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	positionAttachmentDesc.stencilStoreOp	= VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	positionAttachmentDesc.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;
-	positionAttachmentDesc.finalLayout		= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	positionAttachmentDesc.format				= m_pFrameBuffer->m_pPositionAttachment->attachmentFormat;
+	positionAttachmentDesc.samples				= VK_SAMPLE_COUNT_1_BIT;
+	positionAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	positionAttachmentDesc.storeOp				= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	positionAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	positionAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	positionAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
+	positionAttachmentDesc.finalLayout			= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Color attachment (Input) Reference
-	VkAttachmentReference colorAttachmentRef = {};
-	colorAttachmentRef.attachment			 = 1;
-	colorAttachmentRef.layout				 = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	// PBR  attachment 
+	VkAttachmentDescription pbrAttachmentDesc = {};
+	pbrAttachmentDesc.format					= m_pFrameBuffer->m_pPBRAttachment->attachmentFormat;
+	pbrAttachmentDesc.samples					= VK_SAMPLE_COUNT_1_BIT;
+	pbrAttachmentDesc.loadOp					= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	pbrAttachmentDesc.storeOp					= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	pbrAttachmentDesc.stencilLoadOp				= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	pbrAttachmentDesc.stencilStoreOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	pbrAttachmentDesc.initialLayout				= VK_IMAGE_LAYOUT_UNDEFINED;
+	pbrAttachmentDesc.finalLayout				= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Depth attachment (Input) Reference
-	VkAttachmentReference depthAttachmentRef = {};
-	depthAttachmentRef.attachment			 = 2;
-	depthAttachmentRef.layout				 = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	// Emission  attachment 
+	VkAttachmentDescription emissionAttachmentDesc = {};
+	emissionAttachmentDesc.format				= m_pFrameBuffer->m_pEmissionAttachment->attachmentFormat;
+	emissionAttachmentDesc.samples				= VK_SAMPLE_COUNT_1_BIT;
+	emissionAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	emissionAttachmentDesc.storeOp				= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	emissionAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	emissionAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	emissionAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
+	emissionAttachmentDesc.finalLayout			= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Normal attachment (Input) Reference
-	VkAttachmentReference normalAttachmentRef = {};
-	normalAttachmentRef.attachment			  = 3;
-	normalAttachmentRef.layout				  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	// Background attachment 
+	VkAttachmentDescription backgroundAttachmentDesc = {};
+	backgroundAttachmentDesc.format				= m_pFrameBuffer->m_pBackgroundAttachment->attachmentFormat;
+	backgroundAttachmentDesc.samples			= VK_SAMPLE_COUNT_1_BIT;
+	backgroundAttachmentDesc.loadOp				= VK_ATTACHMENT_LOAD_OP_CLEAR;
+	backgroundAttachmentDesc.storeOp			= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	backgroundAttachmentDesc.stencilLoadOp		= VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	backgroundAttachmentDesc.stencilStoreOp		= VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	backgroundAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
+	backgroundAttachmentDesc.finalLayout		= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Position attachment (Input) Reference
+	// Color attachment Reference
+	VkAttachmentReference colorAttachmentRef	= {};
+	colorAttachmentRef.attachment				= 1;
+	colorAttachmentRef.layout					= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// Depth attachment Reference
+	VkAttachmentReference depthAttachmentRef	= {};
+	depthAttachmentRef.attachment				= 2;
+	depthAttachmentRef.layout					= VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	// Normal attachment Reference
+	VkAttachmentReference normalAttachmentRef	= {};
+	normalAttachmentRef.attachment				= 3;
+	normalAttachmentRef.layout					= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// Position attachment Reference
 	VkAttachmentReference positionAttachmentRef = {};
 	positionAttachmentRef.attachment			= 4;
 	positionAttachmentRef.layout				= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	std::array<VkAttachmentReference, 3> attachmentRefs = { colorAttachmentRef, normalAttachmentRef, positionAttachmentRef };
+	// PBR attachment Reference
+	VkAttachmentReference pbrAttachmentRef		= {};
+	pbrAttachmentRef.attachment					= 5;
+	pbrAttachmentRef.layout						= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Set up subpass 1 (Outputs 3 Color + 1 Depth attachment) 
+	// Emission attachment Reference
+	VkAttachmentReference emissionAttachmentRef = {};
+	emissionAttachmentRef.attachment			= 6;
+	emissionAttachmentRef.layout				= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// Background attachment Reference
+	VkAttachmentReference bkgndAttachmentRef	= {};
+	bkgndAttachmentRef.attachment				= 7;
+	bkgndAttachmentRef.layout					= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	std::array<VkAttachmentReference, 6> attachmentRefs = { colorAttachmentRef, normalAttachmentRef, positionAttachmentRef,
+															pbrAttachmentRef, emissionAttachmentRef, bkgndAttachmentRef };
+
+	// Set up subpass 1 (Outputs 6 Color + 1 Depth attachment) 
 	subpasses[0].pipelineBindPoint			= VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpasses[0].colorAttachmentCount		= attachmentRefs.size();
 	subpasses[0].pColorAttachments			= attachmentRefs.data();
 	subpasses[0].pDepthStencilAttachment	= &depthAttachmentRef;
 
 
-	//--- SUBPASS 2 ATTACHMENTS + REFERENCES
-	// Swap chain Color Attachment 
+	//--- SUBPASS 2 ATTACHMENTS
+	// Swap chain Color Attachment (Output from second subpass!)
 	VkAttachmentDescription swapChainColorAttachmentDesc = {};
 	swapChainColorAttachmentDesc.format			= m_pSwapChain->m_vkSwapchainImageFormat;		// format to use for attachment
 	swapChainColorAttachmentDesc.samples		= VK_SAMPLE_COUNT_1_BIT;						// number of samples for multi sampling
@@ -548,8 +622,8 @@ void VulkanRenderer::CreateRenderPass()
 	swapChainColorAttachmentRef.attachment			  = 0;
 	swapChainColorAttachmentRef.layout				  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// References to attachments that subpass will take input from
-	std::array<VkAttachmentReference, 4> inputReferences;
+	// Input attachments output from first subpass!
+	std::array<VkAttachmentReference, 7> inputReferences;
 	inputReferences[0].attachment	= 1;
 	inputReferences[0].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputReferences[1].attachment	= 2;
@@ -558,8 +632,14 @@ void VulkanRenderer::CreateRenderPass()
 	inputReferences[2].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputReferences[3].attachment	= 4;
 	inputReferences[3].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[4].attachment	= 5;
+	inputReferences[4].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[5].attachment	= 6;
+	inputReferences[5].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[6].attachment	= 7;
+	inputReferences[6].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	// Set up subpass 2 (Takes in 4 input attachments from subpass 1 & outputs one color output for final present!)
+	// Set up subpass 2 (Takes in 7 input attachments from subpass 1 & outputs one color output for final present!)
 	subpasses[1].pipelineBindPoint		= VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpasses[1].colorAttachmentCount	= 1;												
 	subpasses[1].pColorAttachments		= &swapChainColorAttachmentRef;
@@ -603,11 +683,14 @@ void VulkanRenderer::CreateRenderPass()
 	subpassDependencies[2].dependencyFlags	= 0;
 
 	// Render pass!
-	std::array<VkAttachmentDescription, 5> renderPassAttachments = { swapChainColorAttachmentDesc, 
+	std::array<VkAttachmentDescription, 8> renderPassAttachments = { swapChainColorAttachmentDesc, 
 																	 colorAttachmentDesc, 
 																	 depthAttachmentDesc, 
 																	 normalAttachmentDesc, 
-																	 positionAttachmentDesc };
+																	 positionAttachmentDesc,
+																	 pbrAttachmentDesc,
+																	 emissionAttachmentDesc,
+																	 backgroundAttachmentDesc };
 
 	VkRenderPassCreateInfo renderPassCreateInfo{};
 	renderPassCreateInfo.sType				= VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -641,13 +724,16 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	renderPassBeginInfo.renderArea.offset = { 0,0 };						// start point of render pass in pixels
 	renderPassBeginInfo.renderArea.extent = m_pSwapChain->m_vkSwapchainExtent;			// size of region to run render pass on (starting at offset) 
 
-	std::array<VkClearValue, 5> clearValues = {};
+	std::array<VkClearValue, 8> clearValues = {};
 
 	clearValues[0].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[1].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[2].depthStencil.depth = 1.0f;
 	clearValues[3].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[4].color = { 0.2f, 0.2f, 0.2f, 1.0f };
+	clearValues[5].color = { 0.2f, 0.2f, 0.2f, 1.0f };
+	clearValues[6].color = { 0.2f, 0.2f, 0.2f, 1.0f };
+	clearValues[7].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 
 	renderPassBeginInfo.pClearValues = clearValues.data();								// list of clear values
 	renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -747,8 +833,8 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 	m_pDeferredUniforms->CreateBuffers(m_pDevice, m_pSwapChain);
 	
 	// *** INPUT ATTACHMENT DESCRIPTOR POOL
-	// 4 Attachments : Color + Depth + Normal + Position
-	std::array<VkDescriptorPoolSize, 5> arrDescriptorPoolSize = {};
+	// 7 Attachments : Color + Depth + Normal + Position + PBR + Emissive + Background
+	std::array<VkDescriptorPoolSize, 8> arrDescriptorPoolSize = {};
 	for (int i = 0; i < arrDescriptorPoolSize.size() - 1; ++i)
 	{
 		arrDescriptorPoolSize[i].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -756,8 +842,8 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 	}
 
 	// Uniform Buffer data
-	arrDescriptorPoolSize[4].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	arrDescriptorPoolSize[4].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
+	arrDescriptorPoolSize[7].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	arrDescriptorPoolSize[7].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 
 	// Create input attachment pool
 	VkDescriptorPoolCreateInfo inputPoolCreateInfo = {};
@@ -868,6 +954,55 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		positionWrite.descriptorCount = 1;
 		positionWrite.pImageInfo = &positionAttachmentDescriptor;
 
+		// PBR attachment descriptor
+		VkDescriptorImageInfo pbrAttachmentDescriptor = {};
+		pbrAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		pbrAttachmentDescriptor.imageView = m_pFrameBuffer->m_pPBRAttachment->vecAttachmentImageView[i];
+		pbrAttachmentDescriptor.sampler = VK_NULL_HANDLE;
+
+		// PBR attachment descriptor write
+		VkWriteDescriptorSet pbrWrite = {};
+		pbrWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		pbrWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
+		pbrWrite.dstBinding = 4;
+		pbrWrite.dstArrayElement = 0;
+		pbrWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		pbrWrite.descriptorCount = 1;
+		pbrWrite.pImageInfo = &pbrAttachmentDescriptor;
+
+		// Emission attachment descriptor
+		VkDescriptorImageInfo emissionAttachmentDescriptor = {};
+		emissionAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		emissionAttachmentDescriptor.imageView = m_pFrameBuffer->m_pEmissionAttachment->vecAttachmentImageView[i];
+		emissionAttachmentDescriptor.sampler = VK_NULL_HANDLE;
+
+		// Emission attachment descriptor write
+		VkWriteDescriptorSet emissionWrite = {};
+		emissionWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		emissionWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
+		emissionWrite.dstBinding = 5;
+		emissionWrite.dstArrayElement = 0;
+		emissionWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		emissionWrite.descriptorCount = 1;
+		emissionWrite.pImageInfo = &emissionAttachmentDescriptor;
+
+
+		// Background attachment descriptor
+		VkDescriptorImageInfo backgroundAttachmentDescriptor = {};
+		backgroundAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		backgroundAttachmentDescriptor.imageView = m_pFrameBuffer->m_pBackgroundAttachment->vecAttachmentImageView[i];
+		backgroundAttachmentDescriptor.sampler = VK_NULL_HANDLE;
+
+		// Position attachment descriptor write
+		VkWriteDescriptorSet backgroundWrite = {};
+		backgroundWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		backgroundWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
+		backgroundWrite.dstBinding = 6;
+		backgroundWrite.dstArrayElement = 0;
+		backgroundWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		backgroundWrite.descriptorCount = 1;
+		backgroundWrite.pImageInfo = &backgroundAttachmentDescriptor;
+
 		//-- Uniform Buffer
 		VkDescriptorBufferInfo ubBufferInfo = {};
 		ubBufferInfo.buffer = m_pDeferredUniforms->vecBuffer[i];			
@@ -878,14 +1013,14 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		VkWriteDescriptorSet ubSetWrite = {};
 		ubSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		ubSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];							
-		ubSetWrite.dstBinding = 4;											
+		ubSetWrite.dstBinding = 7;											
 		ubSetWrite.dstArrayElement = 0;										
 		ubSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;		
 		ubSetWrite.descriptorCount = 1;										
 		ubSetWrite.pBufferInfo = &ubBufferInfo;
 
 		// List of input descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, ubSetWrite };
+		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, pbrWrite, emissionWrite, backgroundWrite, ubSetWrite };
 
 		// Update descriptor sets
 		vkUpdateDescriptorSets(m_pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);

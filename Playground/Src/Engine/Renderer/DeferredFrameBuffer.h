@@ -13,7 +13,8 @@ enum class AttachmentType
 	FB_ATTACHMENT_POSITION,
 	FB_ATTACHMENT_NORMAL,
 	FB_ATTACHMENT_DEPTH,
-	FB_ATTACHMENT_REFLECTION,
+	FB_ATTACHMENT_PBR,				// Metallic, Roughness, AO
+	FB_ATTACHMENT_EMISSION,
 	FB_ATTACHMENT_BACKGROUND
 };
 
@@ -66,6 +67,9 @@ public:
 	FramebufferAttachment*				m_pDepthAttachment;
 	FramebufferAttachment*				m_pNormalAttachment;
 	FramebufferAttachment*				m_pPositionAttachment;
+	FramebufferAttachment*				m_pPBRAttachment;
+	FramebufferAttachment*				m_pEmissionAttachment;
+	FramebufferAttachment*				m_pBackgroundAttachment;
 
 	std::vector<VkFramebuffer>			m_vecFramebuffers;				// Size equals to number of swapchain images
 };

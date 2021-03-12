@@ -376,7 +376,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		LOG_DEBUG("Successfully created Descriptor Pool");
 
 	// *** Create Descriptor Set Layout
-	std::array<VkDescriptorSetLayoutBinding, 4> arrDescriptorSetLayoutBindings = {};
+	std::array<VkDescriptorSetLayoutBinding, 7> arrDescriptorSetLayoutBindings = {};
 
 	//-- Uniform Buffer
 	arrDescriptorSetLayoutBindings[0].binding = 0;																// binding point in shader, binding = ?
@@ -385,14 +385,14 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	arrDescriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;									// Shader stage to bind to
 	arrDescriptorSetLayoutBindings[0].pImmutableSamplers = nullptr;												// For textures!
 
-	//-- Albedo Texture
+	//-- BaseColor Texture
 	arrDescriptorSetLayoutBindings[1].binding = 1;
 	arrDescriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;						
 	arrDescriptorSetLayoutBindings[1].descriptorCount = 1;														
 	arrDescriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;									
 	arrDescriptorSetLayoutBindings[1].pImmutableSamplers = nullptr;
 
-	//-- Specular Texture
+	//-- Metalness Texture
 	arrDescriptorSetLayoutBindings[2].binding = 2;
 	arrDescriptorSetLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	arrDescriptorSetLayoutBindings[2].descriptorCount = 1;
@@ -405,6 +405,27 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	arrDescriptorSetLayoutBindings[3].descriptorCount = 1;
 	arrDescriptorSetLayoutBindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	arrDescriptorSetLayoutBindings[3].pImmutableSamplers = nullptr;
+
+	//-- Roughness Texture
+	arrDescriptorSetLayoutBindings[4].binding = 4;
+	arrDescriptorSetLayoutBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSetLayoutBindings[4].descriptorCount = 1;
+	arrDescriptorSetLayoutBindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSetLayoutBindings[4].pImmutableSamplers = nullptr;
+
+	//-- AO Texture
+	arrDescriptorSetLayoutBindings[5].binding = 5;
+	arrDescriptorSetLayoutBindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSetLayoutBindings[5].descriptorCount = 1;
+	arrDescriptorSetLayoutBindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSetLayoutBindings[5].pImmutableSamplers = nullptr;
+
+	//-- Emission Texture
+	arrDescriptorSetLayoutBindings[6].binding = 6;
+	arrDescriptorSetLayoutBindings[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSetLayoutBindings[6].descriptorCount = 1;
+	arrDescriptorSetLayoutBindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSetLayoutBindings[6].pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo descSetlayoutCreateInfo = {};
 	descSetlayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -459,7 +480,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		ubSetWrite.descriptorCount = 1;										// amount to update		
 		ubSetWrite.pBufferInfo = &ubBufferInfo;
 		
-		//-- Albedo Texture
+		//-- Base Texture
 		VkDescriptorImageInfo albedoImageInfo = {};
 		albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
 		albedoImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ALBEDO)->m_vkTextureImageView;	// image to bind to set
@@ -507,9 +528,58 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		normalSetWrite.descriptorCount = 1;
 		normalSetWrite.pImageInfo = &normalImageInfo;
 
-		// List of Descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { ubSetWrite, albedoSetWrite, metalnessSetWrite, normalSetWrite };
+		//-- Roughness Texture
+		VkDescriptorImageInfo roughnessImageInfo = {};
+		roughnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		roughnessImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ROUGHNESS)->m_vkTextureImageView;	// image to bind to set
+		roughnessImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ROUGHNESS)->m_vkTextureSampler;														// sampler to use for the set
 
+		// Descriptor write info
+		VkWriteDescriptorSet roughnessSetWrite = {};
+		roughnessSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		roughnessSetWrite.dstSet = m_vecDescriptorSet[i];
+		roughnessSetWrite.dstBinding = 4;
+		roughnessSetWrite.dstArrayElement = 0;
+		roughnessSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		roughnessSetWrite.descriptorCount = 1;
+		roughnessSetWrite.pImageInfo = &roughnessImageInfo;
+
+		//-- AO Texture
+		VkDescriptorImageInfo AOImageInfo = {};
+		AOImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		AOImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_AO)->m_vkTextureImageView;		// image to bind to set
+		AOImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_AO)->m_vkTextureSampler;														// sampler to use for the set
+
+		// Descriptor write info
+		VkWriteDescriptorSet AOSetWrite = {};
+		AOSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		AOSetWrite.dstSet = m_vecDescriptorSet[i];
+		AOSetWrite.dstBinding = 5;
+		AOSetWrite.dstArrayElement = 0;
+		AOSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		AOSetWrite.descriptorCount = 1;
+		AOSetWrite.pImageInfo = &AOImageInfo;
+
+		//-- Emission Texture
+		VkDescriptorImageInfo emissionImageInfo = {};
+		emissionImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		emissionImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_EMISSIVE)->m_vkTextureImageView;	// image to bind to set
+		emissionImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_EMISSIVE)->m_vkTextureSampler;														// sampler to use for the set
+
+		// Descriptor write info
+		VkWriteDescriptorSet emissionSetWrite = {};
+		emissionSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		emissionSetWrite.dstSet = m_vecDescriptorSet[i];
+		emissionSetWrite.dstBinding = 6;
+		emissionSetWrite.dstArrayElement = 0;
+		emissionSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		emissionSetWrite.descriptorCount = 1;
+		emissionSetWrite.pImageInfo = &emissionImageInfo;
+
+		// List of Descriptor set writes
+		std::vector<VkWriteDescriptorSet> setWrites = { ubSetWrite, albedoSetWrite, metalnessSetWrite, normalSetWrite,
+														roughnessSetWrite, AOSetWrite, emissionSetWrite };
+		
 		// Update the descriptor sets with new buffer/binding info
 		vkUpdateDescriptorSets(pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);
 	}

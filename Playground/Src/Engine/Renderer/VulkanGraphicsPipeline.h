@@ -21,7 +21,7 @@ public:
 																			VkPushConstantRange pushConstantRange);
 														
 	void												CreateGraphicsPipeline(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, 
-																				VkRenderPass renderPass, uint32_t subpass);
+																				VkRenderPass renderPass, uint32_t subPass, uint32_t nOutputAttachments);
 														
 	void												Cleanup(VulkanDevice* pDevice);
 	void												CleanupOnWindowResize(VulkanDevice* pDevice);
