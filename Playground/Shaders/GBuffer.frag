@@ -15,7 +15,7 @@ layout(set = 0, binding = 3) uniform sampler2D samplerNormal;
 
 // output to second subpass!
 layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outNormal;
+layout(location = 1) out vec4 outNormal;        // RGB - Normal | A - Specular
 layout(location = 2) out vec4 outPosition;
 
 void main() 
@@ -30,6 +30,10 @@ void main()
     mat3 TBN = mat3(T, B, N);
     vec3 tNormal = TBN * normalize(texture(samplerNormal, vs_outUV).xyz * 2.0f - vec3(1.0f));
 
-    outNormal = vec4(tNormal, 1.0f);
+    outNormal.rgb = tNormal;
+
+    // Pack Specular color into Alpha channel 
+    outNormal.a = texture(samplerSpecular, vs_outUV).r;
+
     outPosition = vec4(vs_outPosition, 1.0f);
 }

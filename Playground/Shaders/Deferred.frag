@@ -43,7 +43,8 @@ void main()
     vec3 Eye = normalize(cameraPos - positionColor.rgb);
     vec3 Half = normalize(lightDir + Eye);
 
-    float specular = pow(dot(N, Half), 8.0f);
+    // Specular only where specular map is, which is packed in Alpha channel of Normal G-Buffer!
+    float specular = normalColor.a * pow(dot(N, Half), 8.0f);
 
     float Kd = 0.8f;
     float Ks = 1 - Kd;
@@ -51,6 +52,6 @@ void main()
     //outColor = vec4(vec3(scaledDepth), 1.0f);
     //outColor = normalColor;
     //outColor = positionColor;
-    //outColor = vec4(vec3(specular), 1.0f) * albedoColor;
-    outColor = albedoColor + vec4(vec3(Kd * diffuse + Ks * specular), 1.0f);
+    //outColor = vec4(vec3(specular), 1.0f);
+    outColor = albedoColor + Kd * vec4(vec3(diffuse), 1) + Ks * vec4(vec3(specular), 1.0f);
 }

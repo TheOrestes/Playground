@@ -48,11 +48,13 @@ Model::~Model()
 //---------------------------------------------------------------------------------------------------------------------
 std::vector<Mesh> Model::LoadModel(VulkanDevice* device, const std::string& filePath)
 {
+	LOG_DEBUG("Loading {0} Model...", filePath);
+	
 	// Import Model scene
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(filePath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
 	if (!scene)
-		LOG_CRITICAL("Failed to load model!");
+		LOG_CRITICAL("Failed to Assimp ReadFile {0} model!", filePath);
 
 	// Get list of textures based on materials!
 	LoadMaterials(device, scene);
@@ -92,7 +94,56 @@ std::vector<Mesh> Model::LoadNode(VulkanDevice* device, aiNode* node, const aiSc
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void Model::LoadTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType)
+void Model::SetDefaultTexture(aiTextureType eType)
+{
+	switch (eType)
+	{
+		case aiTextureType_BASE_COLOR:
+		{
+			m_mapTextures.emplace("MissingAlbedo.png", TextureType::TEXTURE_ALBEDO);
+			LOG_ERROR("BaseColor texture not found, using default texture!");
+			break;
+		}
+
+		case aiTextureType_METALNESS:
+		{
+			m_mapTextures.emplace("MissingMetalness.png", TextureType::TEXTURE_METALNESS);
+			LOG_ERROR("Metalness texture not found, using default texture!");
+			break;
+		}
+
+		case aiTextureType_NORMAL_CAMERA:
+		{
+			m_mapTextures.emplace("MissingNormal.png", TextureType::TEXTURE_NORMAL);
+			LOG_ERROR("Normal texture not found, using default texture!");
+			break;
+		}
+
+		case aiTextureType_DIFFUSE_ROUGHNESS:
+		{
+			m_mapTextures.emplace("MissingRoughness.png", TextureType::TEXTURE_ROUGHNESS);
+			LOG_ERROR("Roughness texture not found, using default texture!");
+			break;
+		}
+
+		case aiTextureType_AMBIENT_OCCLUSION:
+		{
+			m_mapTextures.emplace("MissingAO.png", TextureType::TEXTURE_AO);
+			LOG_ERROR("AO texture not found, using default texture!");
+			break;
+		}
+
+		case aiTextureType_EMISSION_COLOR:
+		{
+			m_mapTextures.emplace("MissingEmissive.png", TextureType::TEXTURE_EMISSIVE);
+			LOG_ERROR("Emissive texture not found, using default texture!");
+			break;
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Model::ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType)
 {
 	if (pMaterial->GetTextureCount(eType))
 	{
@@ -104,52 +155,58 @@ void Model::LoadTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType)
 			int idx = std::string(path.data).rfind("\\");
 			std::string fileName = std::string(path.data).substr(idx + 1);
 
-			switch (eType)
+			if(!fileName.empty())
 			{
-				case aiTextureType_DIFFUSE:
+				switch (eType)
 				{
-					m_mapTextures.emplace(fileName, TextureType::TEXTURE_ALBEDO);
-					break;
-				}
+					case aiTextureType_BASE_COLOR:
+					{
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_ALBEDO);
+						break;
+					}
 
-				case aiTextureType_SPECULAR:
-				{
-					m_mapTextures.emplace(fileName, TextureType::TEXTURE_SPECULAR);
-					break;
-				}
+					case aiTextureType_METALNESS:
+					{
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_METALNESS);
+						break;
+					}
 
-				case aiTextureType_NORMALS:
-				{
-					m_mapTextures.emplace(fileName, TextureType::TEXTURE_NORMAL);
-					break;
+					case aiTextureType_NORMAL_CAMERA:
+					{
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_NORMAL);
+						break;
+					}
+
+					case aiTextureType_DIFFUSE_ROUGHNESS:
+					{
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_ROUGHNESS);
+						break;
+					}
+
+					case aiTextureType_AMBIENT_OCCLUSION:
+					{
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_AO);
+						break;
+					}
+
+					case aiTextureType_EMISSION_COLOR:
+					{
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_EMISSIVE);
+						break;
+					}
 				}
 			}
-			
+			else
+			{
+				// If due to some reasons, texture slot is assigned but no filename is mentioned, load default!
+				SetDefaultTexture(eType);
+			}
 		}
 	}
 	else
 	{
-		switch (eType)
-		{
-			case aiTextureType_DIFFUSE:
-			{
-				// if there is no texture, fill in BadTexture string into filename!
-				m_mapTextures.emplace("MissingAlbedo.png", TextureType::TEXTURE_ALBEDO);
-				break;
-			}
-				
-			case aiTextureType_SPECULAR:
-			{
-				m_mapTextures.emplace("MissingSpecular.png", TextureType::TEXTURE_SPECULAR);
-				break;
-			}
-				
-			case aiTextureType_NORMALS:
-			{
-				m_mapTextures.emplace("MissingNormal.png", TextureType::TEXTURE_NORMAL);
-				break;
-			}		
-		}
+		// if particular type texture is not available, load default!
+		SetDefaultTexture(eType);
 	}
 }
 
@@ -161,15 +218,14 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 	{
 		// Get the material
 		aiMaterial* material = scene->mMaterials[i];
-
-		// check for the diffuse texture
-		LoadTextureFromMaterial(material, aiTextureType_DIFFUSE);
-
-		// check for specular texture
-		LoadTextureFromMaterial(material, aiTextureType_SPECULAR);
-
-		// check for normal map texture
-		LoadTextureFromMaterial(material, aiTextureType_NORMALS);
+		
+		// We use Maya's Stingray PBS material for mapping following textures!
+		ExtractTextureFromMaterial(material, aiTextureType_BASE_COLOR);
+		ExtractTextureFromMaterial(material, aiTextureType_NORMAL_CAMERA);
+		ExtractTextureFromMaterial(material, aiTextureType_EMISSION_COLOR);
+		ExtractTextureFromMaterial(material, aiTextureType_METALNESS);
+		ExtractTextureFromMaterial(material, aiTextureType_DIFFUSE_ROUGHNESS);
+		ExtractTextureFromMaterial(material, aiTextureType_AMBIENT_OCCLUSION);
 	}
 
 	m_pMaterial = new VulkanMaterial();
@@ -419,21 +475,21 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		albedoSetWrite.descriptorCount = 1;
 		albedoSetWrite.pImageInfo = &albedoImageInfo;
 
-		//-- Specular Texture
-		VkDescriptorImageInfo specularImageInfo = {};
-		specularImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
-		specularImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_SPECULAR)->m_vkTextureImageView;	// image to bind to set
-		specularImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_SPECULAR)->m_vkTextureSampler;														// sampler to use for the set
+		//-- Metalness Texture
+		VkDescriptorImageInfo metalnessImageInfo = {};
+		metalnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		metalnessImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_METALNESS)->m_vkTextureImageView;	// image to bind to set
+		metalnessImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_METALNESS)->m_vkTextureSampler;														// sampler to use for the set
 
 		// Descriptor write info
-		VkWriteDescriptorSet specularSetWrite = {};
-		specularSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		specularSetWrite.dstSet = m_vecDescriptorSet[i];
-		specularSetWrite.dstBinding = 2;
-		specularSetWrite.dstArrayElement = 0;
-		specularSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		specularSetWrite.descriptorCount = 1;
-		specularSetWrite.pImageInfo = &specularImageInfo;
+		VkWriteDescriptorSet metalnessSetWrite = {};
+		metalnessSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		metalnessSetWrite.dstSet = m_vecDescriptorSet[i];
+		metalnessSetWrite.dstBinding = 2;
+		metalnessSetWrite.dstArrayElement = 0;
+		metalnessSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		metalnessSetWrite.descriptorCount = 1;
+		metalnessSetWrite.pImageInfo = &metalnessImageInfo;
 
 		//-- Normal Texture
 		VkDescriptorImageInfo normalImageInfo = {};
@@ -452,7 +508,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		normalSetWrite.pImageInfo = &normalImageInfo;
 
 		// List of Descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { ubSetWrite, albedoSetWrite, specularSetWrite, normalSetWrite };
+		std::vector<VkWriteDescriptorSet> setWrites = { ubSetWrite, albedoSetWrite, metalnessSetWrite, normalSetWrite };
 
 		// Update the descriptor sets with new buffer/binding info
 		vkUpdateDescriptorSets(pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);

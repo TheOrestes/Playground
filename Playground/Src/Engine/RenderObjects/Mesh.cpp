@@ -13,8 +13,6 @@ Mesh::Mesh(VulkanDevice* device,
 	m_uiVertexCount = vertices.size();
 	m_uiIndexCount = indices.size();
 
-	LOG_INFO("Mesh() called ... ");
-
 	CreateVertexBuffer(device, vertices);
 	CreateIndexBuffer(device, indices);
 

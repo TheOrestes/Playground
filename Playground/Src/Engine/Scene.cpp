@@ -29,9 +29,9 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
 	// Load SteamPunk Model
 	Model* pModelPunk = new Model();
-	pModelPunk->LoadModel(pDevice, "Models/Kart.fbx");
-	pModelPunk->SetPosition(glm::vec3(0, 0, 0));
-	pModelPunk->SetScale(glm::vec3(0.1f));
+	pModelPunk->LoadModel(pDevice, "Models/Sphere.fbx");
+	pModelPunk->SetPosition(glm::vec3(0, 2, 0));
+	pModelPunk->SetScale(glm::vec3(0.75f));
 	pModelPunk->SetupDescriptors(pDevice, pSwapchain);
 
 	m_vecModels.push_back(pModelPunk);

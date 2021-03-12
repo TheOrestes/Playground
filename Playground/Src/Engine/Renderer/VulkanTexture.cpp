@@ -41,6 +41,8 @@ void VulkanTexture::CreateTexture(VulkanDevice* pDevice, std::string fileName, T
 
 	// Create Sampler
 	CreateTextureSampler(pDevice);
+
+	LOG_DEBUG("Created Vulkan Texture for {0}", fileName);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -159,9 +161,6 @@ void VulkanTexture::CreateTextureSampler(VulkanDevice* pDevice)
 	{
 		LOG_ERROR("Failed to create Texture sampler!");
 	}
-	else
-		LOG_DEBUG("Successfully created Texture sampler");
-
 }
 
 

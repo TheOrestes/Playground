@@ -84,7 +84,8 @@ public:
 private:
 	std::vector<Mesh>					LoadNode(VulkanDevice* device, aiNode* node, const aiScene* scene);
 
-	void								LoadTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType);
+	void								SetDefaultTexture(aiTextureType eType);
+	void								ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType);
 	void								LoadMaterials(VulkanDevice* device, const aiScene* scene);
 	Mesh								LoadMesh(VulkanDevice* device, aiMesh* mesh, const aiScene* scene);
 
