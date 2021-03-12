@@ -6,6 +6,7 @@ Vulkan Rendering Framework for learning purpose. (WIP)
 * Assimp Integration
 * Basic Deferred Rendering 
 * ImGUI Integration
+* Stingray PBS Material support. 
 
 ## RTX Branch
 
