@@ -54,26 +54,58 @@ void main()
     float Ks = 1 - Kd;
     
     // FIXME: There has to be a better way than this!!
-    if(shaderData.passID == 0)
-        outColor = AlbedoColor + Kd * vec4(vec3(diffuse), 1);
-    else if(shaderData.passID == 1)
-        outColor = AlbedoColor;
-    else if(shaderData.passID == 2)
-        outColor = vec4(vec3(ScaledDepth), 1);
-    else if(shaderData.passID == 3)
-        outColor = PositionColor;
-    else if(shaderData.passID == 4)
-        outColor = NormalColor;
-    else if(shaderData.passID == 5)
-        outColor = vec4(vec3(PBRColor.r), 1);
-    else if(shaderData.passID == 6)
-        outColor = vec4(vec3(PBRColor.g), 1);
-    else if(shaderData.passID == 7)
-        outColor = vec4(vec3(PBRColor.b), 1);
-    else if(shaderData.passID == 8)
-        outColor = EmissionColor;
-    else if(shaderData.passID == 9)
-        outColor = BackgroundColor;
+    switch(shaderData.passID)
+    {
+        case 0:
+        {
+            outColor = AlbedoColor + Kd * vec4(vec3(diffuse), 1);   
+        }   break;
+
+        case 1:
+        {
+            outColor = AlbedoColor;                                 
+        }   break;
+
+        case 2:
+        {
+            outColor = vec4(vec3(ScaledDepth), 1);                  
+        }   break;
+
+        case 3:
+        {
+            outColor = PositionColor;                               
+        }   break;
+
+        case 4:
+        {
+            outColor = NormalColor;                                 
+        }   break;
+
+        case 5:
+        {
+            outColor = vec4(vec3(PBRColor.r), 1);                   
+        }   break;
+
+        case 6:
+        {
+            outColor = vec4(vec3(PBRColor.g), 1);                   
+        }   break;
+
+        case 7:
+        {
+            outColor = vec4(vec3(PBRColor.b), 1);                   
+        }   break;
+
+        case 8:
+        {
+            outColor = EmissionColor;                               
+        }   break;
+
+        case 9:
+        {
+            outColor = BackgroundColor;                             
+        }   break;
+    }
     
    // outColor = albedoColor + Kd * vec4(vec3(diffuse), 1) + Ks * vec4(vec3(specular), 1.0f);
 }
