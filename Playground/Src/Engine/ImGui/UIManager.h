@@ -50,5 +50,8 @@ private:
 
 public:
 	std::vector<VkCommandBuffer>	m_vecCommandBuffers;
+
+public:
+	int								m_iPassID;
 };
 

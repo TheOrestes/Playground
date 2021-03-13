@@ -29,10 +29,12 @@ struct DeferredPassShaderData
 {
 	DeferredPassShaderData()
 	{
+		passID = 0;
 		cameraPosition = glm::vec3(0);
 	}
 
 	// Data
+	uint32_t	passID;
 	glm::vec3	cameraPosition;
 };
 

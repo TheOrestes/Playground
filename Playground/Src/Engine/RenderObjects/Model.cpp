@@ -305,7 +305,7 @@ void Model::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 	// Update Model matrix!
 	m_pShaderUniformsMVP->shaderData.model = glm::mat4(1);
 	m_pShaderUniformsMVP->shaderData.model = glm::translate(m_pShaderUniformsMVP->shaderData.model, m_vecPosition);
-	m_pShaderUniformsMVP->shaderData.model = glm::rotate(m_pShaderUniformsMVP->shaderData.model, m_fAngle, glm::vec3(0, 1, 0));
+	m_pShaderUniformsMVP->shaderData.model = glm::rotate(m_pShaderUniformsMVP->shaderData.model, m_fAngle, m_vecRotationAxis);
 	m_pShaderUniformsMVP->shaderData.model = glm::scale(m_pShaderUniformsMVP->shaderData.model, m_vecScale);
 
 	// Fetch View & Projection matrices from the Camera!

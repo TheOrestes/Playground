@@ -147,8 +147,10 @@ void VulkanRenderer::Update(float dt)
 	}
 
 	// Update deferred pass uniform data
-	// Contains : CameraPosition
+	// Contains : PassID | CameraPosition
+	m_pDeferredUniforms->shaderData.passID = UIManager::getInstance().m_iPassID;
 	m_pDeferredUniforms->shaderData.cameraPosition = FreeCamera::getInstance().m_vecPosition;
+	
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -822,7 +824,7 @@ void VulkanRenderer::UpdateDeferredUniforms(uint32_t index)
 	// Copy Shader data
 	void* data;
 	vkMapMemory(m_pDevice->m_vkLogicalDevice, m_pDeferredUniforms->vecMemory[index], 0, sizeof(DeferredPassShaderData), 0, &data);
-	memcpy(data, &m_pDeferredUniforms->shaderData, sizeof(ShaderData));
+	memcpy(data, &m_pDeferredUniforms->shaderData, sizeof(DeferredPassShaderData));
 	vkUnmapMemory(m_pDevice->m_vkLogicalDevice, m_pDeferredUniforms->vecMemory[index]);
 }
 

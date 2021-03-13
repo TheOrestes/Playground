@@ -17,7 +17,7 @@
 //---------------------------------------------------------------------------------------------------------------------
 UIManager::UIManager()
 {
-	
+	m_iPassID = 0;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -325,6 +325,13 @@ void UIManager::RenderSceneUI(Scene* pScene)
 
 			ImGui::PopID();
 		}
+	}
+
+	
+	if (ImGui::CollapsingHeader("Debug G-Buffer"))	
+	{
+		const char* arr[] = { "FINAL", "ALBEDO", "DEPTH", "POSITION", "NORMAL", "METALNESS", "ROUGHNESS", "AO", "EMISSION", "BACKGROUND", "OBJECTID" };
+		ImGui::Combo("Channel", &m_iPassID, arr, IM_ARRAYSIZE(arr));
 	}
 	
 	ImGui::End();
