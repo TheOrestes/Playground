@@ -1,15 +1,15 @@
 #include "PlaygroundPCH.h"
-#include "VulkanTexture.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "VulkanTexture2D.h"
 
 #include "Engine/Renderer/VulkanDevice.h"
 #include "Engine/Helpers/Utility.h"
 #include "Engine/Helpers/Log.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 //---------------------------------------------------------------------------------------------------------------------
-VulkanTexture::VulkanTexture()
+VulkanTexture2D::VulkanTexture2D()
 {
 	m_vkTextureImage				=	VK_NULL_HANDLE;
 	m_vkTextureImageView			=	VK_NULL_HANDLE;
@@ -20,12 +20,12 @@ VulkanTexture::VulkanTexture()
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-VulkanTexture::~VulkanTexture()
+VulkanTexture2D::~VulkanTexture2D()
 {
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanTexture::CreateTexture(VulkanDevice* pDevice, std::string fileName, TextureType eType)
+void VulkanTexture2D::CreateTexture(VulkanDevice* pDevice, std::string fileName, TextureType eType)
 {
 	// what is the type of this texture?
 	m_eTextureType = eType;
@@ -46,7 +46,7 @@ void VulkanTexture::CreateTexture(VulkanDevice* pDevice, std::string fileName, T
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanTexture::Cleanup(VulkanDevice* pDevice)
+void VulkanTexture2D::Cleanup(VulkanDevice* pDevice)
 {
 	vkDestroySampler(pDevice->m_vkLogicalDevice, m_vkTextureSampler, nullptr);
 
@@ -56,16 +56,16 @@ void VulkanTexture::Cleanup(VulkanDevice* pDevice)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanTexture::CleanupOnWindowResize(VulkanDevice* pDevice)
+void VulkanTexture2D::CleanupOnWindowResize(VulkanDevice* pDevice)
 {
 
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-unsigned char* VulkanTexture::LoadTextureFile(VulkanDevice* pDevice, std::string fileName)
+unsigned char* VulkanTexture2D::LoadTextureFile(VulkanDevice* pDevice, std::string fileName)
 {
 	// Number of channels in image
-	int channels;
+	int channels = 0;
 
 	std::string fileLoc = "Textures/" + fileName;
 
@@ -83,7 +83,7 @@ unsigned char* VulkanTexture::LoadTextureFile(VulkanDevice* pDevice, std::string
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanTexture::CreateTextureImage(VulkanDevice* pDevice, std::string fileName)
+void VulkanTexture2D::CreateTextureImage(VulkanDevice* pDevice, std::string fileName)
 {
 	stbi_uc* imageData = LoadTextureFile(pDevice, fileName);
 
@@ -109,13 +109,11 @@ void VulkanTexture::CreateTextureImage(VulkanDevice* pDevice, std::string fileNa
 
 
 	m_vkTextureImage = Helper::Vulkan::CreateImage(pDevice,
-		m_iTextureWidth,
-		m_iTextureHeight,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		&m_vkTextureImageMemory);
+	                                               m_iTextureWidth,
+	                                               m_iTextureHeight,
+	                                               VK_FORMAT_R8G8B8A8_UNORM,
+	                                               VK_IMAGE_TILING_OPTIMAL,
+	                                               VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
 
 	// Transition image to be DST for copy operation
 	Helper::Vulkan::TransitionImageLayout(pDevice,
@@ -138,7 +136,7 @@ void VulkanTexture::CreateTextureImage(VulkanDevice* pDevice, std::string fileNa
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void VulkanTexture::CreateTextureSampler(VulkanDevice* pDevice)
+void VulkanTexture2D::CreateTextureSampler(VulkanDevice* pDevice)
 {
 	//-- Sampler creation Info
 	VkSamplerCreateInfo samplerCreateInfo = {};

@@ -190,8 +190,8 @@ namespace Helper
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Create VkImage & VkDeviceMemory based on width-height-format-tiling-usageFlags-propertyFlags!
-		inline VkImage CreateImage(VulkanDevice* pDevice, uint32_t width, uint32_t height, VkFormat format,	VkImageTiling tiling, 
-									VkImageUsageFlags usageFlags, VkMemoryPropertyFlags propFlags, VkDeviceMemory* imageMemory)
+		inline VkImage CreateImage(VulkanDevice* pDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+			VkImageUsageFlags usageFlags, VkMemoryPropertyFlags propFlags, VkDeviceMemory* imageMemory)
 		{
 			// Image creation info
 			VkImageCreateInfo imageCreateInfo = {};
@@ -259,6 +259,131 @@ namespace Helper
 				LOG_ERROR("Failed to create an Image View");
 
 			return imageView;
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Create Cubemap VkImage & VkDeviceMemory based on width-height-format-tiling-usageFlags-propertyFlags!
+		inline VkImage CreateImageCUBE(VulkanDevice* pDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+			VkImageUsageFlags usageFlags, VkMemoryPropertyFlags propFlags, VkDeviceMemory* imageMemory)
+		{
+			// Image creation info
+			VkImageCreateInfo imageCreateInfo = {};
+			imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+			imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;							// Type of image
+			imageCreateInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;			// For cubemaps!
+			imageCreateInfo.extent.width = width;									// width of image extent
+			imageCreateInfo.extent.height = height;									// height of image extent
+			imageCreateInfo.extent.depth = 1;										// depth of image ( just 1, no 3D aspect) 
+			imageCreateInfo.mipLevels = 1;											// number of mipmap levels
+			imageCreateInfo.arrayLayers = 6;										// 6 levels in image array for cubemap!
+			imageCreateInfo.format = format;										// format type of image	
+			imageCreateInfo.tiling = tiling;										// how image data should be tiled
+			imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;				// layout of image data on creation
+			imageCreateInfo.usage = usageFlags;										// bit flags defining what image will be used for 
+			imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;						// number of samples for multi-sampling
+			imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;				// whether image can be shared between queues
+
+			// Create Image
+			VkImage image;
+			if (vkCreateImage(pDevice->m_vkLogicalDevice, &imageCreateInfo, nullptr, &image) != VK_SUCCESS)
+				LOG_ERROR("Failed to create an image");
+
+			// Get memory requirements for type of image
+			VkMemoryRequirements memoryRequirements;
+			vkGetImageMemoryRequirements(pDevice->m_vkLogicalDevice, image, &memoryRequirements);
+
+			// Allocated memory using image requirements & user defined properties
+			VkMemoryAllocateInfo memoryAllocInfo = {};
+			memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			memoryAllocInfo.allocationSize = memoryRequirements.size;
+			memoryAllocInfo.memoryTypeIndex = pDevice->FindMemoryTypeIndex(memoryRequirements.memoryTypeBits, propFlags);
+
+			if (vkAllocateMemory(pDevice->m_vkLogicalDevice, &memoryAllocInfo, nullptr, imageMemory) != VK_SUCCESS)
+				LOG_ERROR("Failed to allocated memory for image!");
+
+			// Connect memory to image
+			vkBindImageMemory(pDevice->m_vkLogicalDevice, image, *imageMemory, 0);
+
+			return image;
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Create Cubemap VkImageView for a VkImage
+		inline VkImageView CreateImageViewCUBE(const VulkanDevice* pDevice, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+		{
+			VkImageViewCreateInfo imageViewCreateInfo = {};
+			imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			imageViewCreateInfo.image = image;
+			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			imageViewCreateInfo.format = format;
+			imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+			imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+			imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+			imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+			imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
+			imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+			imageViewCreateInfo.subresourceRange.levelCount = 1;
+			imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+			imageViewCreateInfo.subresourceRange.layerCount = 6;
+
+			// Create image view & return it
+			VkImageView imageView;
+			if (vkCreateImageView(pDevice->m_vkLogicalDevice, &imageViewCreateInfo, nullptr, &imageView) != VK_SUCCESS)
+				LOG_ERROR("Failed to create an Image View");
+
+			return imageView;
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Function to transition Cubemap image layout from old to new image layout using command pool for VkImage!
+		inline void TransitionImageLayoutCUBE(VulkanDevice* pDevice, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout)
+		{
+			VkCommandBuffer commandBuffer = pDevice->BeginCommandBuffer();
+
+			VkImageMemoryBarrier imageMemoryBarrier = {};
+			imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			imageMemoryBarrier.oldLayout = oldImageLayout;								// Layout to transition from
+			imageMemoryBarrier.newLayout = newImageLayout;								// Layout to transition to
+			imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;			// Queue family to transition from
+			imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;			// Queue family to transition to
+			imageMemoryBarrier.image = image;											// Image being accessed & modified as a part of barrier
+			imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;	// Aspect of image being altered
+			imageMemoryBarrier.subresourceRange.baseMipLevel = 0;						// First mip level to start alteration on
+			imageMemoryBarrier.subresourceRange.levelCount = 1;							// Number of mip levels to alter starting from base mip level
+			imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;						// First layer of start alterations on
+			imageMemoryBarrier.subresourceRange.layerCount = 6;							// Number of layers to alter starting from base array layer
+
+			VkPipelineStageFlags srcStage;
+			VkPipelineStageFlags dstStage;
+
+			// If transitioning from new image to image ready to receive data...
+			if (oldImageLayout == VK_IMAGE_LAYOUT_UNDEFINED && newImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+			{
+				imageMemoryBarrier.srcAccessMask = 0;									// memory access stage transition must happen after this stage
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;		// memory access stage transition must happen before this stage
+
+				srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+				dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			}
+			// If transitioning from transfer destination to shader readable...
+			else if (oldImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+			{
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+				srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			}
+
+			vkCmdPipelineBarrier(commandBuffer,
+								 srcStage, dstStage,			// Pipeline stages (match to src & dest AcccessMask)
+								 0,							// Dependency flags
+								 0, nullptr,					// Memory barrier count + data
+								 0, nullptr,					// Buffer memory barrier count + data
+								 1, &imageMemoryBarrier);	// image memmory barrier count + data
+
+			pDevice->EndAndSubmitCommandBuffer(commandBuffer);
 		}
 	}
 }

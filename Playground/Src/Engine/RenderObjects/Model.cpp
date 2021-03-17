@@ -5,7 +5,8 @@
 #include "Engine/Renderer/VulkanDevice.h"
 #include "Engine/Renderer/VulkanSwapChain.h"
 #include "Engine/Renderer/VulkanMaterial.h"
-#include "Engine/Renderer/VulkanTexture.h"
+#include "Engine/Renderer/VulkanTexture2D.h"
+#include "Engine/Renderer/VulkanTextureCUBE.h"
 #include "Engine/Renderer/VulkanGraphicsPipeline.h"
 
 #include "Engine/ImGui/imgui.h"
@@ -13,12 +14,15 @@
 #include "Model.h"
 
 //---------------------------------------------------------------------------------------------------------------------
-Model::Model()
+Model::Model(ModelType typeID)
 {
+	m_eType = typeID;
+	
 	m_vecMeshes.clear();
 
+	m_pCubemap = nullptr;
 	m_pMaterial = nullptr;
-	m_pShaderUniformsMVP = new ShaderUniforms();
+	m_pShaderUniformsMVP = nullptr;
 
 	m_vecPosition = glm::vec3(0);
 	m_vecRotationAxis = glm::vec3(0, 1, 0);
@@ -41,6 +45,7 @@ Model::~Model()
 	m_mapTextures.clear();
 	m_vecMeshes.clear();
 
+	SAFE_DELETE(m_pCubemap);
 	SAFE_DELETE(m_pShaderUniformsMVP);
 	SAFE_DELETE(m_pMaterial);
 }
@@ -235,6 +240,10 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 	{
 		m_pMaterial->LoadTexture(pDevice, iter->first, iter->second);
 	}
+
+	// Load Cubemap!
+	m_pCubemap = new VulkanTextureCUBE();
+	m_pCubemap->CreateTextureCUBE(pDevice, "Yokohama2");
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -308,12 +317,14 @@ void Model::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 	m_pShaderUniformsMVP->shaderData.model = glm::rotate(m_pShaderUniformsMVP->shaderData.model, m_fAngle, m_vecRotationAxis);
 	m_pShaderUniformsMVP->shaderData.model = glm::scale(m_pShaderUniformsMVP->shaderData.model, m_vecScale);
 
-	// Fetch View & Projection matrices from the Camera!
-	
+	// Fetch View & Projection matrices from the Camera!	
 	m_pShaderUniformsMVP->shaderData.projection = FreeCamera::getInstance().m_matProjection;
 
 	m_pShaderUniformsMVP->shaderData.view = FreeCamera::getInstance().m_matView;
 	m_pShaderUniformsMVP->shaderData.projection[1][1] *= -1.0f;
+
+	// Update object ID
+	m_pShaderUniformsMVP->shaderData.objectID = static_cast<uint32_t>(m_eType);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -352,7 +363,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	m_pShaderUniformsMVP->CreateBuffers(pDevice, pSwapchain);
 
 	// *** Create Descriptor pool
-	std::array<VkDescriptorPoolSize, 2> arrDescriptorPoolSize = {};
+	std::array<VkDescriptorPoolSize, 3> arrDescriptorPoolSize = {};
 
 	//-- Uniform Buffer
 	arrDescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -362,6 +373,10 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	arrDescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	arrDescriptorPoolSize[1].descriptorCount = static_cast<uint32_t>(m_mapTextures.size());
 
+	// Cubemap sampler
+	arrDescriptorPoolSize[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorPoolSize[2].descriptorCount = 1;
+	
 	VkDescriptorPoolCreateInfo poolCreateInfo = {};
 	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolCreateInfo.maxSets = static_cast<uint32_t>(m_mapTextures.size()) + static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size());
@@ -376,13 +391,13 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		LOG_DEBUG("Successfully created Descriptor Pool");
 
 	// *** Create Descriptor Set Layout
-	std::array<VkDescriptorSetLayoutBinding, 7> arrDescriptorSetLayoutBindings = {};
+	std::array<VkDescriptorSetLayoutBinding, 8> arrDescriptorSetLayoutBindings = {};
 
 	//-- Uniform Buffer
 	arrDescriptorSetLayoutBindings[0].binding = 0;																// binding point in shader, binding = ?
 	arrDescriptorSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
 	arrDescriptorSetLayoutBindings[0].descriptorCount = 1;														// number of descriptors
-	arrDescriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;									// Shader stage to bind to
+	arrDescriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
 	arrDescriptorSetLayoutBindings[0].pImmutableSamplers = nullptr;												// For textures!
 
 	//-- BaseColor Texture
@@ -426,6 +441,13 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	arrDescriptorSetLayoutBindings[6].descriptorCount = 1;
 	arrDescriptorSetLayoutBindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	arrDescriptorSetLayoutBindings[6].pImmutableSamplers = nullptr;
+
+	//-- Cubemap Texture
+	arrDescriptorSetLayoutBindings[7].binding = 7;
+	arrDescriptorSetLayoutBindings[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSetLayoutBindings[7].descriptorCount = 1;
+	arrDescriptorSetLayoutBindings[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSetLayoutBindings[7].pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo descSetlayoutCreateInfo = {};
 	descSetlayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -484,7 +506,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		VkDescriptorImageInfo albedoImageInfo = {};
 		albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
 		albedoImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ALBEDO)->m_vkTextureImageView;	// image to bind to set
-		albedoImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ALBEDO)->m_vkTextureSampler;														// sampler to use for the set
+		albedoImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ALBEDO)->m_vkTextureSampler;		// sampler to use for the set
 
 		// Descriptor write info
 		VkWriteDescriptorSet albedoSetWrite = {};
@@ -500,7 +522,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		VkDescriptorImageInfo metalnessImageInfo = {};
 		metalnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
 		metalnessImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_METALNESS)->m_vkTextureImageView;	// image to bind to set
-		metalnessImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_METALNESS)->m_vkTextureSampler;														// sampler to use for the set
+		metalnessImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_METALNESS)->m_vkTextureSampler;		// sampler to use for the set
 
 		// Descriptor write info
 		VkWriteDescriptorSet metalnessSetWrite = {};
@@ -516,7 +538,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		VkDescriptorImageInfo normalImageInfo = {};
 		normalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
 		normalImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_NORMAL)->m_vkTextureImageView;	// image to bind to set
-		normalImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_NORMAL)->m_vkTextureSampler;														// sampler to use for the set
+		normalImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_NORMAL)->m_vkTextureSampler;		// sampler to use for the set
 
 		// Descriptor write info
 		VkWriteDescriptorSet normalSetWrite = {};
@@ -532,7 +554,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		VkDescriptorImageInfo roughnessImageInfo = {};
 		roughnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
 		roughnessImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ROUGHNESS)->m_vkTextureImageView;	// image to bind to set
-		roughnessImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ROUGHNESS)->m_vkTextureSampler;														// sampler to use for the set
+		roughnessImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_ROUGHNESS)->m_vkTextureSampler;		// sampler to use for the set
 
 		// Descriptor write info
 		VkWriteDescriptorSet roughnessSetWrite = {};
@@ -548,7 +570,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		VkDescriptorImageInfo AOImageInfo = {};
 		AOImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
 		AOImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_AO)->m_vkTextureImageView;		// image to bind to set
-		AOImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_AO)->m_vkTextureSampler;														// sampler to use for the set
+		AOImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_AO)->m_vkTextureSampler;			// sampler to use for the set
 
 		// Descriptor write info
 		VkWriteDescriptorSet AOSetWrite = {};
@@ -564,7 +586,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		VkDescriptorImageInfo emissionImageInfo = {};
 		emissionImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
 		emissionImageInfo.imageView = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_EMISSIVE)->m_vkTextureImageView;	// image to bind to set
-		emissionImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_EMISSIVE)->m_vkTextureSampler;														// sampler to use for the set
+		emissionImageInfo.sampler = m_pMaterial->m_mapTextures.at(TextureType::TEXTURE_EMISSIVE)->m_vkTextureSampler;		// sampler to use for the set
 
 		// Descriptor write info
 		VkWriteDescriptorSet emissionSetWrite = {};
@@ -576,9 +598,25 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		emissionSetWrite.descriptorCount = 1;
 		emissionSetWrite.pImageInfo = &emissionImageInfo;
 
+		//-- Cubemap Texture
+		VkDescriptorImageInfo cubemapImageInfo = {};
+		cubemapImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
+		cubemapImageInfo.imageView = m_pCubemap->m_vkTextureImageView;														// image to bind to set
+		cubemapImageInfo.sampler = m_pCubemap->m_vkTextureSampler;															// sampler to use for the set
+
+		// Descriptor write info
+		VkWriteDescriptorSet cubemapSetWrite = {};
+		cubemapSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		cubemapSetWrite.dstSet = m_vecDescriptorSet[i];
+		cubemapSetWrite.dstBinding = 7;
+		cubemapSetWrite.dstArrayElement = 0;
+		cubemapSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		cubemapSetWrite.descriptorCount = 1;
+		cubemapSetWrite.pImageInfo = &cubemapImageInfo;
+
 		// List of Descriptor set writes
 		std::vector<VkWriteDescriptorSet> setWrites = { ubSetWrite, albedoSetWrite, metalnessSetWrite, normalSetWrite,
-														roughnessSetWrite, AOSetWrite, emissionSetWrite };
+														roughnessSetWrite, AOSetWrite, emissionSetWrite, cubemapSetWrite };
 		
 		// Update the descriptor sets with new buffer/binding info
 		vkUpdateDescriptorSets(pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);
@@ -588,6 +626,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 //---------------------------------------------------------------------------------------------------------------------
 void Model::Cleanup(VulkanDevice* pDevice)
 {
+	m_pCubemap->Cleanup(pDevice);
 	m_pShaderUniformsMVP->Cleanup(pDevice);
 	m_pMaterial->Cleanup(pDevice);
 

@@ -12,6 +12,7 @@ layout(set = 0, binding = 0) uniform ShaderData
     mat4 matModel;
     mat4 matView;
     mat4 matProjection;
+    int  objectID;
 } shaderData;
 
 // NOT IN USE, LEFT FOR REFERENCE

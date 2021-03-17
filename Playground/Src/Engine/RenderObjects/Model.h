@@ -7,12 +7,20 @@
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
 
-#include "Engine/Renderer/VulkanTexture.h"
-
 class VulkanDevice;
 class VulkanSwapChain;
 class VulkanMaterial;
+class VulkanTexture2D;
+class VulkanTextureCUBE;
 class VulkanGraphicsPipeline;
+enum class TextureType;
+
+//---------------------------------------------------------------------------------------------------------------------
+enum class ModelType
+{
+	STATIC_OBJECT = 1,
+	SKYBOX = 2
+};
 
 //---------------------------------------------------------------------------------------------------------------------
 struct ShaderData
@@ -22,12 +30,14 @@ struct ShaderData
 		model = glm::mat4(1);
 		view = glm::mat4(1);
 		projection = glm::mat4(1);
+		objectID = 1;
 	}
 
 	// Data Specific
 	glm::mat4							model;
 	glm::mat4							view;
 	glm::mat4							projection;
+	uint32_t							objectID;
 };
 //---------------------------------------------------------------------------------------------------------------------
 struct ShaderUniforms
@@ -54,7 +64,7 @@ struct ShaderUniforms
 class Model
 {
 public:
-	Model();
+	Model(ModelType typeID);
 	~Model();
 
 	std::vector<Mesh>					LoadModel(VulkanDevice* device, const std::string& filePath);
@@ -93,6 +103,8 @@ private:
 	std::vector<Mesh>					m_vecMeshes;
 	std::map<std::string, TextureType>	m_mapTextures;
 
+	ModelType							m_eType;
+	VulkanTextureCUBE*					m_pCubemap;
 	VulkanMaterial*						m_pMaterial;
 	ShaderUniforms*						m_pShaderUniformsMVP;
 

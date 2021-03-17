@@ -30,7 +30,7 @@
     <ClCompile Include="Src\Engine\Renderer\VulkanDevice.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanSwapChain.cpp" />
     <ClCompile Include="Src\Engine\Renderer\DeferredFrameBuffer.cpp" />
-    <ClCompile Include="Src\Engine\Renderer\VulkanTexture.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\VulkanTexture2D.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanGraphicsPipeline.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanMaterial.cpp" />
     <ClCompile Include="Src\Engine\ImGui\imgui.cpp" />
@@ -40,6 +40,7 @@
     <ClCompile Include="Src\Engine\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Src\Engine\ImGui\UIManager.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanFrameBuffer.cpp" />
+    <ClCompile Include="Src\Engine\Renderer\VulkanTextureCUBE.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Src\Engine\Scene.h" />
@@ -64,11 +65,12 @@
     <ClInclude Include="Src\Engine\Renderer\VulkanDevice.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanSwapChain.h" />
     <ClInclude Include="Src\Engine\Renderer\DeferredFrameBuffer.h" />
-    <ClInclude Include="Src\Engine\Renderer\VulkanTexture.h" />
+    <ClInclude Include="Src\Engine\Renderer\VulkanTexture2D.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanGraphicsPipeline.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanMaterial.h" />
     <ClInclude Include="Src\Engine\ImGui\UIManager.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanFrameBuffer.h" />
+    <ClInclude Include="Src\Engine\Renderer\VulkanTextureCUBE.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

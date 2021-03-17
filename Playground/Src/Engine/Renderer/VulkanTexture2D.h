@@ -15,11 +15,11 @@ enum class TextureType
 	TEXTURE_ERROR
 };
 
-class VulkanTexture
+class VulkanTexture2D
 {
 public:
-	VulkanTexture();
-	~VulkanTexture();
+	VulkanTexture2D();
+	~VulkanTexture2D();
 
 	void								CreateTexture(VulkanDevice* pDevice, std::string fileName, TextureType eType);
 	void								Cleanup(VulkanDevice* pDevice);

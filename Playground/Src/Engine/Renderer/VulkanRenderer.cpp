@@ -7,7 +7,7 @@
 #include "VulkanSwapChain.h"
 #include "DeferredFrameBuffer.h"
 #include "VulkanMaterial.h"
-#include "VulkanTexture.h"
+#include "VulkanTexture2D.h"
 #include "VulkanGraphicsPipeline.h"
 
 #include "Engine/Scene.h"

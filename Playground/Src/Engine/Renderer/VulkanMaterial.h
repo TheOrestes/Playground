@@ -3,7 +3,7 @@
 #include "vulkan/vulkan.h"
 
 class VulkanDevice;
-class VulkanTexture;
+class VulkanTexture2D;
 enum class TextureType;
 
 class VulkanMaterial
@@ -16,6 +16,6 @@ public:
 	void									Cleanup(VulkanDevice* pDevice);
 	void									CleanupOnWindowResize(VulkanDevice* pDevice);
 
-	std::map<TextureType, VulkanTexture*>	m_mapTextures;
+	std::map<TextureType, VulkanTexture2D*>	m_mapTextures;
 };
 

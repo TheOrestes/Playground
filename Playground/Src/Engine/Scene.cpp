@@ -28,7 +28,7 @@ void Scene::LoadScene(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
 	// Load SteamPunk Model
-	Model* pModelPunk = new Model();
+	Model* pModelPunk = new Model(ModelType::STATIC_OBJECT);
 	pModelPunk->LoadModel(pDevice, "Models/Sphere.fbx");
 	pModelPunk->SetPosition(glm::vec3(0, 2, 0));
 	pModelPunk->SetScale(glm::vec3(0.75f));
@@ -37,7 +37,7 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	m_vecModels.push_back(pModelPunk);
 
 	// Load WoodenFloor Model
-	Model* pWoodenFloor = new Model();
+	Model* pWoodenFloor = new Model(ModelType::STATIC_OBJECT);
 	pWoodenFloor->LoadModel(pDevice, "Models/Plane_Oak.fbx");
 	pWoodenFloor->SetPosition(glm::vec3(0, -2, 0));
 	pWoodenFloor->SetScale(glm::vec3(4));
