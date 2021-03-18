@@ -133,6 +133,15 @@ void VulkanTextureCUBE::CreateTextureImage(VulkanDevice* pDevice, std::string fi
 												VK_IMAGE_LAYOUT_UNDEFINED,
 												VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
+	// COPY DATA TO IMAGE
+	Helper::Vulkan::CopyImageBuffer(pDevice, imageStagingBuffer, m_vkTextureImage, width, height);
+
+	// Transition image to be shader readable for shader usage
+	Helper::Vulkan::TransitionImageLayoutCUBE(	pDevice,
+												m_vkTextureImage,
+												VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+												VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 	//*** Destroy staging buffers
 	vkDestroyBuffer(pDevice->m_vkLogicalDevice, imageStagingBuffer, nullptr);
 	vkFreeMemory(pDevice->m_vkLogicalDevice, imageStagingBufferMemory, nullptr);

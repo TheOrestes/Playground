@@ -12,6 +12,7 @@
 
 #include "Engine/Scene.h"
 #include "Engine/RenderObjects/Model.h"
+#include "Engine/RenderObjects/Skybox.h"
 #include "Engine/Helpers/Utility.h"
 #include "Engine/Helpers/FreeCamera.h"
 #include "Engine/ImGui/UIManager.h"
@@ -30,6 +31,7 @@ VulkanRenderer::VulkanRenderer()
 	m_pScene							= nullptr;
 
 	m_pGraphicsPipelineGBuffer			= nullptr;
+	m_pGraphicsPipelineSkybox			= nullptr;
 	m_pGraphicsPipelineDeferred			= nullptr;
 	
 	m_uiCurrentFrame					= 0;
@@ -61,6 +63,7 @@ VulkanRenderer::~VulkanRenderer()
 	SAFE_DELETE(m_pScene);
 	SAFE_DELETE(m_pDeferredUniforms);
 	SAFE_DELETE(m_pGraphicsPipelineGBuffer);
+	SAFE_DELETE(m_pGraphicsPipelineSkybox);
 	SAFE_DELETE(m_pGraphicsPipelineDeferred);
 	SAFE_DELETE(m_pFrameBuffer);
 	SAFE_DELETE(m_pSwapChain);
@@ -109,6 +112,9 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pDevice->CreateGraphicsCommandPool();
 		m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
 
+		// Create Skybox!
+		Skybox::getInstance().CreateSkybox(m_pDevice, m_pSwapChain);
+
 		// Load Scene
 		m_pScene = new Scene();
 		m_pScene->LoadScene(m_pDevice, m_pSwapChain);
@@ -145,6 +151,9 @@ void VulkanRenderer::Update(float dt)
 			element->Update(m_pDevice, m_pSwapChain, dt);
 		}
 	}
+
+	// Update Skybox data!
+	Skybox::getInstance().Update(m_pDevice, m_pSwapChain, dt);
 
 	// Update deferred pass uniform data
 	// Contains : PassID | CameraPosition
@@ -396,12 +405,18 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	m_pGraphicsPipelineGBuffer = new VulkanGraphicsPipeline(PipelineType::GBUFFER_OPAQUE, m_pSwapChain);
 
 	std::vector<VkDescriptorSetLayout> setLayouts = { m_pScene->GetModelList().at(0)->m_vkDescriptorSetLayout };
-	
 	VkPushConstantRange pushConstantRange = {};
 
 	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRange);
 	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 6);
 
+	//----- Create SKYBOX Graphics Pipeline!
+	m_pGraphicsPipelineSkybox = new VulkanGraphicsPipeline(PipelineType::SKYBOX, m_pSwapChain);
+	
+	std::vector<VkDescriptorSetLayout> setLayoutsSkybox = { Skybox::getInstance().m_vkDescriptorSetLayout };
+
+	m_pGraphicsPipelineSkybox->CreatePipelineLayout(m_pDevice, setLayoutsSkybox, pushConstantRange);
+	m_pGraphicsPipelineSkybox->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 6);
 	
 	//----- Create GBUFFER_BEAUTY Graphics pipeline!
 	m_pGraphicsPipelineDeferred = new VulkanGraphicsPipeline(PipelineType::DEFERRED, m_pSwapChain);
@@ -752,6 +767,10 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 		// Begin Render Pass
 		vkCmdBeginRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+		// Bind Pipeline to be used Skybox!
+		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineSkybox->m_vkGraphicsPipeline);
+		Skybox::getInstance().Render(m_pDevice, m_pGraphicsPipelineSkybox, currentImage);
+
 		// Bind Pipeline to be used in render pass
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineGBuffer->m_vkGraphicsPipeline);
 		
@@ -762,8 +781,8 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 			{
 				element->Render(m_pDevice, m_pGraphicsPipelineGBuffer, currentImage);
 			}
-		} 
-
+		}
+		
 		// Start second subpass
 		vkCmdNextSubpass(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineDeferred->m_vkGraphicsPipeline);
@@ -1074,6 +1093,9 @@ void VulkanRenderer::Render()
 		}
 	}
 
+	// Update Skybox uniforms!
+	Skybox::getInstance().UpdateUniformBuffers(m_pDevice, imageIndex);
+
 	UpdateDeferredUniforms(imageIndex);
 	
 
@@ -1173,6 +1195,7 @@ void VulkanRenderer::CleanupOnWindowResize()
 	UIManager::getInstance().CleanupOnWindowResize(m_pDevice);
 	
 	m_pGraphicsPipelineGBuffer->CleanupOnWindowResize(m_pDevice);
+	m_pGraphicsPipelineSkybox->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineDeferred->CleanupOnWindowResize(m_pDevice);
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
@@ -1184,7 +1207,6 @@ void VulkanRenderer::CleanupOnWindowResize()
 	m_pFrameBuffer->CleanupOnWindowResize(m_pDevice);
 	m_pSwapChain->CleanupOnWindowResize(m_pDevice);
 	m_pDevice->CleanupOnWindowResize();
-
 
 	LOG_DEBUG("Old SwapChain Cleanup");
 }
@@ -1200,6 +1222,7 @@ void VulkanRenderer::Cleanup()
 	m_pFrameBuffer->Cleanup(m_pDevice);
 
 	m_pGraphicsPipelineDeferred->Cleanup(m_pDevice);
+	m_pGraphicsPipelineSkybox->Cleanup(m_pDevice);
 	m_pGraphicsPipelineGBuffer->Cleanup(m_pDevice);
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
@@ -1207,6 +1230,8 @@ void VulkanRenderer::Cleanup()
 	m_pDeferredUniforms->Cleanup(m_pDevice);
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorSetLayout, nullptr);
+
+	Skybox::getInstance().Cleanup(m_pDevice);
 
 	for (Model* element : m_pScene->GetModelList())
 	{

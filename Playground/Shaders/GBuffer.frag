@@ -67,5 +67,8 @@ void main()
     outEmission = vec4(EmissionColor.rgb, 0.0f);
 
     //**** TODO - Write to Background G-Buffer
-    outBackground = vec4(shaderData.objectID, 0, 0, 1);
+    if(shaderData.objectID == 1)
+        outBackground = vec4(1, 0, 0, 1);
+    else if(shaderData.objectID == 2)
+        outBackground = vec4(0, 1, 0, 1);
 }

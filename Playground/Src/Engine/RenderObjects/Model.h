@@ -1,7 +1,5 @@
 #pragma once
 
-#include "PlaygroundPCH.h"
-
 #include "Mesh.h"
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
@@ -11,15 +9,13 @@ class VulkanDevice;
 class VulkanSwapChain;
 class VulkanMaterial;
 class VulkanTexture2D;
-class VulkanTextureCUBE;
 class VulkanGraphicsPipeline;
 enum class TextureType;
 
 //---------------------------------------------------------------------------------------------------------------------
 enum class ModelType
 {
-	STATIC_OBJECT = 1,
-	SKYBOX = 2
+	STATIC_OBJECT = 1
 };
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -68,14 +64,10 @@ public:
 	~Model();
 
 	std::vector<Mesh>					LoadModel(VulkanDevice* device, const std::string& filePath);
-
 	void								UpdateUniformBuffers(VulkanDevice* pDevice, uint32_t index);
 	void								Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt);
-	
 	void								Render(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipeline, uint32_t index);
-
 	void								SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
-
 	void								Cleanup(VulkanDevice* pDevice);
 	void								CleanupOnWindowResize(VulkanDevice* pDevice);
 
@@ -104,7 +96,6 @@ private:
 	std::map<std::string, TextureType>	m_mapTextures;
 
 	ModelType							m_eType;
-	VulkanTextureCUBE*					m_pCubemap;
 	VulkanMaterial*						m_pMaterial;
 	ShaderUniforms*						m_pShaderUniformsMVP;
 

@@ -314,7 +314,7 @@ namespace Helper
 			VkImageViewCreateInfo imageViewCreateInfo = {};
 			imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			imageViewCreateInfo.image = image;
-			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
 			imageViewCreateInfo.format = format;
 			imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 			imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;

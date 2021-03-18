@@ -8,6 +8,7 @@ class VulkanSwapChain;
 enum class PipelineType
 {
 	GBUFFER_OPAQUE,
+	SKYBOX,
 	DEFERRED
 };
 

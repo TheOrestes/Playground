@@ -106,6 +106,7 @@ private:
 	DeferredFrameBuffer*			m_pFrameBuffer;
 
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineGBuffer;
+	VulkanGraphicsPipeline*			m_pGraphicsPipelineSkybox;
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineDeferred;
 	
 	VkDebugUtilsMessengerEXT		m_vkDebugMessenger;

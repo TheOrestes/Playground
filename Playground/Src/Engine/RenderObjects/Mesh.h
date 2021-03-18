@@ -24,6 +24,10 @@ public:
 		const std::vector<Helper::App::VertexPNTBT>& vertices,
 		const std::vector<uint32_t>& indices);
 
+	Mesh(VulkanDevice* device,
+		const std::vector<Helper::App::VertexP>& vertices,
+		const std::vector<uint32_t>& indices);
+
 	void						SetPushConstantData(glm::mat4 modelMatrix);
 	//inline PushConstantData		GetPushConstantData() { return m_pushConstData; }
 

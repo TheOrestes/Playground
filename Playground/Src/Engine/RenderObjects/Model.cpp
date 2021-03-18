@@ -6,11 +6,12 @@
 #include "Engine/Renderer/VulkanSwapChain.h"
 #include "Engine/Renderer/VulkanMaterial.h"
 #include "Engine/Renderer/VulkanTexture2D.h"
-#include "Engine/Renderer/VulkanTextureCUBE.h"
 #include "Engine/Renderer/VulkanGraphicsPipeline.h"
+#include "Engine/Renderer/VulkanTextureCUBE.h"
+#include "Engine/RenderObjects/Skybox.h"
+
 
 #include "Engine/ImGui/imgui.h"
-
 #include "Model.h"
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -20,7 +21,6 @@ Model::Model(ModelType typeID)
 	
 	m_vecMeshes.clear();
 
-	m_pCubemap = nullptr;
 	m_pMaterial = nullptr;
 	m_pShaderUniformsMVP = nullptr;
 
@@ -45,7 +45,6 @@ Model::~Model()
 	m_mapTextures.clear();
 	m_vecMeshes.clear();
 
-	SAFE_DELETE(m_pCubemap);
 	SAFE_DELETE(m_pShaderUniformsMVP);
 	SAFE_DELETE(m_pMaterial);
 }
@@ -240,10 +239,6 @@ void Model::LoadMaterials(VulkanDevice* pDevice, const aiScene* scene)
 	{
 		m_pMaterial->LoadTexture(pDevice, iter->first, iter->second);
 	}
-
-	// Load Cubemap!
-	m_pCubemap = new VulkanTextureCUBE();
-	m_pCubemap->CreateTextureCUBE(pDevice, "Yokohama2");
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -601,8 +596,8 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		//-- Cubemap Texture
 		VkDescriptorImageInfo cubemapImageInfo = {};
 		cubemapImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
-		cubemapImageInfo.imageView = m_pCubemap->m_vkTextureImageView;														// image to bind to set
-		cubemapImageInfo.sampler = m_pCubemap->m_vkTextureSampler;															// sampler to use for the set
+		cubemapImageInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkTextureImageView;
+		cubemapImageInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkTextureSampler;
 
 		// Descriptor write info
 		VkWriteDescriptorSet cubemapSetWrite = {};
@@ -626,7 +621,6 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 //---------------------------------------------------------------------------------------------------------------------
 void Model::Cleanup(VulkanDevice* pDevice)
 {
-	m_pCubemap->Cleanup(pDevice);
 	m_pShaderUniformsMVP->Cleanup(pDevice);
 	m_pMaterial->Cleanup(pDevice);
 
