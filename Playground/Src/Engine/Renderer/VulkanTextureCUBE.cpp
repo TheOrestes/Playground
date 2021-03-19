@@ -134,7 +134,7 @@ void VulkanTextureCUBE::CreateTextureImage(VulkanDevice* pDevice, std::string fi
 												VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// COPY DATA TO IMAGE
-	Helper::Vulkan::CopyImageBuffer(pDevice, imageStagingBuffer, m_vkTextureImage, width, height);
+	Helper::Vulkan::CopyImageBufferCUBE(pDevice, imageStagingBuffer, m_vkTextureImage, width, height);
 
 	// Transition image to be shader readable for shader usage
 	Helper::Vulkan::TransitionImageLayoutCUBE(	pDevice,

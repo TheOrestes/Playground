@@ -75,7 +75,7 @@ Skybox::~Skybox()
 void Skybox::CreateSkybox(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
 	// Create Vertex data for skybox
-	m_vecVertices.resize(8);
+	m_vecVertices.reserve(8);
 	m_vecVertices.emplace_back(glm::vec3(-1, -1,  1));
 	m_vecVertices.emplace_back(glm::vec3( 1, -1,  1));
 	m_vecVertices.emplace_back(glm::vec3( 1,  1,  1));
@@ -88,7 +88,7 @@ void Skybox::CreateSkybox(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	CreateVertexBuffer(pDevice);
 
 	// Create Index data for skybox
-	m_vecIndices.resize(36);
+	m_vecIndices.reserve(36);
 	m_vecIndices.emplace_back(0);	m_vecIndices.emplace_back(1);	m_vecIndices.emplace_back(2);
 	m_vecIndices.emplace_back(2);	m_vecIndices.emplace_back(3);	m_vecIndices.emplace_back(0);
 	
@@ -135,12 +135,12 @@ void Skybox::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt
 
 	// Fetch View & Projection matrices from the Camera!	
 	m_pShaderUniformsMVP->shaderData.projection = FreeCamera::getInstance().m_matProjection;
-
-	m_pShaderUniformsMVP->shaderData.view = FreeCamera::getInstance().m_matView;
-	m_pShaderUniformsMVP->shaderData.projection[1][1] *= -1.0f;
+	
+	m_pShaderUniformsMVP->shaderData.view = glm::mat4(glm::mat3(FreeCamera::getInstance().m_matView));
+	//m_pShaderUniformsMVP->shaderData.projection[1][1] *= -1.0f;
 
 	// Update object ID
-	m_pShaderUniformsMVP->shaderData.objectID = 2;
+	m_pShaderUniformsMVP->shaderData.objectID = 0;
 }
 
 //---------------------------------------------------------------------------------------------------------------------

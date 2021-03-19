@@ -103,6 +103,7 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_PBR);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_EMISSION);
 		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_BACKGROUND);
+		m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_OBJECTID);
 
 		CreateRenderPass();
 
@@ -382,6 +383,7 @@ void VulkanRenderer::HandleWindowResize()
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_PBR);
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_EMISSION);
 	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_BACKGROUND);
+	m_pFrameBuffer->CreateAttachment(m_pDevice, m_pSwapChain, AttachmentType::FB_ATTACHMENT_OBJECTID);
 
 	CreateRenderPass();
 	CreateGraphicsPipeline();
@@ -408,7 +410,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	VkPushConstantRange pushConstantRange = {};
 
 	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRange);
-	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 6);
+	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
 
 	//----- Create SKYBOX Graphics Pipeline!
 	m_pGraphicsPipelineSkybox = new VulkanGraphicsPipeline(PipelineType::SKYBOX, m_pSwapChain);
@@ -416,13 +418,13 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	std::vector<VkDescriptorSetLayout> setLayoutsSkybox = { Skybox::getInstance().m_vkDescriptorSetLayout };
 
 	m_pGraphicsPipelineSkybox->CreatePipelineLayout(m_pDevice, setLayoutsSkybox, pushConstantRange);
-	m_pGraphicsPipelineSkybox->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 6);
+	m_pGraphicsPipelineSkybox->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
 	
 	//----- Create GBUFFER_BEAUTY Graphics pipeline!
 	m_pGraphicsPipelineDeferred = new VulkanGraphicsPipeline(PipelineType::DEFERRED, m_pSwapChain);
 
 	//-- Create Descriptor Set Layout! 
-	std::array<VkDescriptorSetLayoutBinding, 8> arrDescriptorSeLayoutBindings;
+	std::array<VkDescriptorSetLayoutBinding, 9> arrDescriptorSeLayoutBindings;
 
 	// Color input binding 
 	arrDescriptorSeLayoutBindings[0].binding = 0;
@@ -460,18 +462,24 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	arrDescriptorSeLayoutBindings[5].descriptorCount = 1;
 	arrDescriptorSeLayoutBindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	// Position Input binding
+	// Background Input binding
 	arrDescriptorSeLayoutBindings[6].binding = 6;
 	arrDescriptorSeLayoutBindings[6].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 	arrDescriptorSeLayoutBindings[6].descriptorCount = 1;
 	arrDescriptorSeLayoutBindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+	// ObjectID Input binding
+	arrDescriptorSeLayoutBindings[7].binding = 7;
+	arrDescriptorSeLayoutBindings[7].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[7].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	// Uniform Buffer binding
-	arrDescriptorSeLayoutBindings[7].binding = 7;																// binding point in shader, binding = ?
-	arrDescriptorSeLayoutBindings[7].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
-	arrDescriptorSeLayoutBindings[7].descriptorCount = 1;														// number of descriptors
-	arrDescriptorSeLayoutBindings[7].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
-	arrDescriptorSeLayoutBindings[7].pImmutableSamplers = nullptr;
+	arrDescriptorSeLayoutBindings[8].binding = 8;																// binding point in shader, binding = ?
+	arrDescriptorSeLayoutBindings[8].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
+	arrDescriptorSeLayoutBindings[8].descriptorCount = 1;														// number of descriptors
+	arrDescriptorSeLayoutBindings[8].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
+	arrDescriptorSeLayoutBindings[8].pImmutableSamplers = nullptr;
 	
 	VkDescriptorSetLayoutCreateInfo inputLayoutCreateInfo = {};
 	inputLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -577,6 +585,17 @@ void VulkanRenderer::CreateRenderPass()
 	backgroundAttachmentDesc.initialLayout		= VK_IMAGE_LAYOUT_UNDEFINED;
 	backgroundAttachmentDesc.finalLayout		= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+	// ObjectID attachment 
+	VkAttachmentDescription objectIDAttachmentDesc = {};
+	objectIDAttachmentDesc.format = m_pFrameBuffer->m_pObjectIDAttachment->attachmentFormat;
+	objectIDAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
+	objectIDAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	objectIDAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	objectIDAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	objectIDAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	objectIDAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	objectIDAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
 	// Color attachment Reference
 	VkAttachmentReference colorAttachmentRef	= {};
 	colorAttachmentRef.attachment				= 1;
@@ -612,10 +631,15 @@ void VulkanRenderer::CreateRenderPass()
 	bkgndAttachmentRef.attachment				= 7;
 	bkgndAttachmentRef.layout					= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	std::array<VkAttachmentReference, 6> attachmentRefs = { colorAttachmentRef, normalAttachmentRef, positionAttachmentRef,
-															pbrAttachmentRef, emissionAttachmentRef, bkgndAttachmentRef };
+	// ObjectID attachment Reference
+	VkAttachmentReference objIDAttachmentRef	= {};
+	objIDAttachmentRef.attachment				= 8;
+	objIDAttachmentRef.layout					= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Set up subpass 1 (Outputs 6 Color + 1 Depth attachment) 
+	std::array<VkAttachmentReference, 7> attachmentRefs = { colorAttachmentRef, normalAttachmentRef, positionAttachmentRef,
+															pbrAttachmentRef, emissionAttachmentRef, bkgndAttachmentRef, objIDAttachmentRef };
+
+	// Set up subpass 1 (Outputs 7 Color + 1 Depth attachment) 
 	subpasses[0].pipelineBindPoint			= VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpasses[0].colorAttachmentCount		= attachmentRefs.size();
 	subpasses[0].pColorAttachments			= attachmentRefs.data();
@@ -640,7 +664,7 @@ void VulkanRenderer::CreateRenderPass()
 	swapChainColorAttachmentRef.layout				  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// Input attachments output from first subpass!
-	std::array<VkAttachmentReference, 7> inputReferences;
+	std::array<VkAttachmentReference, 8> inputReferences;
 	inputReferences[0].attachment	= 1;
 	inputReferences[0].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputReferences[1].attachment	= 2;
@@ -655,8 +679,10 @@ void VulkanRenderer::CreateRenderPass()
 	inputReferences[5].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputReferences[6].attachment	= 7;
 	inputReferences[6].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputReferences[7].attachment	= 8;
+	inputReferences[7].layout		= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	// Set up subpass 2 (Takes in 7 input attachments from subpass 1 & outputs one color output for final present!)
+	// Set up subpass 2 (Takes in 8 input attachments from subpass 1 & outputs one color output for final present!)
 	subpasses[1].pipelineBindPoint		= VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpasses[1].colorAttachmentCount	= 1;												
 	subpasses[1].pColorAttachments		= &swapChainColorAttachmentRef;
@@ -700,14 +726,15 @@ void VulkanRenderer::CreateRenderPass()
 	subpassDependencies[2].dependencyFlags	= 0;
 
 	// Render pass!
-	std::array<VkAttachmentDescription, 8> renderPassAttachments = { swapChainColorAttachmentDesc, 
+	std::array<VkAttachmentDescription, 9> renderPassAttachments = { swapChainColorAttachmentDesc, 
 																	 colorAttachmentDesc, 
 																	 depthAttachmentDesc, 
 																	 normalAttachmentDesc, 
 																	 positionAttachmentDesc,
 																	 pbrAttachmentDesc,
 																	 emissionAttachmentDesc,
-																	 backgroundAttachmentDesc };
+																	 backgroundAttachmentDesc,
+																	 objectIDAttachmentDesc };
 
 	VkRenderPassCreateInfo renderPassCreateInfo{};
 	renderPassCreateInfo.sType				= VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -741,7 +768,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	renderPassBeginInfo.renderArea.offset = { 0,0 };						// start point of render pass in pixels
 	renderPassBeginInfo.renderArea.extent = m_pSwapChain->m_vkSwapchainExtent;			// size of region to run render pass on (starting at offset) 
 
-	std::array<VkClearValue, 8> clearValues = {};
+	std::array<VkClearValue, 9> clearValues = {};
 
 	clearValues[0].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[1].color = { 0.2f, 0.2f, 0.2f, 1.0f };
@@ -751,6 +778,7 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 	clearValues[5].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[6].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 	clearValues[7].color = { 0.2f, 0.2f, 0.2f, 1.0f };
+	clearValues[8].color = { 0.2f, 0.2f, 0.2f, 1.0f };
 
 	renderPassBeginInfo.pClearValues = clearValues.data();								// list of clear values
 	renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -854,8 +882,8 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 	m_pDeferredUniforms->CreateBuffers(m_pDevice, m_pSwapChain);
 	
 	// *** INPUT ATTACHMENT DESCRIPTOR POOL
-	// 7 Attachments : Color + Depth + Normal + Position + PBR + Emissive + Background
-	std::array<VkDescriptorPoolSize, 8> arrDescriptorPoolSize = {};
+	// 8 Attachments : Color + Depth + Normal + Position + PBR + Emissive + Background + ObjectID
+	std::array<VkDescriptorPoolSize, 9> arrDescriptorPoolSize = {};
 	for (int i = 0; i < arrDescriptorPoolSize.size() - 1; ++i)
 	{
 		arrDescriptorPoolSize[i].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -863,8 +891,8 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 	}
 
 	// Uniform Buffer data
-	arrDescriptorPoolSize[7].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	arrDescriptorPoolSize[7].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
+	arrDescriptorPoolSize[8].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	arrDescriptorPoolSize[8].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
 
 	// Create input attachment pool
 	VkDescriptorPoolCreateInfo inputPoolCreateInfo = {};
@@ -1007,14 +1035,13 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		emissionWrite.descriptorCount = 1;
 		emissionWrite.pImageInfo = &emissionAttachmentDescriptor;
 
-
 		// Background attachment descriptor
 		VkDescriptorImageInfo backgroundAttachmentDescriptor = {};
 		backgroundAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		backgroundAttachmentDescriptor.imageView = m_pFrameBuffer->m_pBackgroundAttachment->vecAttachmentImageView[i];
 		backgroundAttachmentDescriptor.sampler = VK_NULL_HANDLE;
 
-		// Position attachment descriptor write
+		// Background attachment descriptor write
 		VkWriteDescriptorSet backgroundWrite = {};
 		backgroundWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		backgroundWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
@@ -1023,6 +1050,22 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		backgroundWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		backgroundWrite.descriptorCount = 1;
 		backgroundWrite.pImageInfo = &backgroundAttachmentDescriptor;
+
+		// ObjectID attachment descriptor
+		VkDescriptorImageInfo objIDAttachmentDescriptor = {};
+		objIDAttachmentDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		objIDAttachmentDescriptor.imageView = m_pFrameBuffer->m_pObjectIDAttachment->vecAttachmentImageView[i];
+		objIDAttachmentDescriptor.sampler = VK_NULL_HANDLE;
+
+		// ObjectID attachment descriptor write
+		VkWriteDescriptorSet objIDWrite = {};
+		objIDWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		objIDWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
+		objIDWrite.dstBinding = 7;
+		objIDWrite.dstArrayElement = 0;
+		objIDWrite.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		objIDWrite.descriptorCount = 1;
+		objIDWrite.pImageInfo = &objIDAttachmentDescriptor;
 
 		//-- Uniform Buffer
 		VkDescriptorBufferInfo ubBufferInfo = {};
@@ -1034,14 +1077,14 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		VkWriteDescriptorSet ubSetWrite = {};
 		ubSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		ubSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];							
-		ubSetWrite.dstBinding = 7;											
+		ubSetWrite.dstBinding = 8;											
 		ubSetWrite.dstArrayElement = 0;										
 		ubSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;		
 		ubSetWrite.descriptorCount = 1;										
 		ubSetWrite.pBufferInfo = &ubBufferInfo;
 
 		// List of input descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, pbrWrite, emissionWrite, backgroundWrite, ubSetWrite };
+		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, pbrWrite, emissionWrite, backgroundWrite, objIDWrite, ubSetWrite };
 
 		// Update descriptor sets
 		vkUpdateDescriptorSets(m_pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);

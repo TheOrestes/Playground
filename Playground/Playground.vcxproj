@@ -140,8 +140,10 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>xcopy $(ProjectDir)Shaders $(OutDir)Shaders /e /y /i /r
+xcopy $(ProjectDir)Models $(OutDir)Models /e /y /i /r
+xcopy $(ProjectDir)Textures $(OutDir)Textures /e /y /i /r
+xcopy $(ProjectDir)Fonts $(OutDir)Fonts /e /y /i /r</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

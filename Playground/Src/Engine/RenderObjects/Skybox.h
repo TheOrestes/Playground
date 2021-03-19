@@ -19,7 +19,7 @@ struct SkyboxShaderData
 		model = glm::mat4(1);
 		view = glm::mat4(1);
 		projection = glm::mat4(1);
-		objectID = 2;
+		objectID = 0;
 	}
 
 	// Data Specific

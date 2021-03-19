@@ -159,94 +159,101 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 	switch (m_eType)
 	{
 		case PipelineType::GBUFFER_OPAQUE:
-		{
-			m_strVertexShader = "Shaders/GBuffer.vert.spv";
-			m_strFragmentShader = "Shaders/GBuffer.frag.spv";
-
-			vertShaderModule = CreateShaderModule(pDevice, m_strVertexShader);
-			fragShaderModule = CreateShaderModule(pDevice, m_strFragmentShader);
-
-			//--- How the data for the single vertex (including info such as Position, color, texcoords etc.) is as a whole
-			VkVertexInputBindingDescription bindingDescription = {};
-			bindingDescription.binding = 0;															// can bind multiple stream of data, this defines which one?
-			bindingDescription.stride = sizeof(Helper::App::VertexPNTBT);							// size of single vertex object
-			bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;								// How to move between data after each vertex
-																									// VK_VERTEX_INPUT_RATE_VERTEX : move on to the next vertex																							// VK_VERTEX_INPUT_RATE_INSTANCE: move on to a vertex of next instance.
-			// How the data for an attribute is defined within a vertex
-			std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions;
-
-			// Position attribute
-			attributeDescriptions[0].binding = 0;													// which binding the data is at (should be same as above)
-			attributeDescriptions[0].location = 0;													// location in shader where data will be read from
-			attributeDescriptions[0].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;					// format the data will take (also helps define size of the data)
-			attributeDescriptions[0].offset = offsetof(Helper::App::VertexPNTBT, Position);			// where this attribute is defined in the data for a single vertex
-
-			// Normal attribute
-			attributeDescriptions[1].binding = 0;
-			attributeDescriptions[1].location = 1;
-			attributeDescriptions[1].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
-			attributeDescriptions[1].offset = offsetof(Helper::App::VertexPNTBT, Normal);
-
-			// Tangent attribute
-			attributeDescriptions[2].binding = 0;
-			attributeDescriptions[2].location = 2;
-			attributeDescriptions[2].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
-			attributeDescriptions[2].offset = offsetof(Helper::App::VertexPNTBT, Tangent);
-
-			// BiNormal attribute
-			attributeDescriptions[3].binding = 0;
-			attributeDescriptions[3].location = 3;
-			attributeDescriptions[3].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
-			attributeDescriptions[3].offset = offsetof(Helper::App::VertexPNTBT, BiNormal);
-
-			// Texture attribute
-			attributeDescriptions[4].binding = 0;
-			attributeDescriptions[4].location = 4;
-			attributeDescriptions[4].format = VkFormat::VK_FORMAT_R32G32_SFLOAT;
-			attributeDescriptions[4].offset = offsetof(Helper::App::VertexPNTBT, UV);
-
-			// Vertex Input
-			m_vkVertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-			m_vkVertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-			m_vkVertexInputStateCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();			// List of vertex attribute descriptions (data format & where to bind to - from)
-			m_vkVertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
-			m_vkVertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;						// List of vertex binding descriptions (data spacing/strides info) 
-			m_vkVertexInputStateCreateInfo.flags = 0;
-			m_vkVertexInputStateCreateInfo.pNext = nullptr;
-
-			// Enable depth testing during normal rendering!
-			m_vkDepthStencilCreateInfo.depthTestEnable = VK_TRUE;										// Enable depth check to determine fragment write
-			m_vkDepthStencilCreateInfo.depthWriteEnable = VK_TRUE;										// Enable writing to depth buffer to replace old values
-			m_vkDepthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;					// Comparison opearation that allows an overwrite (is in front)
-
-			//--- Color blending
-			// We need to explicitly mention the blending setting between all output attachments else default colormask will be 0x0
-			// and nothing will be rendered to the attachment!
-			m_vecColorBlendAttachments.clear();
-			for (int i = 0; i < nOutputAttachments; ++i)
 			{
-				VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-				colorBlendAttachment.colorWriteMask = 0xf;							// All channels
-				colorBlendAttachment.blendEnable = VK_FALSE;
+				m_strVertexShader = "Shaders/GBuffer.vert.spv";
+				m_strFragmentShader = "Shaders/GBuffer.frag.spv";
 
-				m_vecColorBlendAttachments.push_back(colorBlendAttachment);
+				vertShaderModule = CreateShaderModule(pDevice, m_strVertexShader);
+				fragShaderModule = CreateShaderModule(pDevice, m_strFragmentShader);
+
+				//--- How the data for the single vertex (including info such as Position, color, texcoords etc.) is as a whole
+				VkVertexInputBindingDescription bindingDescription = {};
+				bindingDescription.binding = 0; // can bind multiple stream of data, this defines which one?
+				bindingDescription.stride = sizeof(Helper::App::VertexPNTBT); // size of single vertex object
+				bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+				// How to move between data after each vertex
+				// VK_VERTEX_INPUT_RATE_VERTEX : move on to the next vertex																							// VK_VERTEX_INPUT_RATE_INSTANCE: move on to a vertex of next instance.
+				// How the data for an attribute is defined within a vertex
+				std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions;
+
+				// Position attribute
+				attributeDescriptions[0].binding = 0; // which binding the data is at (should be same as above)
+				attributeDescriptions[0].location = 0; // location in shader where data will be read from
+				attributeDescriptions[0].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
+				// format the data will take (also helps define size of the data)
+				attributeDescriptions[0].offset = offsetof(Helper::App::VertexPNTBT, Position);
+				// where this attribute is defined in the data for a single vertex
+
+				// Normal attribute
+				attributeDescriptions[1].binding = 0;
+				attributeDescriptions[1].location = 1;
+				attributeDescriptions[1].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
+				attributeDescriptions[1].offset = offsetof(Helper::App::VertexPNTBT, Normal);
+
+				// Tangent attribute
+				attributeDescriptions[2].binding = 0;
+				attributeDescriptions[2].location = 2;
+				attributeDescriptions[2].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
+				attributeDescriptions[2].offset = offsetof(Helper::App::VertexPNTBT, Tangent);
+
+				// BiNormal attribute
+				attributeDescriptions[3].binding = 0;
+				attributeDescriptions[3].location = 3;
+				attributeDescriptions[3].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;
+				attributeDescriptions[3].offset = offsetof(Helper::App::VertexPNTBT, BiNormal);
+
+				// Texture attribute
+				attributeDescriptions[4].binding = 0;
+				attributeDescriptions[4].location = 4;
+				attributeDescriptions[4].format = VkFormat::VK_FORMAT_R32G32_SFLOAT;
+				attributeDescriptions[4].offset = offsetof(Helper::App::VertexPNTBT, UV);
+
+				// Vertex Input
+				m_vkVertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+				m_vkVertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+				m_vkVertexInputStateCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+				// List of vertex attribute descriptions (data format & where to bind to - from)
+				m_vkVertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
+				m_vkVertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;
+				// List of vertex binding descriptions (data spacing/strides info) 
+				m_vkVertexInputStateCreateInfo.flags = 0;
+				m_vkVertexInputStateCreateInfo.pNext = nullptr;
+
+				// Enable depth testing during normal rendering!
+				m_vkDepthStencilCreateInfo.depthTestEnable = VK_TRUE;						// Enable depth check to determine fragment write
+				m_vkDepthStencilCreateInfo.depthWriteEnable = VK_TRUE;						// Enable writing to depth buffer to replace old values
+				m_vkDepthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;				// Comparison opearation that allows an overwrite (is in front)c vb
+
+				//--- Color blending
+				// We need to explicitly mention the blending setting between all output attachments else default colormask will be 0x0
+				// and nothing will be rendered to the attachment!bv  
+				m_vecColorBlendAttachments.clear();
+				for (int i = 0; i < nOutputAttachments; ++i)
+				{
+					VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+					colorBlendAttachment.colorWriteMask = 0xf; // All channels
+					colorBlendAttachment.blendEnable = VK_FALSE;
+
+					m_vecColorBlendAttachments.push_back(colorBlendAttachment);
+				}
+
+				m_vkColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+				m_vkColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
+				// alternative to calculations is to use logical operations
+				m_vkColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+				m_vkColorBlendStateCreateInfo.attachmentCount = m_vecColorBlendAttachments.size();
+				m_vkColorBlendStateCreateInfo.pAttachments = m_vecColorBlendAttachments.data();
+				m_vkColorBlendStateCreateInfo.blendConstants[0] = 0.0f;
+				m_vkColorBlendStateCreateInfo.blendConstants[1] = 0.0f;
+				m_vkColorBlendStateCreateInfo.blendConstants[2] = 0.0f;
+				m_vkColorBlendStateCreateInfo.blendConstants[3] = 0.0f;
+				m_vkColorBlendStateCreateInfo.flags = 0;
+				m_vkColorBlendStateCreateInfo.pNext = nullptr;
+
+
+				break;
 			}
-				
-			m_vkColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-			m_vkColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;										// alternative to calculations is to use logical operations
-			m_vkColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
-			m_vkColorBlendStateCreateInfo.attachmentCount = m_vecColorBlendAttachments.size();
-			m_vkColorBlendStateCreateInfo.pAttachments = m_vecColorBlendAttachments.data();
-			m_vkColorBlendStateCreateInfo.blendConstants[0] = 0.0f;
-			m_vkColorBlendStateCreateInfo.blendConstants[1] = 0.0f;
-			m_vkColorBlendStateCreateInfo.blendConstants[2] = 0.0f;
-			m_vkColorBlendStateCreateInfo.blendConstants[3] = 0.0f;
-			m_vkColorBlendStateCreateInfo.flags = 0;
-			m_vkColorBlendStateCreateInfo.pNext = nullptr;
-
-
-			break;
-		}
+		
 
 		case PipelineType::SKYBOX:
 		{
@@ -269,14 +276,14 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			attributeDescriptions[0].binding = 0;													// which binding the data is at (should be same as above)
 			attributeDescriptions[0].location = 0;													// location in shader where data will be read from
 			attributeDescriptions[0].format = VkFormat::VK_FORMAT_R32G32B32_SFLOAT;					// format the data will take (also helps define size of the data)
-			attributeDescriptions[0].offset = offsetof(Helper::App::VertexP, Position);			// where this attribute is defined in the data for a single vertex
+			attributeDescriptions[0].offset = offsetof(Helper::App::VertexP, Position);				// where this attribute is defined in the data for a single vertex
 
 			// Vertex Input
 			m_vkVertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 			m_vkVertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-			m_vkVertexInputStateCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();			// List of vertex attribute descriptions (data format & where to bind to - from)
+			m_vkVertexInputStateCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();			
 			m_vkVertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
-			m_vkVertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;						// List of vertex binding descriptions (data spacing/strides info) 
+			m_vkVertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;						
 			m_vkVertexInputStateCreateInfo.flags = 0;
 			m_vkVertexInputStateCreateInfo.pNext = nullptr;
 

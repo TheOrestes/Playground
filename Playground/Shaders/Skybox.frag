@@ -23,6 +23,7 @@ layout(location = 2) out vec4 outPosition;
 layout(location = 3) out vec4 outPBR;           // R - Metalness | G - Roughness | B - AO | A - Unused
 layout(location = 4) out vec4 outEmission;      // RGB - Emission / A - Unused
 layout(location = 5) out vec4 outBackground;    // RGB - BG Color / A - Unused
+layout(location = 6) out vec4 outObjID;         // RGB - ID Color / A - Unused
 
 void main() 
 {
@@ -34,4 +35,15 @@ void main()
 
     //**** TODO - Write to Background G-Buffer
     outBackground = CubemapColor;
+
+    outObjID = vec4(0, 0, 1, 1);
+     // Write to ID buffer
+     // switch(shaderData.objectID)
+     // {
+     //     case 0: // SKYBOX
+     //     {
+     //         outObjID = vec4(0, 0, 1, 1);
+     //         break;
+     //     }
+     // }
 }

@@ -385,5 +385,29 @@ namespace Helper
 
 			pDevice->EndAndSubmitCommandBuffer(commandBuffer);
 		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Generic Copy Image buffer from srcBuffer to VkImage using transferQueue & transferCommandPool of specific width-height!
+		inline void CopyImageBufferCUBE(VulkanDevice* pDevice, VkBuffer srcBuffer, VkImage image, uint32_t width, uint32_t height)
+		{
+			//Create buffer
+			VkCommandBuffer transferCommandBuffer = pDevice->BeginCommandBuffer();
+
+			VkBufferImageCopy imageRegion = {};
+			imageRegion.bufferOffset = 0;											// offset into data
+			imageRegion.bufferRowLength = 0;										// row length of data to calculate data spacing
+			imageRegion.bufferImageHeight = 0;										// image height to calculate data spacing
+			imageRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;	// which aspect of image to copy
+			imageRegion.imageSubresource.mipLevel = 0;								// mipmap level to copy
+			imageRegion.imageSubresource.baseArrayLayer = 0;						// starting array layer (if array)
+			imageRegion.imageSubresource.layerCount = 6;							// number of layers to copy starting at baseArrayLayer
+			imageRegion.imageOffset = { 0,0,0 };									// offset into image (as a opposed to raw data in the buffer)
+			imageRegion.imageExtent = { width, height, 1 };							// size of region to copy as (x,y,z) values
+
+			// copy buffer to given image
+			vkCmdCopyBufferToImage(transferCommandBuffer, srcBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageRegion);
+
+			pDevice->EndAndSubmitCommandBuffer(transferCommandBuffer);
+		}
 	}
 }
