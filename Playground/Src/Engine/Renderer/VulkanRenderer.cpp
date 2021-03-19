@@ -144,17 +144,8 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::Update(float dt)
 {
-	// Update each model's uniform data
-	for (Model* element : m_pScene->GetModelList())
-	{
-		if(element != nullptr)
-		{
-			element->Update(m_pDevice, m_pSwapChain, dt);
-		}
-	}
-
-	// Update Skybox data!
-	Skybox::getInstance().Update(m_pDevice, m_pSwapChain, dt);
+	// Update scene!
+	m_pScene->Update(m_pDevice, m_pSwapChain, dt);
 
 	// Update deferred pass uniform data
 	// Contains : PassID | CameraPosition
@@ -797,19 +788,11 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 
 		// Bind Pipeline to be used Skybox!
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineSkybox->m_vkGraphicsPipeline);
-		Skybox::getInstance().Render(m_pDevice, m_pGraphicsPipelineSkybox, currentImage);
+		m_pScene->RenderSkybox(m_pDevice, m_pGraphicsPipelineSkybox, currentImage);
 
 		// Bind Pipeline to be used in render pass
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineGBuffer->m_vkGraphicsPipeline);
-		
-		// Draw Scene!
-		for (Model* element : m_pScene->GetModelList())
-		{
-			if(element != nullptr)
-			{
-				element->Render(m_pDevice, m_pGraphicsPipelineGBuffer, currentImage);
-			}
-		}
+		m_pScene->RenderOpaque(m_pDevice, m_pGraphicsPipelineGBuffer, currentImage);
 		
 		// Start second subpass
 		vkCmdNextSubpass(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_SUBPASS_CONTENTS_INLINE);
@@ -1127,17 +1110,8 @@ void VulkanRenderer::Render()
 	// Record Graphics command
 	RecordCommands(imageIndex);
 
-	// Update all models!
-	for (Model* element : m_pScene->GetModelList())
-	{
-		if(element != nullptr)
-		{
-			element->UpdateUniformBuffers(m_pDevice, imageIndex);
-		}
-	}
-
-	// Update Skybox uniforms!
-	Skybox::getInstance().UpdateUniformBuffers(m_pDevice, imageIndex);
+	// Update Uniforms for Scene!
+	m_pScene->UpdateUniforms(m_pDevice, imageIndex);
 
 	UpdateDeferredUniforms(imageIndex);
 	
