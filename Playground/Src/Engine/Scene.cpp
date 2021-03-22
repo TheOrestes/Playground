@@ -32,7 +32,7 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
 	// Load SteamPunk Model
 	Model* pModelPunk = new Model(ModelType::STATIC_OPAQUE);
-	pModelPunk->LoadModel(pDevice, "Models/Sphere.fbx");
+	pModelPunk->LoadModel(pDevice, "Models/Sphere_Color.fbx");
 	pModelPunk->SetPosition(glm::vec3(0, 2, 0));
 	pModelPunk->SetScale(glm::vec3(0.75f));
 	pModelPunk->SetupDescriptors(pDevice, pSwapchain);

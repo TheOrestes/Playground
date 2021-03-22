@@ -1,5 +1,9 @@
 #version 450
 
+#define PI 3.14159265358979
+#define PI_OVER_TWO 1.57079632679
+#define PI_INVERSE 0.3183098861837
+
 // Input from Subpass 1
 layout(input_attachment_index = 0, binding = 0) uniform subpassInput inputColor;        // Color output from Subpass 1
 layout(input_attachment_index = 1, binding = 1) uniform subpassInput inputDepth;        // Depth output from the subpass 1
@@ -36,33 +40,37 @@ void main()
     float upperBound = 1.0f;
     float ScaledDepth = 1.0f - ((Depth-lowerBound)/(upperBound-lowerBound));
 
-    //--- Lighting
-    // Assumed light position
-    //vec3 lightPos = vec3(0,3,3);
-    //vec3 lightDir = normalize(positionColor.xyz - lightPos);
-    vec3 lightDir = vec3(0,1,0);
-    float lightDist = length(lightDir);
+    //--- 3 Side Direct Lighting
+    vec3 lightDir[3] = { vec3(0.70711, 0.24185, 0.66447), 
+                         vec3(-0.70711, 0.24185, 0.66447), 
+                         vec3(-0.70711, 0.24185, -0.66447)};
 
-    float attenuation = 1 / 1;
+    float lightIntensity[3] = { 5,5,5};
 
-    vec3 N = normalize(NormalColor.xyz);
-    float diffuse = attenuation * clamp(dot(N, lightDir), 0.0f, 1.0f);
+    vec3 Half   = vec3(0);
+    vec4 Lo     = vec4(0);
+    float Kd    = 0.8f;
+    float Ks    = 1 - Kd;
 
-    vec3 cameraPos = shaderData.cameraPosition;
-    vec3 Eye = normalize(cameraPos - PositionColor.rgb);
-    vec3 Half = normalize(lightDir + Eye);
+    for(int i = 0 ; i < 3 ; ++i)
+    {
+        vec3 N = normalize(NormalColor.xyz);
+        float diffuse = lightIntensity[i] * clamp(dot(N, lightDir[i]), 0.0f, 1.0f);
 
-    float Kd = 0.8f;
-    float Ks = 1 - Kd;
+        vec3 cameraPos = shaderData.cameraPosition;
+        vec3 Eye = normalize(cameraPos - PositionColor.rgb);
+        Half = normalize(lightDir[i] + Eye);    
 
-
+        Lo += (Kd * AlbedoColor * PI_INVERSE) * diffuse;
+    }
+    
     // Composite BackgroundColor (Blue channel of ObjectID) + Final Color 
     vec4 FinalColor = vec4(0); 
     vec3 redChannel = vec3(1,0,0);  // STATIC_OPAQUE
     vec3 blueChannel = vec3(0,0,1); // SKYBOX
 
     if(dot(redChannel, ObjectIDColor.rgb) == 1)
-        FinalColor = AlbedoColor + Kd * vec4(vec3(diffuse), 1);   
+        FinalColor = Lo;
     else if(dot(blueChannel, ObjectIDColor.rgb) == 1)
         FinalColor = BackgroundColor;
     

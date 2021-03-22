@@ -28,7 +28,7 @@ struct ShaderData
 		projection			= glm::mat4(1);
 		
 
-		albedoColor			= glm::vec4(0.8f);
+		albedoColor			= glm::vec4(0.5f);
 		emissiveColor		= glm::vec4(1,1,0,1);
 		hasTexture			= glm::vec3(0, 0, 0);	
 
