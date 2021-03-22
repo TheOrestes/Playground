@@ -289,36 +289,85 @@ void UIManager::RenderSceneUI(Scene* pScene)
 			std::string nodeName = "Model" + std::to_string(i);
 			if (ImGui::TreeNode(nodeName.c_str()))
 			{
-				// Position
-				glm::vec3 pos = pModel->GetPosition();
+				//**** TRANSORM UI
+				if(ImGui::TreeNode("Transform"))
+				{
+					//-- Position
+					glm::vec3 pos = pModel->GetPosition();
 
-				if (ImGui::SliderFloat3("Position", glm::value_ptr(pos), -100, 100))
-					pModel->SetPosition(pos);
+					if (ImGui::SliderFloat3("Position", glm::value_ptr(pos), -100, 100))
+						pModel->SetPosition(pos);
 
-				// Rotation Axis
-				glm::vec3 rot = pModel->GetRotationAxis();
-				if (ImGui::InputFloat3("Rotation Axis", glm::value_ptr(rot)))
-					pModel->SetRotationAxis(rot);
+					//-- Rotation Axis
+						glm::vec3 rot = pModel->GetRotationAxis();
+					if (ImGui::InputFloat3("Rotation Axis", glm::value_ptr(rot)))
+						pModel->SetRotationAxis(rot);
 
-				// Rotation Angle
-				float rotAngle = pModel->GetRotationAngle();
-				if (ImGui::SliderAngle("Rotation Angle", &rotAngle))
-					pModel->SetRotationAngle(rotAngle);
+					//-- Rotation Angle
+					float rotAngle = pModel->GetRotationAngle();
+					if (ImGui::SliderAngle("Rotation Angle", &rotAngle))
+						pModel->SetRotationAngle(rotAngle);
 
-				// Scale
-				glm::vec3 scale = pModel->GetScale();
-				if (ImGui::InputFloat3("Scale", glm::value_ptr(scale)))
-					pModel->SetScale(scale);
+					//-- Scale
+					glm::vec3 scale = pModel->GetScale();
+					if (ImGui::InputFloat3("Scale", glm::value_ptr(scale)))
+						pModel->SetScale(scale);
 
-				// AutoUpdate
-				bool autoRotate = pModel->m_bAutoRotate;
-				if (ImGui::Checkbox("Auto Rotate", &autoRotate))
-					pModel->m_bAutoRotate = autoRotate;
+					//-- AutoUpdate
+					bool autoRotate = pModel->m_bAutoRotate;
+					if (ImGui::Checkbox("Auto Rotate", &autoRotate))
+						pModel->m_bAutoRotate = autoRotate;
 
-				// AutoRotate Speed
-				float autoSpeed = pModel->m_fAutoRotateSpeed;
-				if (ImGui::SliderFloat("Rotation Speed", &autoSpeed, 0.01f, 1.0f))
-					pModel->m_fAutoRotateSpeed = autoSpeed;
+					//-- AutoRotate Speed
+					float autoSpeed = pModel->m_fAutoRotateSpeed;
+					if (ImGui::SliderFloat("Rotation Speed", &autoSpeed, 0.01f, 1.0f))
+						pModel->m_fAutoRotateSpeed = autoSpeed;
+
+					ImGui::TreePop();
+				}
+
+				//**** MATERIAL UI
+				if (ImGui::TreeNode("Material"))
+				{
+					ShaderData* data = &(pModel->m_pShaderUniforms->shaderData);
+
+					//-- Albedo Color
+					float albedo[4] = { data->albedoColor.r, data->albedoColor.g, data->albedoColor.b, data->albedoColor.a };
+					if(ImGui::ColorEdit4("Albedo", albedo))
+					{
+						data->albedoColor = glm::vec4(albedo[0], albedo[1], albedo[2], albedo[3]);
+					}
+
+					//-- Emission Color
+					float emission[4] = { data->emissiveColor.r, data->emissiveColor.g, data->emissiveColor.b, data->emissiveColor.a };
+					if (ImGui::ColorEdit4("Emission", emission))
+					{
+						data->emissiveColor = glm::vec4(emission[0], emission[1], emission[2], emission[3]);
+					}
+
+					//-- Roughness
+					float roughness = data->roughness;
+					if(ImGui::SliderFloat("Roughness", &roughness, 0.001f, 1.0f))
+					{
+						data->roughness = roughness;
+					}
+
+					//-- Metalness
+					float metalness = data->metalness;
+					if (ImGui::SliderFloat("Metalness", &metalness, 0.001f, 1.0f))
+					{
+						data->metalness = metalness;
+					}
+
+					//-- Occlusion
+					float occlusion = data->ao;
+					if (ImGui::SliderFloat("AmbOcclusion", &occlusion, 0.001f, 1.0f))
+					{
+						data->ao = occlusion;
+					}
+					
+					ImGui::TreePop();
+				}
 
 				ImGui::TreePop();
 			}

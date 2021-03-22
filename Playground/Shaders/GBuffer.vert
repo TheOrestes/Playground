@@ -9,10 +9,17 @@ layout(location=4) in vec2 in_UV;
 
 layout(set = 0, binding = 0) uniform ShaderData
 {
-    mat4 matModel;
-    mat4 matView;
-    mat4 matProjection;
-    int  objectID;
+    mat4    matModel;
+    mat4    matView;
+    mat4    matProjection;
+
+    vec4    albedoColor;
+    vec4    emissiveColor;
+    vec3    hasTexture;
+    float   ao;
+    float   roughness;
+    float   metalness;
+    int     objectID;
 } shaderData;
 
 // NOT IN USE, LEFT FOR REFERENCE

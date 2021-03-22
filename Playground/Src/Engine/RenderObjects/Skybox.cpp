@@ -137,7 +137,7 @@ void Skybox::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt
 	m_pShaderUniformsMVP->shaderData.projection = FreeCamera::getInstance().m_matProjection;
 	
 	m_pShaderUniformsMVP->shaderData.view = glm::mat4(glm::mat3(FreeCamera::getInstance().m_matView));
-	//m_pShaderUniformsMVP->shaderData.projection[1][1] *= -1.0f;
+	//m_pShaderUniforms->shaderData.projection[1][1] *= -1.0f;
 
 	// Update object ID
 	m_pShaderUniformsMVP->shaderData.objectID = 0;

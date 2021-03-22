@@ -22,7 +22,8 @@ Model::Model(ModelType typeID)
 	m_vecMeshes.clear();
 
 	m_pMaterial = nullptr;
-	m_pShaderUniformsMVP = nullptr;
+
+	m_pShaderUniforms = new ShaderUniforms();
 
 	m_vecPosition = glm::vec3(0);
 	m_vecRotationAxis = glm::vec3(0, 1, 0);
@@ -45,7 +46,7 @@ Model::~Model()
 	m_mapTextures.clear();
 	m_vecMeshes.clear();
 
-	SAFE_DELETE(m_pShaderUniformsMVP);
+	SAFE_DELETE(m_pShaderUniforms);
 	SAFE_DELETE(m_pMaterial);
 }
 
@@ -71,9 +72,9 @@ void Model::UpdateUniformBuffers(VulkanDevice* pDevice, uint32_t index)
 {
 	// Copy View Projection data
 	void* data;
-	vkMapMemory(pDevice->m_vkLogicalDevice, m_pShaderUniformsMVP->vecMemory[index], 0, sizeof(ShaderData), 0, &data);
-	memcpy(data, &m_pShaderUniformsMVP->shaderData, sizeof(ShaderData));
-	vkUnmapMemory(pDevice->m_vkLogicalDevice, m_pShaderUniformsMVP->vecMemory[index]);
+	vkMapMemory(pDevice->m_vkLogicalDevice, m_pShaderUniforms->vecMemory[index], 0, sizeof(ShaderData), 0, &data);
+	memcpy(data, &m_pShaderUniforms->shaderData, sizeof(ShaderData));
+	vkUnmapMemory(pDevice->m_vkLogicalDevice, m_pShaderUniforms->vecMemory[index]);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -98,12 +99,16 @@ std::vector<Mesh> Model::LoadNode(VulkanDevice* device, aiNode* node, const aiSc
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void Model::SetDefaultTexture(aiTextureType eType)
+void Model::SetDefaultValues(aiTextureType eType)
 {
+	// if some texture is missing, we still allow to load the default texture to maintain proper descriptor bindings
+	// in shader. Else we would need to manage that dynamically. In shader, for now, we are using boolean flag to decide
+	// if we read from texture or use the color from Editor! 
 	switch (eType)
 	{
 		case aiTextureType_BASE_COLOR:
 		{
+			m_pShaderUniforms->shaderData.hasTexture.r = 0.0f;
 			m_mapTextures.emplace("MissingAlbedo.png", TextureType::TEXTURE_ALBEDO);
 			LOG_ERROR("BaseColor texture not found, using default texture!");
 			break;
@@ -118,6 +123,7 @@ void Model::SetDefaultTexture(aiTextureType eType)
 
 		case aiTextureType_NORMAL_CAMERA:
 		{
+			m_pShaderUniforms->shaderData.hasTexture.b = 0.0f;
 			m_mapTextures.emplace("MissingNormal.png", TextureType::TEXTURE_NORMAL);
 			LOG_ERROR("Normal texture not found, using default texture!");
 			break;
@@ -139,6 +145,7 @@ void Model::SetDefaultTexture(aiTextureType eType)
 
 		case aiTextureType_EMISSION_COLOR:
 		{
+			m_pShaderUniforms->shaderData.hasTexture.g = 0.0f;
 			m_mapTextures.emplace("MissingEmissive.png", TextureType::TEXTURE_EMISSIVE);
 			LOG_ERROR("Emissive texture not found, using default texture!");
 			break;
@@ -159,12 +166,15 @@ void Model::ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eTyp
 			int idx = std::string(path.data).rfind("\\");
 			std::string fileName = std::string(path.data).substr(idx + 1);
 
+			// Inside shader, if texture is available then we sample texture to get color values else use Color values
+			// provided. For roughness, metalness & AO property, we simply multiply texture color * editor value! 
 			if(!fileName.empty())
 			{
 				switch (eType)
 				{
 					case aiTextureType_BASE_COLOR:
 					{
+						m_pShaderUniforms->shaderData.hasTexture.r = 1.0f;
 						m_mapTextures.emplace(fileName, TextureType::TEXTURE_ALBEDO);
 						break;
 					}
@@ -177,6 +187,7 @@ void Model::ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eTyp
 
 					case aiTextureType_NORMAL_CAMERA:
 					{
+						m_pShaderUniforms->shaderData.hasTexture.b = 1.0f;
 						m_mapTextures.emplace(fileName, TextureType::TEXTURE_NORMAL);
 						break;
 					}
@@ -195,6 +206,7 @@ void Model::ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eTyp
 
 					case aiTextureType_EMISSION_COLOR:
 					{
+						m_pShaderUniforms->shaderData.hasTexture.g = 1.0f;
 						m_mapTextures.emplace(fileName, TextureType::TEXTURE_EMISSIVE);
 						break;
 					}
@@ -203,14 +215,14 @@ void Model::ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eTyp
 			else
 			{
 				// If due to some reasons, texture slot is assigned but no filename is mentioned, load default!
-				SetDefaultTexture(eType);
+				SetDefaultValues(eType);
 			}
 		}
 	}
 	else
 	{
 		// if particular type texture is not available, load default!
-		SetDefaultTexture(eType);
+		SetDefaultValues(eType);
 	}
 }
 
@@ -307,19 +319,19 @@ void Model::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 	m_fAngle = m_fCurrentAngle;
 
 	// Update Model matrix!
-	m_pShaderUniformsMVP->shaderData.model = glm::mat4(1);
-	m_pShaderUniformsMVP->shaderData.model = glm::translate(m_pShaderUniformsMVP->shaderData.model, m_vecPosition);
-	m_pShaderUniformsMVP->shaderData.model = glm::rotate(m_pShaderUniformsMVP->shaderData.model, m_fAngle, m_vecRotationAxis);
-	m_pShaderUniformsMVP->shaderData.model = glm::scale(m_pShaderUniformsMVP->shaderData.model, m_vecScale);
+	m_pShaderUniforms->shaderData.model = glm::mat4(1);
+	m_pShaderUniforms->shaderData.model = glm::translate(m_pShaderUniforms->shaderData.model, m_vecPosition);
+	m_pShaderUniforms->shaderData.model = glm::rotate(m_pShaderUniforms->shaderData.model, m_fAngle, m_vecRotationAxis);
+	m_pShaderUniforms->shaderData.model = glm::scale(m_pShaderUniforms->shaderData.model, m_vecScale);
 
 	// Fetch View & Projection matrices from the Camera!	
-	m_pShaderUniformsMVP->shaderData.projection = FreeCamera::getInstance().m_matProjection;
+	m_pShaderUniforms->shaderData.projection = FreeCamera::getInstance().m_matProjection;
 
-	m_pShaderUniformsMVP->shaderData.view = FreeCamera::getInstance().m_matView;
-	m_pShaderUniformsMVP->shaderData.projection[1][1] *= -1.0f;
+	m_pShaderUniforms->shaderData.view = FreeCamera::getInstance().m_matView;
+	m_pShaderUniforms->shaderData.projection[1][1] *= -1.0f;
 
 	// Update object ID
-	m_pShaderUniformsMVP->shaderData.objectID = static_cast<uint32_t>(m_eType);
+	m_pShaderUniforms->shaderData.objectID = static_cast<uint32_t>(m_eType);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -354,8 +366,7 @@ void Model::Render (VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipeline, ui
 //---------------------------------------------------------------------------------------------------------------------
 void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
-	m_pShaderUniformsMVP = new ShaderUniforms();
-	m_pShaderUniformsMVP->CreateBuffers(pDevice, pSwapchain);
+	m_pShaderUniforms->CreateBuffers(pDevice, pSwapchain);
 
 	// *** Create Descriptor pool
 	std::array<VkDescriptorPoolSize, 3> arrDescriptorPoolSize = {};
@@ -483,7 +494,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	{
 		//-- Uniform Buffer
 		VkDescriptorBufferInfo ubBufferInfo = {};
-		ubBufferInfo.buffer = m_pShaderUniformsMVP->vecBuffer[i];			// buffer to get data from
+		ubBufferInfo.buffer = m_pShaderUniforms->vecBuffer[i];			// buffer to get data from
 		ubBufferInfo.offset = 0;											// position of start of data
 		ubBufferInfo.range = sizeof(ShaderUniforms);						// size of data
 
@@ -621,7 +632,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 //---------------------------------------------------------------------------------------------------------------------
 void Model::Cleanup(VulkanDevice* pDevice)
 {
-	m_pShaderUniformsMVP->Cleanup(pDevice);
+	m_pShaderUniforms->Cleanup(pDevice);
 	m_pMaterial->Cleanup(pDevice);
 
 	std::vector<Mesh>::iterator iter = m_vecMeshes.begin();

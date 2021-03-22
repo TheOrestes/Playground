@@ -23,17 +23,34 @@ struct ShaderData
 {
 	ShaderData()
 	{
-		model = glm::mat4(1);
-		view = glm::mat4(1);
-		projection = glm::mat4(1);
-		objectID = 1;
+		model				= glm::mat4(1);
+		view				= glm::mat4(1);
+		projection			= glm::mat4(1);
+		
+
+		albedoColor			= glm::vec4(0.8f);
+		emissiveColor		= glm::vec4(1,1,0,1);
+		hasTexture			= glm::vec3(0, 0, 0);	
+
+		ao					= 1.0f;
+		roughness			= 0.5f;
+		metalness			= 0.5f;
+		objectID			= 1;
 	}
 
 	// Data Specific
-	glm::mat4							model;
-	glm::mat4							view;
-	glm::mat4							projection;
-	uint32_t							objectID;
+	alignas(64) glm::mat4				model;
+	alignas(64) glm::mat4				view;
+	alignas(64) glm::mat4				projection;
+
+	// Material Properties
+	alignas(16) glm::vec4				albedoColor;
+	alignas(16) glm::vec4				emissiveColor;
+	alignas(16) glm::vec3				hasTexture;		// R-Albedo, G-Emissive, B-Normal
+	alignas(4)  float					ao;
+	alignas(4)	float					roughness;
+	alignas(4)	float					metalness;
+	alignas(4)	uint32_t				objectID;
 };
 //---------------------------------------------------------------------------------------------------------------------
 struct ShaderUniforms
@@ -86,7 +103,7 @@ public:
 private:
 	std::vector<Mesh>					LoadNode(VulkanDevice* device, aiNode* node, const aiScene* scene);
 
-	void								SetDefaultTexture(aiTextureType eType);
+	void								SetDefaultValues(aiTextureType eType);
 	void								ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eType);
 	void								LoadMaterials(VulkanDevice* device, const aiScene* scene);
 	Mesh								LoadMesh(VulkanDevice* device, aiMesh* mesh, const aiScene* scene);
@@ -97,12 +114,13 @@ private:
 
 	ModelType							m_eType;
 	VulkanMaterial*						m_pMaterial;
-	ShaderUniforms*						m_pShaderUniformsMVP;
 
 public:
 	VkDescriptorPool					m_vkDescriptorPool;					// Pool for all descriptors.
 	VkDescriptorSetLayout				m_vkDescriptorSetLayout;			// combination of layouts of uniforms & samplers.
 	std::vector<VkDescriptorSet>		m_vecDescriptorSet;					// combination of sets of uniforms & samplers per swapchain image!
+
+	ShaderUniforms*						m_pShaderUniforms;
 
 private:
 	glm::vec3							m_vecPosition;

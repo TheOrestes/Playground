@@ -10,10 +10,17 @@ layout(location = 4) in vec2 vs_outUV;
 
 layout(set = 0, binding = 0) uniform ShaderData
 {
-    mat4 matModel;
-    mat4 matView;
-    mat4 matProjection;
-    int  objectID;
+    mat4    matModel;
+    mat4    matView;
+    mat4    matProjection;
+
+    vec4    albedoColor;
+    vec4    emissiveColor;
+    vec3    hasTexture;
+    float   ao;
+    float   roughness;
+    float   metalness;
+    int     objectID;
 } shaderData;
 
 // Uniform variable
@@ -36,33 +43,58 @@ layout(location = 6) out vec4 outObjID;         // RGB - ID Color / A - Unused
 
 void main() 
 {
+    vec4 baseColor       = vec4(0.0f);
+    vec4 MetalnessColor  = vec4(0.0f);
+    vec4 NormalColor     = vec4(0.0f);
+    vec4 RoughnessColor  = vec4(0.0f);
+    vec4 AOColor         = vec4(0.0f);
+    vec4 EmissionColor   = vec4(0.0f);
+
     // Sampler Input Textures!
-    vec4 baseColor      = texture(samplerBaseTexture, vs_outUV);
-    vec4 MetalNessColor = texture(samplerMetalnessTexture, vs_outUV);
-    vec4 NormalColor    = texture(samplerNormalTexture, vs_outUV);
-    vec4 RoughnessColor = texture(samplerRoughnessTexture, vs_outUV);
-    vec4 AOColor        = texture(samplerAOTexture, vs_outUV);
-    vec4 EmissionColor  = texture(samplerEmissionTexture, vs_outUV);
+    if(shaderData.hasTexture.r == 1)
+        baseColor       = texture(samplerBaseTexture, vs_outUV);
+    else    
+        baseColor       = shaderData.albedoColor;
 
-    // Calculate normal in Tangent space
-    vec3 N = normalize(vs_outNormal);
-    vec3 T = normalize(vs_outTangent);
-    vec3 B = normalize(cross(N,T));
+    MetalnessColor = texture(samplerMetalnessTexture, vs_outUV) * shaderData.metalness;
+    RoughnessColor = texture(samplerRoughnessTexture, vs_outUV) * shaderData.roughness;
+    AOColor        = texture(samplerAOTexture, vs_outUV) * shaderData.ao;
 
-    mat3 TBN = mat3(T, B, N);
-    vec3 tNormal = TBN * normalize(NormalColor.rgb * 2.0f - vec3(1.0f));
+    if(shaderData.hasTexture.g == 1)
+        EmissionColor   = texture(samplerEmissionTexture, vs_outUV);
+    else
+        EmissionColor   = shaderData.emissiveColor;  
+
+    vec3 Normal = vec3(0);
+    if(shaderData.hasTexture.b == 1)
+    {
+        NormalColor    = texture(samplerNormalTexture, vs_outUV);
+        
+        // Calculate normal in Tangent space
+        vec3 N = normalize(vs_outNormal);
+        vec3 T = normalize(vs_outTangent);
+        vec3 B = normalize(cross(N,T));
+
+        mat3 TBN = mat3(T, B, N);
+        Normal = TBN * normalize(NormalColor.rgb * 2.0f - vec3(1.0f));
+    }
+    else
+    {
+        Normal = normalize(vs_outNormal);
+    }
+    
 
      // Write to Color G-Buffer
     outColor = baseColor;
-
+ 
     // Write to Normal G-Buffer
-    outNormal = vec4(tNormal, 0.0f);
+    outNormal = vec4(Normal, 0.0f);
 
     // Write to Position G-Buffer
     outPosition = vec4(vs_outPosition, 1.0f);
 
     // Write to PBR G-Buffer
-    outPBR = vec4(MetalNessColor.r, RoughnessColor.r, AOColor.r, 0.0f);
+    outPBR = vec4(MetalnessColor.r, RoughnessColor.r, AOColor.r, 0.0f);
 
     // Write to Emission G-Buffer
     outEmission = vec4(EmissionColor.rgb, 0.0f);

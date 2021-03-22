@@ -83,6 +83,14 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 
 	try
 	{
+		LOG_DEBUG("sizeof glm::vec3 = {0}", sizeof(glm::vec3));
+		LOG_DEBUG("sizeof glm::vec4 = {0}", sizeof(glm::vec4));
+		LOG_DEBUG("sizeof glm::mat3 = {0}", sizeof(glm::mat3));
+		LOG_DEBUG("sizeof glm::mat4 = {0}", sizeof(glm::mat4));
+		LOG_DEBUG("sizeof uint32_t = {0}", sizeof(uint32_t));
+		LOG_DEBUG("sizeof float = {0}", sizeof(float));
+		LOG_DEBUG("sizeof bool = {0}", sizeof(bool));
+		
 		CreateInstance();
 		SetupDebugMessenger();
 		CreateSurface();
