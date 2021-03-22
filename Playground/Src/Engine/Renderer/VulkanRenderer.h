@@ -34,8 +34,8 @@ struct DeferredPassShaderData
 	}
 
 	// Data
-	uint32_t	passID;
-	glm::vec3	cameraPosition;
+	alignas(16) glm::vec3	cameraPosition;
+	alignas(4)	uint32_t	passID;
 };
 
 //---------------------------------------------------------------------------------------------------------------------

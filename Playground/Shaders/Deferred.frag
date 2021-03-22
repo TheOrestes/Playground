@@ -16,13 +16,58 @@ layout(input_attachment_index = 7, binding = 7) uniform subpassInput inputObject
 
 layout(set = 0, binding = 8) uniform DeferredShaderData
 {
-    int  passID;
     vec3 cameraPosition;
+    int  passID;
 } shaderData;
 
 // Final color output!
 layout(location = 0) out vec4 outColor;
 
+//---------------------------------------------------------------------------------------------------------------------
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a      = roughness*roughness;
+    float a2     = a*a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+	
+    float num    = a2;
+    float denom  = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom        = PI * denom * denom;
+	
+    return num / denom;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r     = (roughness + 1.0);
+    float k     = (r*r) / 8.0;
+
+    float num   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+	
+    return num / denom;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2  = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1  = GeometrySchlickGGX(NdotL, roughness);
+	
+    return ggx1 * ggx2;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(max(1.0 - cosTheta, 0.0), 5.0);
+}  
+
+//---------------------------------------------------------------------------------------------------------------------
 void main()
 {
     // extract subpass-1 G-Buffer information
@@ -35,34 +80,61 @@ void main()
     vec4 BackgroundColor= subpassLoad(inputBackground).rgba;
     vec4 ObjectIDColor  = subpassLoad(inputObjectID).rgba;
 
+    float Metalness     = PBRColor.r;
+    float Roughness     = PBRColor.g;
+    float Occlusion     = PBRColor.b;
+
     // Remap Depth!
     float lowerBound = 0.98f;
     float upperBound = 1.0f;
     float ScaledDepth = 1.0f - ((Depth-lowerBound)/(upperBound-lowerBound));
 
     //--- 3 Side Direct Lighting
-    vec3 lightDir[3] = { vec3(0.70711, 0.24185, 0.66447), 
-                         vec3(-0.70711, 0.24185, 0.66447), 
-                         vec3(-0.70711, 0.24185, -0.66447)};
+    //vec3 lightDir[3] = { vec3(0.70711, 0.24185, 0.66447), 
+    //                     vec3(0.70711, 0.24185, 0.66447), 
+    //                     vec3(0.70711, 0.24185, 0.66447)};
 
-    float lightIntensity[3] = { 5,5,5};
+    vec3 lightDir[1] = { vec3(1, 1, 1) };
 
+    float lightIntensity[3] = { 2,2,2};
+
+    //-- Shading calculations!
     vec3 Half   = vec3(0);
-    vec4 Lo     = vec4(0);
-    float Kd    = 0.8f;
-    float Ks    = 1 - Kd;
+    vec3 Lo     = vec3(0);
+ 
+    vec3 N      = normalize(NormalColor.xyz);
+    vec3 Eye    = normalize(shaderData.cameraPosition - PositionColor.rgb);
 
-    for(int i = 0 ; i < 3 ; ++i)
-    {
-        vec3 N = normalize(NormalColor.xyz);
-        float diffuse = lightIntensity[i] * clamp(dot(N, lightDir[i]), 0.0f, 1.0f);
+    vec3 F0     = vec3(0.04f);
+    F0          = mix(F0, AlbedoColor.rgb, Metalness);
 
-        vec3 cameraPos = shaderData.cameraPosition;
-        vec3 Eye = normalize(cameraPos - PositionColor.rgb);
+    for(int i = 0 ; i < 1 ; ++i)
+    {   
         Half = normalize(lightDir[i] + Eye);    
 
-        Lo += (Kd * AlbedoColor * PI_INVERSE) * diffuse;
+        float NdotL = max(dot(N, lightDir[i]), 0.0f);
+        float HdotV = max(dot(Half, Eye), 0.0f);
+        float NdotV = max(dot(N, Eye), 0.0f);
+        
+        // Cook-Torrance BRDF
+        float D = DistributionGGX(N, Half, Roughness);
+        float G = GeometrySmith(N, Eye, lightDir[i], Roughness);
+        vec3  F = fresnelSchlick(HdotV, F0);
+
+        vec3 Ks = F;
+        vec3 Kd = vec3(1) - Ks;
+        Kd     *= 1.0f - Metalness;
+
+        vec3 Nr = D * G * F;
+        float Dr = 4.0f * max(NdotV, 0.0f) * NdotL;
+
+        vec3 Specular = Nr / max(Dr, 0.001f);
+
+        Lo += (Kd * AlbedoColor.rgb * PI_INVERSE + Specular) * lightIntensity[i] * NdotL;
     }
+
+    vec3 Ambient = AlbedoColor.rgb * Occlusion;
+    vec3 Color = Ambient + Lo;
     
     // Composite BackgroundColor (Blue channel of ObjectID) + Final Color 
     vec4 FinalColor = vec4(0); 
@@ -70,11 +142,10 @@ void main()
     vec3 blueChannel = vec3(0,0,1); // SKYBOX
 
     if(dot(redChannel, ObjectIDColor.rgb) == 1)
-        FinalColor = Lo;
+        FinalColor = vec4(Color, 1);
     else if(dot(blueChannel, ObjectIDColor.rgb) == 1)
         FinalColor = BackgroundColor;
     
-
     // DEBUG: Individual Passes!
     switch(shaderData.passID)
     {
