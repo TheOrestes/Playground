@@ -36,7 +36,7 @@ void VulkanTexture2D::CreateTexture(VulkanDevice* pDevice, std::string fileName,
 	// Create Image view 
 	m_vkTextureImageView = Helper::Vulkan::CreateImageView(pDevice,
 															m_vkTextureImage,
-															VK_FORMAT_R8G8B8A8_UNORM,
+															VK_FORMAT_R8G8B8A8_SRGB,
 															VK_IMAGE_ASPECT_COLOR_BIT);
 
 	// Create Sampler
@@ -111,7 +111,7 @@ void VulkanTexture2D::CreateTextureImage(VulkanDevice* pDevice, std::string file
 	m_vkTextureImage = Helper::Vulkan::CreateImage(pDevice,
 	                                               m_iTextureWidth,
 	                                               m_iTextureHeight,
-	                                               VK_FORMAT_R8G8B8A8_UNORM,
+												   VK_FORMAT_R8G8B8A8_SRGB,
 	                                               VK_IMAGE_TILING_OPTIMAL,
 	                                               VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
 

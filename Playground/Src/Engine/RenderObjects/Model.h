@@ -28,11 +28,11 @@ struct ShaderData
 		projection			= glm::mat4(1);
 		
 
-		albedoColor			= glm::vec4(0.5f);
+		albedoColor			= glm::vec4(1.0f);
 		emissiveColor		= glm::vec4(1,1,0,1);
 		hasTexture			= glm::vec3(0, 0, 0);	
 
-		ao					= 1.0f;
+		ao					= 0.0f;
 		roughness			= 0.5f;
 		metalness			= 0.5f;
 		objectID			= 1;

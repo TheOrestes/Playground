@@ -80,7 +80,7 @@ void main()
     }
     else
     {
-        Normal = normalize((vs_outNormal + vec3(1)) / 2.0f);
+        Normal = normalize((vs_outNormal));// + vec3(1)) / 2.0f);
     }
     
 

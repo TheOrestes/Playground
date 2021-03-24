@@ -30,11 +30,11 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
     float a2     = a*a;
     float NdotH  = max(dot(N, H), 0.0);
     float NdotH2 = NdotH*NdotH;
-	
+    
     float num    = a2;
     float denom  = (NdotH2 * (a2 - 1.0) + 1.0);
     denom        = PI * denom * denom;
-	
+    
     return num / denom;
 }
 
@@ -46,7 +46,7 @@ float GeometrySchlickGGX(float NdotV, float roughness)
 
     float num   = NdotV;
     float denom = NdotV * (1.0 - k) + k;
-	
+    
     return num / denom;
 }
 
@@ -57,7 +57,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
     float NdotL = max(dot(N, L), 0.0);
     float ggx2  = GeometrySchlickGGX(NdotV, roughness);
     float ggx1  = GeometrySchlickGGX(NdotL, roughness);
-	
+    
     return ggx1 * ggx2;
 }
 
@@ -91,10 +91,10 @@ void main()
 
     //--- 3 Side Direct Lighting
     //vec3 lightDir[3] = { vec3(0.70711, 0.24185, 0.66447), 
-    //                     vec3(0.70711, 0.24185, 0.66447), 
+    //                    vec3(0.70711, 0.24185, 0.66447), 
     //                     vec3(0.70711, 0.24185, 0.66447)};
 
-    vec3 lightDir[1] = { vec3(1, 1, 1) };
+    vec3 lightDir[1] = { vec3(1, 1, 0.5) };
 
     float lightIntensity[3] = { 2,2,2};
 
@@ -135,6 +135,9 @@ void main()
 
     vec3 Ambient = AlbedoColor.rgb * Occlusion;
     vec3 Color = Ambient + Lo;
+
+    Color = Color / (Color + vec3(1));
+    Color = pow(Color, vec3(1.0f/2.2f));
     
     // Composite BackgroundColor (Blue channel of ObjectID) + Final Color 
     vec4 FinalColor = vec4(0); 
