@@ -40,3 +40,5 @@
 # Compiled Shaders
 /Playground/Shaders/*.spv
 /.vs
+Textures
+Models

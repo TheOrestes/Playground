@@ -65,7 +65,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 //---------------------------------------------------------------------------------------------------------------------
 vec3 fresnelSchlick(float cosTheta, vec3 F0)
 {
-    return F0 + (1.0 - F0) * pow(max(1.0 - cosTheta, 0.0), 5.0);
+    return F0 + (1.0f - F0) * pow(1.0f - cosTheta, 5.0f);
 }  
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -98,13 +98,13 @@ void main()
     vec3 N      = normalize(NormalColor.xyz);
     vec3 Eye    = normalize(shaderData.cameraPosition - PositionColor.rgb);
 
-    vec3 LightDir = normalize(shaderData.lightProperties.rgb);
+    vec3 LightDir = -normalize(shaderData.lightProperties.rgb);
     float LightIntensity = shaderData.lightProperties.a;
 
     vec3 F0     = vec3(0.04f);
     F0          = mix(F0, AlbedoColor.rgb, Metalness);
 
-    Half = normalize(LightDir + Eye);    
+    Half = normalize(Eye + LightDir);    
 
     float NdotL = max(dot(N, LightDir), 0.0f);
     float HdotV = max(dot(Half, Eye), 0.0f);
@@ -117,20 +117,20 @@ void main()
 
     vec3 Ks = F;
     vec3 Kd = vec3(1) - Ks;
-    Kd     *= 1.0f - Metalness;
-
+    Kd *= 1.0f - Metalness;
+    
     vec3 Nr = D * G * F;
-    float Dr = 4.0f * max(NdotV, 0.0f) * NdotL;
+    float Dr = 4.0f * NdotV * NdotL;
 
     vec3 Specular = Nr / max(Dr, 0.001f);
 
-    Lo += vec3(NdotL); //(Kd * AlbedoColor.rgb * PI_INVERSE + Specular) * LightIntensity * NdotL;
+    Lo = (Kd * AlbedoColor.rgb * PI_INVERSE + Ks * Specular) * LightIntensity * NdotL;
 
     vec3 Ambient = AlbedoColor.rgb * Occlusion;
-    vec3 Color = /*Ambient + */Lo;
+    vec3 Color = Ambient + Lo;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               Lo;
 
-    //Color = Color / (Color + vec3(1));
-    //Color = pow(Color, vec3(1.0f/2.2f));
+    Color = Color / (Color + vec3(1));
+    Color = pow(Color, vec3(1.0f/2.2f));
     
     // Composite BackgroundColor (Blue channel of ObjectID) + Final Color 
     vec4 FinalColor = vec4(0); 

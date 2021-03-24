@@ -33,11 +33,33 @@ void VulkanTexture2D::CreateTexture(VulkanDevice* pDevice, std::string fileName,
 	// Create texture image 
 	CreateTextureImage(pDevice, fileName);
 
-	// Create Image view 
-	m_vkTextureImageView = Helper::Vulkan::CreateImageView(pDevice,
-															m_vkTextureImage,
-															VK_FORMAT_R8G8B8A8_SRGB,
-															VK_IMAGE_ASPECT_COLOR_BIT);
+	// Create Image view, Treat only Albedo as sRGB texture!
+	switch (m_eTextureType)
+	{
+		case TextureType::TEXTURE_ALBEDO:
+		{
+			m_vkTextureImageView = Helper::Vulkan::CreateImageView(	pDevice, m_vkTextureImage,
+																	VK_FORMAT_R8G8B8A8_SRGB,
+																	VK_IMAGE_ASPECT_COLOR_BIT);
+			
+			break;
+		}
+
+		case TextureType::TEXTURE_NORMAL:
+		case TextureType::TEXTURE_AO:
+		case TextureType::TEXTURE_EMISSIVE:
+		case TextureType::TEXTURE_METALNESS:
+		case TextureType::TEXTURE_ROUGHNESS:
+		case TextureType::TEXTURE_ERROR:
+		{
+			m_vkTextureImageView = Helper::Vulkan::CreateImageView(	pDevice, m_vkTextureImage,
+																	VK_FORMAT_R8G8B8A8_UNORM,
+																	VK_IMAGE_ASPECT_COLOR_BIT);
+			break;
+		}
+	}
+	
+	
 
 	// Create Sampler
 	CreateTextureSampler(pDevice);
@@ -107,13 +129,35 @@ void VulkanTexture2D::CreateTextureImage(VulkanDevice* pDevice, std::string file
 	// Free original image data
 	stbi_image_free(imageData);
 
+	// Treat only Albedo as sRGB texture!
+	switch (m_eTextureType)
+	{
+		case TextureType::TEXTURE_ALBEDO:
+		{
+			m_vkTextureImage = Helper::Vulkan::CreateImage(	pDevice, m_iTextureWidth, m_iTextureHeight,
+															VK_FORMAT_R8G8B8A8_SRGB,
+															VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+															VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
+			break;
+		}
 
-	m_vkTextureImage = Helper::Vulkan::CreateImage(pDevice,
-	                                               m_iTextureWidth,
-	                                               m_iTextureHeight,
-												   VK_FORMAT_R8G8B8A8_SRGB,
-	                                               VK_IMAGE_TILING_OPTIMAL,
-	                                               VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
+		case TextureType::TEXTURE_NORMAL:
+		case TextureType::TEXTURE_AO:
+		case TextureType::TEXTURE_EMISSIVE:
+		case TextureType::TEXTURE_METALNESS:
+		case TextureType::TEXTURE_ROUGHNESS:
+		case TextureType::TEXTURE_ERROR:
+		{
+			m_vkTextureImage = Helper::Vulkan::CreateImage(	pDevice, m_iTextureWidth, m_iTextureHeight,
+															VK_FORMAT_R8G8B8A8_UNORM, 
+															VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
+															VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
+			break;
+		}
+	}
+
+
+	
 
 	// Transition image to be DST for copy operation
 	Helper::Vulkan::TransitionImageLayout(pDevice,

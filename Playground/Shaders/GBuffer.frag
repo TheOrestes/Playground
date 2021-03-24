@@ -16,7 +16,9 @@ layout(set = 0, binding = 0) uniform ShaderData
 
     vec4    albedoColor;
     vec4    emissiveColor;
-    vec3    hasTexture;
+    vec3    hasTextureAEN;
+    vec3    hasTextureRMO;
+
     float   ao;
     float   roughness;
     float   metalness;
@@ -50,26 +52,24 @@ void main()
     vec4 AOColor         = vec4(0.0f);
     vec4 EmissionColor   = vec4(0.0f);
 
-    // Sampler Input Textures!
-    if(shaderData.hasTexture.r == 1)
+    //---- Extract Base Color
+    if(shaderData.hasTextureAEN.r == 1)
         baseColor       = texture(samplerBaseTexture, vs_outUV);
     else    
         baseColor       = shaderData.albedoColor;
 
-    MetalnessColor = texture(samplerMetalnessTexture, vs_outUV) * shaderData.metalness;
-    RoughnessColor = texture(samplerRoughnessTexture, vs_outUV) * shaderData.roughness;
-    AOColor        = texture(samplerAOTexture, vs_outUV) * shaderData.ao;
-
-    if(shaderData.hasTexture.g == 1)
+    //---- Extract Emissive Color
+    if(shaderData.hasTextureAEN.g == 1)
         EmissionColor   = texture(samplerEmissionTexture, vs_outUV);
     else
-        EmissionColor   = shaderData.emissiveColor;  
+        EmissionColor   = shaderData.emissiveColor;
 
+    //---- Extract Normal Color
     vec3 Normal = vec3(0);
-    if(shaderData.hasTexture.b == 1)
+    if(shaderData.hasTextureAEN.b == 1)
     {
-        NormalColor    = texture(samplerNormalTexture, vs_outUV);
-        
+        NormalColor = texture(samplerNormalTexture, vs_outUV);
+          
         // Calculate normal in Tangent space
         vec3 N = normalize(vs_outNormal);
         vec3 T = normalize(vs_outTangent);
@@ -79,10 +79,25 @@ void main()
         Normal = TBN * normalize(NormalColor.rgb * 2.0f - vec3(1.0f));
     }
     else
-    {
         Normal = normalize(((vs_outNormal) + vec3(1)) / 2.0f);
-    }
-    
+
+    //---- Extract Roughness Color
+    if(shaderData.hasTextureRMO.r == 1)
+        RoughnessColor  = texture(samplerRoughnessTexture, vs_outUV);
+    else    
+        RoughnessColor  = vec4(vec3(shaderData.roughness), 1);
+
+    //---- Extract Metalness Color
+    if(shaderData.hasTextureRMO.g == 1)
+        MetalnessColor  = texture(samplerMetalnessTexture, vs_outUV);
+    else    
+        MetalnessColor  = vec4(vec3(shaderData.metalness), 1);
+
+    //---- Extract Occlusion Color
+    if(shaderData.hasTextureRMO.b == 1)
+        AOColor         = texture(samplerAOTexture, vs_outUV);
+    else    
+        AOColor         = vec4(vec3(shaderData.ao), 1);    
 
      // Write to Color G-Buffer
     outColor = baseColor;

@@ -21,7 +21,10 @@ public:
 	void						RenderOpaque(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex);
 	void						RenderSkybox(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex);
 
-	inline std::vector<Model*>	GetModelList() { return m_vecModels; }
+	void						SetLightDirection(const glm::vec3& eulerAngles);
+	
+	inline glm::vec3			GetLightEulerAngles()	{ return m_LightAngleEuler; }
+	inline std::vector<Model*>	GetModelList()			{ return m_vecModels; }
 
 public:
 	glm::vec3					m_LightDirection;
@@ -31,6 +34,7 @@ private:
 	void						LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
 
 private:
+	glm::vec3					m_LightAngleEuler;
 	std::vector<Model*>			m_vecModels;
 };
 

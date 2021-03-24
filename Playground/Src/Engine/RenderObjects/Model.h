@@ -30,7 +30,8 @@ struct ShaderData
 
 		albedoColor			= glm::vec4(1.0f);
 		emissiveColor		= glm::vec4(1,1,0,1);
-		hasTexture			= glm::vec3(0, 0, 0);	
+		hasTextureAEN		= glm::vec3(0, 0, 0);
+		hasTextureRMO		= glm::vec3(0, 0, 0);
 
 		ao					= 0.0f;
 		roughness			= 0.5f;
@@ -46,7 +47,8 @@ struct ShaderData
 	// Material Properties
 	alignas(16) glm::vec4				albedoColor;
 	alignas(16) glm::vec4				emissiveColor;
-	alignas(16) glm::vec3				hasTexture;		// R-Albedo, G-Emissive, B-Normal
+	alignas(16) glm::vec3				hasTextureAEN;		// R-Albedo, G-Emissive, B-Normal
+	alignas(16) glm::vec3				hasTextureRMO;		// R-Roughness, G-Metalness, B-Occlusion
 	alignas(4)  float					ao;
 	alignas(4)	float					roughness;
 	alignas(4)	float					metalness;

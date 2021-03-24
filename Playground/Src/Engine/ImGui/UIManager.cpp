@@ -378,10 +378,10 @@ void UIManager::RenderSceneUI(Scene* pScene)
 	//**** Light UI
 	if (ImGui::CollapsingHeader("Sun Light Properties"))
 	{
-		float direction[3] = { pScene->m_LightDirection.x, pScene->m_LightDirection.y, pScene->m_LightDirection.z };
-		if (ImGui::SliderFloat3("Direction", direction, -1.0f, 1.0f))
+		glm::vec3 angleXYZ = pScene->GetLightEulerAngles();
+		if (ImGui::DragFloat3("Rotation", glm::value_ptr(angleXYZ), 1, -180, 180, "%0.1f"))
 		{
-			pScene->m_LightDirection = glm::vec3(direction[0], direction[1], direction[2]);
+			pScene->SetLightDirection(angleXYZ);
 		}
 
 		float intensity = pScene->m_LightIntensity;

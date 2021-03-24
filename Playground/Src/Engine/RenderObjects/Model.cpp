@@ -108,22 +108,23 @@ void Model::SetDefaultValues(aiTextureType eType)
 	{
 		case aiTextureType_BASE_COLOR:
 		{
-			m_pShaderUniforms->shaderData.hasTexture.r = 0.0f;
+			m_pShaderUniforms->shaderData.hasTextureAEN.r = 0.0f;
 			m_mapTextures.emplace("MissingAlbedo.png", TextureType::TEXTURE_ALBEDO);
 			LOG_ERROR("BaseColor texture not found, using default texture!");
 			break;
 		}
-
-		case aiTextureType_METALNESS:
+		
+		case aiTextureType_EMISSION_COLOR:
 		{
-			m_mapTextures.emplace("MissingMetalness.png", TextureType::TEXTURE_METALNESS);
-			LOG_ERROR("Metalness texture not found, using default texture!");
+			m_pShaderUniforms->shaderData.hasTextureAEN.g = 0.0f;
+			m_mapTextures.emplace("MissingEmissive.png", TextureType::TEXTURE_EMISSIVE);
+			LOG_ERROR("Emissive texture not found, using default texture!");
 			break;
 		}
 
 		case aiTextureType_NORMAL_CAMERA:
 		{
-			m_pShaderUniforms->shaderData.hasTexture.b = 0.0f;
+			m_pShaderUniforms->shaderData.hasTextureAEN.b = 0.0f;
 			m_mapTextures.emplace("MissingNormal.png", TextureType::TEXTURE_NORMAL);
 			LOG_ERROR("Normal texture not found, using default texture!");
 			break;
@@ -131,23 +132,25 @@ void Model::SetDefaultValues(aiTextureType eType)
 
 		case aiTextureType_DIFFUSE_ROUGHNESS:
 		{
+			m_pShaderUniforms->shaderData.hasTextureRMO.r = 0.0f;
 			m_mapTextures.emplace("MissingRoughness.png", TextureType::TEXTURE_ROUGHNESS);
 			LOG_ERROR("Roughness texture not found, using default texture!");
 			break;
 		}
-
-		case aiTextureType_AMBIENT_OCCLUSION:
+		
+		case aiTextureType_METALNESS:
 		{
-			m_mapTextures.emplace("MissingAO.png", TextureType::TEXTURE_AO);
-			LOG_ERROR("AO texture not found, using default texture!");
+			m_pShaderUniforms->shaderData.hasTextureRMO.g = 0.0f;
+			m_mapTextures.emplace("MissingMetalness.png", TextureType::TEXTURE_METALNESS);
+			LOG_ERROR("Metalness texture not found, using default texture!");
 			break;
 		}
-
-		case aiTextureType_EMISSION_COLOR:
+		
+		case aiTextureType_AMBIENT_OCCLUSION:
 		{
-			m_pShaderUniforms->shaderData.hasTexture.g = 0.0f;
-			m_mapTextures.emplace("MissingEmissive.png", TextureType::TEXTURE_EMISSIVE);
-			LOG_ERROR("Emissive texture not found, using default texture!");
+			m_pShaderUniforms->shaderData.hasTextureRMO.b = 0.0f;
+			m_mapTextures.emplace("MissingAO.png", TextureType::TEXTURE_AO);
+			LOG_ERROR("AO texture not found, using default texture!");
 			break;
 		}
 	}
@@ -174,42 +177,47 @@ void Model::ExtractTextureFromMaterial(aiMaterial* pMaterial, aiTextureType eTyp
 				{
 					case aiTextureType_BASE_COLOR:
 					{
-						m_pShaderUniforms->shaderData.hasTexture.r = 1.0f;
+						m_pShaderUniforms->shaderData.hasTextureAEN.r = 1.0f;
 						m_mapTextures.emplace(fileName, TextureType::TEXTURE_ALBEDO);
 						break;
 					}
 
-					case aiTextureType_METALNESS:
+					case aiTextureType_EMISSION_COLOR:
 					{
-						m_mapTextures.emplace(fileName, TextureType::TEXTURE_METALNESS);
+						m_pShaderUniforms->shaderData.hasTextureAEN.g = 1.0f;
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_EMISSIVE);
 						break;
 					}
 
 					case aiTextureType_NORMAL_CAMERA:
 					{
-						m_pShaderUniforms->shaderData.hasTexture.b = 1.0f;
+						m_pShaderUniforms->shaderData.hasTextureAEN.b = 1.0f;
 						m_mapTextures.emplace(fileName, TextureType::TEXTURE_NORMAL);
 						break;
 					}
 
 					case aiTextureType_DIFFUSE_ROUGHNESS:
 					{
+						m_pShaderUniforms->shaderData.hasTextureRMO.r = 1.0f;
 						m_mapTextures.emplace(fileName, TextureType::TEXTURE_ROUGHNESS);
 						break;
 					}
-
+					
+					case aiTextureType_METALNESS:
+					{
+						m_pShaderUniforms->shaderData.hasTextureRMO.g = 1.0f;
+						m_mapTextures.emplace(fileName, TextureType::TEXTURE_METALNESS);
+						break;
+					}
+					
 					case aiTextureType_AMBIENT_OCCLUSION:
 					{
+						m_pShaderUniforms->shaderData.hasTextureRMO.b = 1.0f;
 						m_mapTextures.emplace(fileName, TextureType::TEXTURE_AO);
 						break;
 					}
 
-					case aiTextureType_EMISSION_COLOR:
-					{
-						m_pShaderUniforms->shaderData.hasTexture.g = 1.0f;
-						m_mapTextures.emplace(fileName, TextureType::TEXTURE_EMISSIVE);
-						break;
-					}
+					
 				}
 			}
 			else

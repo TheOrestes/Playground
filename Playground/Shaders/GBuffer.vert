@@ -15,7 +15,8 @@ layout(set = 0, binding = 0) uniform ShaderData
 
     vec4    albedoColor;
     vec4    emissiveColor;
-    vec3    hasTexture;
+    vec3    hasTextureAEN;
+    vec3    hasTextureRMO;
     float   ao;
     float   roughness;
     float   metalness;

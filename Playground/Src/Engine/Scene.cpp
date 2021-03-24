@@ -1,6 +1,8 @@
 #include "PlaygroundPCH.h"
 #include "Scene.h"
 
+#include "glm/gtc/matrix_access.hpp"
+
 #include "Renderer/VulkanDevice.h"
 #include "Renderer/VulkanSwapChain.h"
 #include "Renderer/VulkanGraphicsPipeline.h"
@@ -27,7 +29,9 @@ void Scene::LoadScene(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	LoadModels(pDevice, pSwapchain);
 
 	// Set light properties
-	m_LightDirection = glm::vec3(1);
+	m_LightAngleEuler = glm::vec3(-90,0,0);
+	SetLightDirection(m_LightAngleEuler);
+	
 	m_LightIntensity = 1.0f;
 }
 
@@ -64,11 +68,20 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	// Load Color Sphere
 	Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
 	pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
-	pModelSphereColor->SetPosition(glm::vec3(0, 2.5, 0));
-	pModelSphereColor->SetScale(glm::vec3(4.0f));
+	pModelSphereColor->SetPosition(glm::vec3(5, 2.5, 0));
+	pModelSphereColor->SetScale(glm::vec3(0.75f));
 	pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
 	
 	m_vecModels.push_back(pModelSphereColor);
+
+	// Load Rust Sphere
+	Model* pModelSphereRust = new Model(ModelType::STATIC_OPAQUE);
+	pModelSphereRust->LoadModel(pDevice, "Models/Sphere_Rust.fbx");
+	pModelSphereRust->SetPosition(glm::vec3(-5, 2.5, 0));
+	pModelSphereRust->SetScale(glm::vec3(1.0f));
+	pModelSphereRust->SetupDescriptors(pDevice, pSwapchain);
+
+	m_vecModels.push_back(pModelSphereRust);
 
 	// Load WoodenFloor Model
 	Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);
@@ -129,6 +142,19 @@ void Scene::RenderOpaque(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline
 void Scene::RenderSkybox(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex)
 {
 	Skybox::getInstance().Render(pDevice, pPipline, imageIndex);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Scene::SetLightDirection(const glm::vec3& eulerAngles)
+{
+	m_LightAngleEuler = eulerAngles;
+
+	glm::mat4 rotateXYZ = glm::mat4(1);
+	rotateXYZ = glm::rotate(rotateXYZ, glm::radians(m_LightAngleEuler.z), glm::vec3(0, 0, 1));
+	rotateXYZ = glm::rotate(rotateXYZ, glm::radians(m_LightAngleEuler.y), glm::vec3(0, 1, 0));
+	rotateXYZ = glm::rotate(rotateXYZ, glm::radians(m_LightAngleEuler.x), glm::vec3(1, 0, 0));
+
+	m_LightDirection = glm::column(rotateXYZ, 1);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

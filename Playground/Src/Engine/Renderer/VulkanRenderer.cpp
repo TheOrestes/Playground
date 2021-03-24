@@ -159,8 +159,7 @@ void VulkanRenderer::Update(float dt)
 	// Contains : PassID | CameraPosition
 	m_pDeferredUniforms->shaderData.cameraPosition = FreeCamera::getInstance().m_vecPosition;
 	m_pDeferredUniforms->shaderData.lightProperties = glm::vec4(m_pScene->m_LightDirection, m_pScene->m_LightIntensity);
-	m_pDeferredUniforms->shaderData.passID = UIManager::getInstance().m_iPassID;
-	
+	m_pDeferredUniforms->shaderData.passID = UIManager::getInstance().m_iPassID;	
 }
 
 //---------------------------------------------------------------------------------------------------------------------
