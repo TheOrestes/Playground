@@ -25,6 +25,10 @@ void Scene::LoadScene(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 {
 	// Load all 3D models...
 	LoadModels(pDevice, pSwapchain);
+
+	// Set light properties
+	m_LightDirection = glm::vec3(1);
+	m_LightIntensity = 1.0f;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -49,22 +53,22 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	//m_vecModels.push_back(pModelAnt);
 
 	// Load Leather Sphere
-	Model* pModelSphereLeather = new Model(ModelType::STATIC_OPAQUE);
-	pModelSphereLeather->LoadModel(pDevice, "Models/Sphere.fbx");
-	pModelSphereLeather->SetPosition(glm::vec3(0, 1, 0));
-	pModelSphereLeather->SetScale(glm::vec3(1.0f));
-	pModelSphereLeather->SetupDescriptors(pDevice, pSwapchain);
-	
-	m_vecModels.push_back(pModelSphereLeather);
+	//Model* pModelSphereLeather = new Model(ModelType::STATIC_OPAQUE);
+	//pModelSphereLeather->LoadModel(pDevice, "Models/Sphere.fbx");
+	//pModelSphereLeather->SetPosition(glm::vec3(0, 1, 0));
+	//pModelSphereLeather->SetScale(glm::vec3(1.0f));
+	//pModelSphereLeather->SetupDescriptors(pDevice, pSwapchain);
+	//
+	//m_vecModels.push_back(pModelSphereLeather);
 
 	// Load Color Sphere
-	//Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
-	//pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
-	//pModelSphereColor->SetPosition(glm::vec3(0, 2.5, 0));
-	//pModelSphereColor->SetScale(glm::vec3(1.0f));
-	//pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
-	//
-	//m_vecModels.push_back(pModelSphereColor);
+	Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
+	pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
+	pModelSphereColor->SetPosition(glm::vec3(0, 2.5, 0));
+	pModelSphereColor->SetScale(glm::vec3(4.0f));
+	pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
+	
+	m_vecModels.push_back(pModelSphereColor);
 
 	// Load WoodenFloor Model
 	Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);

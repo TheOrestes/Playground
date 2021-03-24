@@ -277,7 +277,6 @@ void UIManager::RenderSceneUI(Scene* pScene)
 	if(ImGui::CollapsingHeader("Scene Objects"))
 	{
 		// All 3D Models!
-		
 		for (uint32_t i = 0 ; i < pScene->GetModelList().size() ; ++i)
 		{
 			ImGui::PushID(i);
@@ -371,12 +370,28 @@ void UIManager::RenderSceneUI(Scene* pScene)
 
 				ImGui::TreePop();
 			}
-
+			
 			ImGui::PopID();
 		}
 	}
 
-	
+	//**** Light UI
+	if (ImGui::CollapsingHeader("Sun Light Properties"))
+	{
+		float direction[3] = { pScene->m_LightDirection.x, pScene->m_LightDirection.y, pScene->m_LightDirection.z };
+		if (ImGui::SliderFloat3("Direction", direction, -1.0f, 1.0f))
+		{
+			pScene->m_LightDirection = glm::vec3(direction[0], direction[1], direction[2]);
+		}
+
+		float intensity = pScene->m_LightIntensity;
+		if (ImGui::SliderFloat("Intensity", &intensity, 0.01f, 10.0f))
+		{
+			pScene->m_LightIntensity = intensity;
+		}
+	}
+
+	//**** Debugging UI
 	if (ImGui::CollapsingHeader("Debug G-Buffer"))	
 	{
 		const char* arr[] = { "FINAL", "ALBEDO", "DEPTH", "POSITION", "NORMAL", "METALNESS", "ROUGHNESS", "AO", "EMISSION", "BACKGROUND", "OBJECTID" };

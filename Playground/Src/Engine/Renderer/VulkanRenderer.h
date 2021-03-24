@@ -29,11 +29,13 @@ struct DeferredPassShaderData
 {
 	DeferredPassShaderData()
 	{
-		passID = 0;
+		lightProperties = glm::vec4(1);
 		cameraPosition = glm::vec3(0);
+		passID = 0;
 	}
 
 	// Data
+	alignas(16) glm::vec4	lightProperties;	// RGB - Direction, A - Intensity
 	alignas(16) glm::vec3	cameraPosition;
 	alignas(4)	uint32_t	passID;
 };

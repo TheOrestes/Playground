@@ -16,6 +16,7 @@ layout(input_attachment_index = 7, binding = 7) uniform subpassInput inputObject
 
 layout(set = 0, binding = 8) uniform DeferredShaderData
 {
+    vec4 lightProperties;   // RGB - Direction, A - Intensity
     vec3 cameraPosition;
     int  passID;
 } shaderData;
@@ -89,14 +90,6 @@ void main()
     float upperBound = 1.0f;
     float ScaledDepth = 1.0f - ((Depth-lowerBound)/(upperBound-lowerBound));
 
-    //--- 3 Side Direct Lighting
-    //vec3 lightDir[3] = { vec3(0.70711, 0.24185, 0.66447), 
-    //                    vec3(0.70711, 0.24185, 0.66447), 
-    //                     vec3(0.70711, 0.24185, 0.66447)};
-
-    vec3 lightDir[1] = { vec3(1, 1, 0.5) };
-
-    float lightIntensity[3] = { 2,2,2};
 
     //-- Shading calculations!
     vec3 Half   = vec3(0);
@@ -105,39 +98,39 @@ void main()
     vec3 N      = normalize(NormalColor.xyz);
     vec3 Eye    = normalize(shaderData.cameraPosition - PositionColor.rgb);
 
+    vec3 LightDir = normalize(shaderData.lightProperties.rgb);
+    float LightIntensity = shaderData.lightProperties.a;
+
     vec3 F0     = vec3(0.04f);
     F0          = mix(F0, AlbedoColor.rgb, Metalness);
 
-    for(int i = 0 ; i < 1 ; ++i)
-    {   
-        Half = normalize(lightDir[i] + Eye);    
+    Half = normalize(LightDir + Eye);    
 
-        float NdotL = max(dot(N, lightDir[i]), 0.0f);
-        float HdotV = max(dot(Half, Eye), 0.0f);
-        float NdotV = max(dot(N, Eye), 0.0f);
-        
-        // Cook-Torrance BRDF
-        float D = DistributionGGX(N, Half, Roughness);
-        float G = GeometrySmith(N, Eye, lightDir[i], Roughness);
-        vec3  F = fresnelSchlick(HdotV, F0);
+    float NdotL = max(dot(N, LightDir), 0.0f);
+    float HdotV = max(dot(Half, Eye), 0.0f);
+    float NdotV = max(dot(N, Eye), 0.0f);
+    
+    // Cook-Torrance BRDF
+    float D = DistributionGGX(N, Half, Roughness);
+    float G = GeometrySmith(N, Eye, LightDir, Roughness);
+    vec3  F = fresnelSchlick(HdotV, F0);
 
-        vec3 Ks = F;
-        vec3 Kd = vec3(1) - Ks;
-        Kd     *= 1.0f - Metalness;
+    vec3 Ks = F;
+    vec3 Kd = vec3(1) - Ks;
+    Kd     *= 1.0f - Metalness;
 
-        vec3 Nr = D * G * F;
-        float Dr = 4.0f * max(NdotV, 0.0f) * NdotL;
+    vec3 Nr = D * G * F;
+    float Dr = 4.0f * max(NdotV, 0.0f) * NdotL;
 
-        vec3 Specular = Nr / max(Dr, 0.001f);
+    vec3 Specular = Nr / max(Dr, 0.001f);
 
-        Lo += (Kd * AlbedoColor.rgb * PI_INVERSE + Specular) * lightIntensity[i] * NdotL;
-    }
+    Lo += vec3(NdotL); //(Kd * AlbedoColor.rgb * PI_INVERSE + Specular) * LightIntensity * NdotL;
 
     vec3 Ambient = AlbedoColor.rgb * Occlusion;
-    vec3 Color = Ambient + Lo;
+    vec3 Color = /*Ambient + */Lo;
 
-    Color = Color / (Color + vec3(1));
-    Color = pow(Color, vec3(1.0f/2.2f));
+    //Color = Color / (Color + vec3(1));
+    //Color = pow(Color, vec3(1.0f/2.2f));
     
     // Composite BackgroundColor (Blue channel of ObjectID) + Final Color 
     vec4 FinalColor = vec4(0); 

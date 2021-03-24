@@ -1,5 +1,7 @@
 #pragma once
 
+#include "glm/glm.hpp"
+
 class VulkanDevice;
 class VulkanSwapChain;
 class VulkanGraphicsPipeline;
@@ -20,6 +22,10 @@ public:
 	void						RenderSkybox(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex);
 
 	inline std::vector<Model*>	GetModelList() { return m_vecModels; }
+
+public:
+	glm::vec3					m_LightDirection;
+	float						m_LightIntensity;
 
 private:
 	void						LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
