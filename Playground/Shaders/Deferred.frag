@@ -66,7 +66,35 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 vec3 fresnelSchlick(float cosTheta, vec3 F0)
 {
     return F0 + (1.0f - F0) * pow(1.0f - cosTheta, 5.0f);
-}  
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+vec3 BRDF(vec3 L, vec3 V, vec3 N, vec3 F, float roughness)
+{
+    vec3 H      = normalize(V+L);
+    float NdotL = max(dot(N,L), 0.0f);
+    float NdotV = max(dot(N,V), 0.0f);
+    float LdotH = max(dot(L,H), 0.0f);
+    float NdotH = max(dot(N,H), 0.0f);
+
+    vec3 outColor = vec3(0);
+
+    if(NdotL > 0)
+    {
+         // Cook-Torrance BRDF
+        float D = DistributionGGX(N, H, roughness);
+        float G = GeometrySmith(N, V, L, roughness);
+
+        vec3 Nr = D * G * F;
+        float Dr = 4.0f * NdotV * NdotL;
+
+        vec3 Specular = Nr / max(Dr, 0.001f);
+
+        outColor += Specular * NdotL;
+    }
+
+    return outColor;
+}
 
 //---------------------------------------------------------------------------------------------------------------------
 void main()
@@ -86,51 +114,41 @@ void main()
     float Occlusion     = PBRColor.b;
 
     // Remap Depth!
-    float lowerBound = 0.98f;
-    float upperBound = 1.0f;
-    float ScaledDepth = 1.0f - ((Depth-lowerBound)/(upperBound-lowerBound));
-
+    float lowerBound    = 0.98f;
+    float upperBound    = 1.0f;
+    float ScaledDepth   = 1.0f - ((Depth-lowerBound)/(upperBound-lowerBound));
 
     //-- Shading calculations!
-    vec3 Half   = vec3(0);
     vec3 Lo     = vec3(0);
- 
+
     vec3 N      = normalize(NormalColor.xyz);
     vec3 Eye    = normalize(shaderData.cameraPosition - PositionColor.rgb);
 
-    vec3 LightDir = -normalize(shaderData.lightProperties.rgb);
+    vec3 LightDir        = -normalize(shaderData.lightProperties.rgb);
     float LightIntensity = shaderData.lightProperties.a;
 
+    // Fresnel factor!
     vec3 F0     = vec3(0.04f);
     F0          = mix(F0, AlbedoColor.rgb, Metalness);
+    vec3 F      = fresnelSchlick(max(dot(N,Eye), 0.0), F0);
 
-    Half = normalize(Eye + LightDir);    
+    // Specular Contribution for all lights in the scene! 
+    for(int i = 0; i < 1 ; i++)
+    {
+        Lo += BRDF(LightDir, Eye, N, F, Roughness);
+    }
 
-    float NdotL = max(dot(N, LightDir), 0.0f);
-    float HdotV = max(dot(Half, Eye), 0.0f);
-    float NdotV = max(dot(N, Eye), 0.0f);
-    
-    // Cook-Torrance BRDF
-    float D = DistributionGGX(N, Half, Roughness);
-    float G = GeometrySmith(N, Eye, LightDir, Roughness);
-    vec3  F = fresnelSchlick(HdotV, F0);
-
+    // Fresnel affects spec affects diffuse => energy conservation!
     vec3 Ks = F;
     vec3 Kd = vec3(1) - Ks;
     Kd *= 1.0f - Metalness;
-    
-    vec3 Nr = D * G * F;
-    float Dr = 4.0f * NdotV * NdotL;
-
-    vec3 Specular = Nr / max(Dr, 0.001f);
-
-    Lo = (Kd * AlbedoColor.rgb * PI_INVERSE + Ks * Specular) * LightIntensity * NdotL;
 
     vec3 Ambient = AlbedoColor.rgb * Occlusion;
-    vec3 Color = Ambient + Lo;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               Lo;
+    vec3 Color = Ambient + (Kd * AlbedoColor.rgb * PI_INVERSE + Ks * Lo) * LightIntensity;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 
+    // Gamma Correction!
     Color = Color / (Color + vec3(1));
-    Color = pow(Color, vec3(1.0f/2.2f));
+    Color = pow(Color, vec3(0.4545f));
     
     // Composite BackgroundColor (Blue channel of ObjectID) + Final Color 
     vec4 FinalColor = vec4(0); 
