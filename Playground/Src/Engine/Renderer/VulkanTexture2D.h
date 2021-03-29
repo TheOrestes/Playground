@@ -31,7 +31,6 @@ public:
 	VkImageLayout						m_vkTextureImageLayout;
 	VkDeviceMemory						m_vkTextureImageMemory;
 	VkSampler							m_vkTextureSampler;
-	VkDescriptorImageInfo				m_vkTextureImageDescriptorInfo;
 
 private:
 	unsigned char*						LoadTextureFile(VulkanDevice* pDevice, std::string fileName);

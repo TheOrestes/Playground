@@ -615,8 +615,8 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		//-- Cubemap Texture
 		VkDescriptorImageInfo cubemapImageInfo = {};
 		cubemapImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
-		cubemapImageInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkTextureImageView;
-		cubemapImageInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkTextureSampler;
+		cubemapImageInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewCUBE;
+		cubemapImageInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerCUBE;
 
 		// Descriptor write info
 		VkWriteDescriptorSet cubemapSetWrite = {};

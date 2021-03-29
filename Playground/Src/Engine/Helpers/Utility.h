@@ -274,7 +274,7 @@ namespace Helper
 			imageCreateInfo.extent.width = width;									// width of image extent
 			imageCreateInfo.extent.height = height;									// height of image extent
 			imageCreateInfo.extent.depth = 1;										// depth of image ( just 1, no 3D aspect) 
-			imageCreateInfo.mipLevels = 1;											// number of mipmap levels
+			imageCreateInfo.mipLevels = 1;									// number of mipmap levels
 			imageCreateInfo.arrayLayers = 6;										// 6 levels in image array for cubemap!
 			imageCreateInfo.format = format;										// format type of image	
 			imageCreateInfo.tiling = tiling;										// how image data should be tiled

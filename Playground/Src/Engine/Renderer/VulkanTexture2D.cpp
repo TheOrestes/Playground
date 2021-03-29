@@ -16,7 +16,6 @@ VulkanTexture2D::VulkanTexture2D()
 	m_vkTextureImageMemory			=	VK_NULL_HANDLE;
 	m_vkTextureDeviceSize			=	VK_NULL_HANDLE;
 	m_vkTextureSampler				=	VK_NULL_HANDLE;
-	m_vkTextureImageDescriptorInfo	=	{};
 }
 
 //---------------------------------------------------------------------------------------------------------------------

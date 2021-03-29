@@ -75,10 +75,11 @@ private:
 	void								CreateIndexBuffer(VulkanDevice* pDevice);
 
 public:
-	VulkanTextureCUBE*					m_pCubemap;
-	VkDescriptorPool					m_vkDescriptorPool;					// Pool for all descriptors.
-	VkDescriptorSetLayout				m_vkDescriptorSetLayout;			// combination of layouts of uniforms & samplers.
-	std::vector<VkDescriptorSet>		m_vecDescriptorSet;					// combination of sets of uniforms & samplers per swapchain image!
+	VulkanTextureCUBE*					m_pCubemap;						
+	VulkanTextureCUBE*					m_pIrradianceCubemap;
+	VkDescriptorPool					m_vkDescriptorPool;					
+	VkDescriptorSetLayout				m_vkDescriptorSetLayout;			
+	std::vector<VkDescriptorSet>		m_vecDescriptorSet;					
 
 private:
 	std::vector<Helper::App::VertexP>	m_vecVertices;
