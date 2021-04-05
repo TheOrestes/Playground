@@ -406,9 +406,9 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	m_pGraphicsPipelineGBuffer = new VulkanGraphicsPipeline(PipelineType::GBUFFER_OPAQUE, m_pSwapChain);
 
 	std::vector<VkDescriptorSetLayout> setLayouts = { m_pScene->GetModelList().at(0)->m_vkDescriptorSetLayout };
-	VkPushConstantRange pushConstantRange = {};
+	std::vector<VkPushConstantRange> pushConstantRanges = {};
 
-	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRange);
+	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRanges);
 	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
 
 	//----- Create SKYBOX Graphics Pipeline!
@@ -416,7 +416,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	
 	std::vector<VkDescriptorSetLayout> setLayoutsSkybox = { Skybox::getInstance().m_vkDescriptorSetLayout };
 
-	m_pGraphicsPipelineSkybox->CreatePipelineLayout(m_pDevice, setLayoutsSkybox, pushConstantRange);
+	m_pGraphicsPipelineSkybox->CreatePipelineLayout(m_pDevice, setLayoutsSkybox, pushConstantRanges);
 	m_pGraphicsPipelineSkybox->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
 	
 	//----- Create GBUFFER_BEAUTY Graphics pipeline!
@@ -495,7 +495,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 
 	std::vector<VkDescriptorSetLayout> deferredSetLayouts = { m_vkDeferredPassDescriptorSetLayout };
 
-	m_pGraphicsPipelineDeferred->CreatePipelineLayout(m_pDevice, deferredSetLayouts, pushConstantRange);
+	m_pGraphicsPipelineDeferred->CreatePipelineLayout(m_pDevice, deferredSetLayouts, pushConstantRanges);
 	m_pGraphicsPipelineDeferred->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 1, 1);
 }
 

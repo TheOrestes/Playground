@@ -24,11 +24,6 @@ layout(set = 0, binding = 0) uniform ShaderData
 } shaderData;
 
 // NOT IN USE, LEFT FOR REFERENCE
-// layout(set = 0, binding = 1) uniform UboModel
-// {
-//     mat4 matModel;
-// } uboModel;
-
 //layout (push_constant) uniform PushModel
 //{
 //    mat4 matModel;

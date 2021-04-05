@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Engine\RenderObjects\DummySkybox.cpp" />
     <ClCompile Include="Src\Engine\Scene.cpp" />
     <ClCompile Include="Src\Engine\Helpers\FreeCamera.cpp" />
     <ClCompile Include="Src\Application.cpp" />
@@ -44,6 +45,7 @@
     <ClCompile Include="Src\Engine\RenderObjects\Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Engine\RenderObjects\DummySkybox.h" />
     <ClInclude Include="Src\Engine\Scene.h" />
     <ClInclude Include="Src\Engine\Helpers\FreeCamera.h" />
     <ClInclude Include="Src\Application.h" />
@@ -73,6 +75,10 @@
     <ClInclude Include="Src\Engine\Renderer\VulkanFrameBuffer.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanTextureCUBE.h" />
     <ClInclude Include="Src\Engine\RenderObjects\Skybox.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\PreFilterCube.frag" />
+    <None Include="Shaders\PreFilterCube.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

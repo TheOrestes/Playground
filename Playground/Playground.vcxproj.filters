@@ -93,6 +93,9 @@
     <ClCompile Include="Src\Engine\RenderObjects\Skybox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Engine\RenderObjects\DummySkybox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Src\PlaygroundPCH.h">
@@ -182,5 +185,12 @@
     <ClInclude Include="Src\Engine\RenderObjects\Skybox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Src\Engine\RenderObjects\DummySkybox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\PreFilterCube.vert" />
+    <None Include="Shaders\PreFilterCube.frag" />
   </ItemGroup>
 </Project>

@@ -9,6 +9,7 @@ enum class PipelineType
 {
 	GBUFFER_OPAQUE,
 	SKYBOX,
+	IRRADIANCE_CUBE,
 	DEFERRED
 };
 
@@ -19,7 +20,7 @@ public:
 	~VulkanGraphicsPipeline();
 
 	void												CreatePipelineLayout(VulkanDevice* pDevice, const std::vector<VkDescriptorSetLayout>& layouts, 
-																			VkPushConstantRange pushConstantRange);
+																			const std::vector<VkPushConstantRange> pushConstantRanges);
 														
 	void												CreateGraphicsPipeline(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, 
 																				VkRenderPass renderPass, uint32_t subPass, uint32_t nOutputAttachments);

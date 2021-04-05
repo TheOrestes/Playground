@@ -112,6 +112,7 @@ void Skybox::CreateSkybox(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	// Load Cubemap!
 	m_pCubemap = new VulkanTextureCUBE();
 	m_pCubemap->CreateTextureCUBE(pDevice, "Yokohama2");
+	m_pCubemap->CreateIrradianceCUBE(pDevice, pSwapchain, 64);
 
 	// Setup descriptors!
 	SetupDescriptors(pDevice, pSwapchain);
