@@ -388,8 +388,6 @@ void VulkanTextureCUBE::CreateIrradianceCUBE(VulkanDevice* pDevice, VulkanSwapCh
 	// Cleanup!
 	vkDestroyRenderPass(pDevice->m_vkLogicalDevice, m_vkRenderPassIRRAD, nullptr);
 	vkDestroyFramebuffer(pDevice->m_vkLogicalDevice, m_vkFramebufferIRRAD, nullptr);
-	vkDestroyImageView(pDevice->m_vkLogicalDevice, m_vkImageViewIRRAD, nullptr);
-	vkDestroyImage(pDevice->m_vkLogicalDevice, m_vkImageIRRAD, nullptr);
 	vkDestroyImageView(pDevice->m_vkLogicalDevice, m_vkImageViewOffscreen, nullptr);
 	vkDestroyImage(pDevice->m_vkLogicalDevice, m_vkImageOffscreen, nullptr);
 	vkDestroyDescriptorPool(pDevice->m_vkLogicalDevice, m_vkDescPoolIRRAD, nullptr);
@@ -405,6 +403,9 @@ void VulkanTextureCUBE::Cleanup(VulkanDevice* pDevice)
 	vkDestroyImageView(pDevice->m_vkLogicalDevice, m_vkImageViewCUBE, nullptr);
 
 	vkDestroyImage(pDevice->m_vkLogicalDevice, m_vkImageCUBE, nullptr);
+
+	vkDestroyImageView(pDevice->m_vkLogicalDevice, m_vkImageViewIRRAD, nullptr);
+	vkDestroyImage(pDevice->m_vkLogicalDevice, m_vkImageIRRAD, nullptr);
 
 	vkFreeMemory(pDevice->m_vkLogicalDevice, m_vkImageMemoryCUBE, nullptr);
 	vkFreeMemory(pDevice->m_vkLogicalDevice, m_vkImageMemoryIRRAD, nullptr);

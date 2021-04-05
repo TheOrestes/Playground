@@ -33,6 +33,7 @@ layout(set = 0, binding = 4) uniform sampler2D   samplerRoughnessTexture;
 layout(set = 0, binding = 5) uniform sampler2D   samplerAOTexture;
 layout(set = 0, binding = 6) uniform sampler2D   samplerEmissionTexture;
 layout(set = 0, binding = 7) uniform samplerCube samplerCubemapTexture;
+layout(set = 0, binding = 8) uniform samplerCube samplerIrradianceTexture;
 
 // output to second subpass!
 layout(location = 0) out vec4 outColor;
@@ -51,6 +52,7 @@ void main()
     vec4 RoughnessColor  = vec4(0.0f);
     vec4 AOColor         = vec4(0.0f);
     vec4 EmissionColor   = vec4(0.0f);
+    vec4 IrradianceColor = vec4(0.0f);
 
     //---- Extract Base Color
     if(shaderData.hasTextureAEN.r == 1)
@@ -99,8 +101,11 @@ void main()
     else    
         AOColor         = vec4(vec3(shaderData.ao), 1);    
 
+    //---- Extract Irradiance Color
+    IrradianceColor     = texture(samplerIrradianceTexture, Normal);
+
      // Write to Color G-Buffer
-    outColor = baseColor;
+    outColor = baseColor * IrradianceColor;
  
     // Write to Normal G-Buffer
     outNormal = vec4(Normal, 0.0f);
