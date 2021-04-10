@@ -9,6 +9,7 @@
 class VulkanDevice;
 class VulkanSwapChain;
 class VulkanGraphicsPipeline;
+class VulkanTexture2D;
 class DummySkybox;
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -30,48 +31,52 @@ public:
 	VulkanTextureCUBE();
 	~VulkanTextureCUBE();
 
-	void												CreateTextureCUBE(VulkanDevice* pDevice, std::string fileName);
-	void												CreateIrradianceCUBE(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, uint32_t dimension);
-	void												Cleanup(VulkanDevice* pDevice);
-	void												CleanupOnWindowResize(VulkanDevice* pDevice);
+	void																 CreateTextureCUBE(VulkanDevice* pDevice, std::string fileName);
+	void																 CreateTextureCubeFromHDRI(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, std::string fileName);
+	void																 CreateIrradianceCUBE(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, uint32_t dimension);
+	void																 Cleanup(VulkanDevice* pDevice);
+	void																 CleanupOnWindowResize(VulkanDevice* pDevice);
+																		 
+private:															
+	void																 CreateTextureImage(VulkanDevice* pDevice, std::string fileName);
+	VkSampler															 CreateTextureSampler(VulkanDevice* pDevice);
 
-private:
-	void												CreateTextureImage(VulkanDevice* pDevice, std::string fileName);
-	VkSampler											CreateTextureSampler(VulkanDevice* pDevice);
+	// Generic, HDRI->Cubemap, CubeMap->IrradMap
+	VkRenderPass														 CreateOffscreenRenderPass(VulkanDevice* pDevice, VkFormat format);
+	std::tuple<VkImage, VkImageView, VkDeviceMemory, VkFramebuffer>		 CreateOffscreenFramebuffer(VulkanDevice* pDevice, VkRenderPass renderPass, VkFormat format, uint32_t dimension);
 
-	// Irradiance Cubemap Pass!
-	void												CreateIrradianceRenderPass(VulkanDevice* pDevice, VkFormat format);
-	void												CreateOffscreenFramebuffer(VulkanDevice* pDevice, VkFormat format, uint32_t dimension);
-	void												CreateIrradianceDescriptorSet(VulkanDevice* pDevice);
-	void												CreateIrradiancePipeline(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain);
-	void												RenderIrrandianceCUBE(VulkanDevice* pDevice, uint32_t dimension);
-	
-public:
-	// Cubemap
-	VkImage												m_vkImageCUBE;
-	VkImageView											m_vkImageViewCUBE;
-	VkImageLayout										m_vkImageLayoutCUBE;
-	VkDeviceMemory										m_vkImageMemoryCUBE;
-	VkSampler											m_vkSamplerCUBE;
+	// HDRI->Cubemap Generation Pass!
+	std::tuple<VkDescriptorPool, VkDescriptorSetLayout, VkDescriptorSet> CreateHDRI2CubeDescriptorSet(VulkanDevice* pDevice);
+	void																 CreateHDRI2CubePipeline(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, VkDescriptorSetLayout descSetLayout, VkRenderPass renderPass);
+	void																 RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass renderPass, VkFramebuffer framebuffer,
+																						 VkImage irradImage, VkImage offscreenImage, VkDescriptorSet irradDescSet, uint32_t dimension);
 
-	// Irradiance Map
-	VkImage												m_vkImageIRRAD;
-	VkImageView											m_vkImageViewIRRAD;
-	VkImageLayout										m_vkImageLayoutIRRAD;
-	VkDeviceMemory										m_vkImageMemoryIRRAD;
-	VkSampler											m_vkSamplerIRRAD;
-	VulkanGraphicsPipeline*								m_pGraphicsPipelineIrradiance;
+	// Cubemap->Irradiance Map Generation Pass!
+	std::tuple<VkDescriptorPool, VkDescriptorSetLayout, VkDescriptorSet> CreateIrradianceDescriptorSet(VulkanDevice* pDevice);
+	void																 CreateIrradiancePipeline(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, VkDescriptorSetLayout descSetLayout, VkRenderPass renderPass);
+	void																 RenderIrrandianceCUBE(VulkanDevice* pDevice, VkRenderPass renderPass, VkFramebuffer framebuffer,
+																							   VkImage irradImage, VkImage offscreenImage, VkDescriptorSet irradDescSet, uint32_t dimension);
+																		 
+public:					
+	// HDRI Image
+	VulkanTexture2D*													 m_pTextureHDRI;
+	VulkanGraphicsPipeline*												 m_pGraphicsPipelineHDRI2Cube;
 
-	DummySkybox*										m_pDummySkybox;
-
-private:
-	VkImage												m_vkImageOffscreen;
-	VkImageView											m_vkImageViewOffscreen;
-	VkDeviceMemory										m_vkImageMemoryOffscreen;
-	VkRenderPass										m_vkRenderPassIRRAD;
-	VkFramebuffer										m_vkFramebufferIRRAD;
-	VkDescriptorPool									m_vkDescPoolIRRAD;
-	VkDescriptorSetLayout								m_vkDescLayoutIRRAD;
-	VkDescriptorSet										m_vkDescSetIRRAD;
+	// Cubemap															 
+	VkImage																 m_vkImageCUBE;
+	VkImageView															 m_vkImageViewCUBE;
+	VkImageLayout														 m_vkImageLayoutCUBE;
+	VkDeviceMemory														 m_vkImageMemoryCUBE;
+	VkSampler															 m_vkSamplerCUBE;
+																		 
+	// Irradiance Map													 
+	VkImage																 m_vkImageIRRAD;
+	VkImageView															 m_vkImageViewIRRAD;
+	VkImageLayout														 m_vkImageLayoutIRRAD;
+	VkDeviceMemory														 m_vkImageMemoryIRRAD;
+	VkSampler															 m_vkSamplerIRRAD;
+	VulkanGraphicsPipeline*												 m_pGraphicsPipelineIrradiance;
+																		 
+	DummySkybox*														 m_pDummySkybox;																	
 };
 

@@ -12,6 +12,7 @@ enum class TextureType
 	TEXTURE_ROUGHNESS,
 	TEXTURE_AO,
 	TEXTURE_EMISSIVE,
+	TEXTURE_HDRI,
 	TEXTURE_ERROR
 };
 
@@ -22,6 +23,7 @@ public:
 	~VulkanTexture2D();
 
 	void								CreateTexture(VulkanDevice* pDevice, std::string fileName, TextureType eType);
+	void								CreateTextureHDRI(VulkanDevice* pDevice, std::string fileName);
 	void								Cleanup(VulkanDevice* pDevice);
 	void								CleanupOnWindowResize(VulkanDevice* pDevice);
 
@@ -34,6 +36,7 @@ public:
 
 private:
 	unsigned char*						LoadTextureFile(VulkanDevice* pDevice, std::string fileName);
+	float*								LoadHDRI(VulkanDevice* pDevice, std::string fileName);
 	void								CreateTextureImage(VulkanDevice* pDevice, std::string fileName);
 	void								CreateTextureSampler(VulkanDevice* pDevice);
 

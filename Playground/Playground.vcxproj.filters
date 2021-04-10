@@ -192,5 +192,7 @@
   <ItemGroup>
     <None Include="Shaders\PreFilterCube.vert" />
     <None Include="Shaders\PreFilterCube.frag" />
+    <None Include="Shaders\HDRI2Cube.vert" />
+    <None Include="Shaders\HDRI2Cube.frag" />
   </ItemGroup>
 </Project>

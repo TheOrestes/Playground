@@ -29,14 +29,12 @@ void VulkanTexture2D::CreateTexture(VulkanDevice* pDevice, std::string fileName,
 	// what is the type of this texture?
 	m_eTextureType = eType;
 
-	// Create texture image 
-	CreateTextureImage(pDevice, fileName);
-
-	// Create Image view, Treat only Albedo as sRGB texture!
+	// Create VkImage & VkImageView, Treat only Albedo as sRGB texture!
 	switch (m_eTextureType)
 	{
 		case TextureType::TEXTURE_ALBEDO:
 		{
+			CreateTextureImage(pDevice, fileName);
 			m_vkTextureImageView = Helper::Vulkan::CreateImageView(	pDevice, m_vkTextureImage,
 																	VK_FORMAT_R8G8B8A8_SRGB,
 																	VK_IMAGE_ASPECT_COLOR_BIT);
@@ -51,15 +49,23 @@ void VulkanTexture2D::CreateTexture(VulkanDevice* pDevice, std::string fileName,
 		case TextureType::TEXTURE_ROUGHNESS:
 		case TextureType::TEXTURE_ERROR:
 		{
+			CreateTextureImage(pDevice, fileName);
 			m_vkTextureImageView = Helper::Vulkan::CreateImageView(	pDevice, m_vkTextureImage,
 																	VK_FORMAT_R8G8B8A8_UNORM,
 																	VK_IMAGE_ASPECT_COLOR_BIT);
 			break;
 		}
+
+		case TextureType::TEXTURE_HDRI:
+		{
+			CreateTextureHDRI(pDevice, fileName);
+			m_vkTextureImageView = Helper::Vulkan::CreateImageView(	pDevice, m_vkTextureImage,
+																	VK_FORMAT_R32G32B32A32_SFLOAT,
+																	VK_IMAGE_ASPECT_COLOR_BIT);
+			break;
+		}
 	}
 	
-	
-
 	// Create Sampler
 	CreateTextureSampler(pDevice);
 
@@ -99,6 +105,42 @@ unsigned char* VulkanTexture2D::LoadTextureFile(VulkanDevice* pDevice, std::stri
 
 	// Calculate image size using given data
 	m_vkTextureDeviceSize = m_iTextureWidth * m_iTextureHeight * 4;
+
+	return imageData;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+float* VulkanTexture2D::LoadHDRI(VulkanDevice* pDevice, std::string fileName)
+{
+	// Number of channels in image
+	int channels = 0;
+
+	std::string fileLoc = "Textures/HDRI/" + fileName;
+
+	// Load pixel data for an image
+	stbi_set_flip_vertically_on_load(1);
+	float* imageData = stbi_loadf(fileLoc.c_str(), &m_iTextureWidth, &m_iTextureHeight, &m_iTextureChannels, 0);
+	if (!imageData)
+	{
+		LOG_ERROR(("Failed to load a Texture file! (" + fileName + ")").c_str());
+	}
+	stbi_set_flip_vertically_on_load(0);
+
+	// Calculate image size using given data
+	m_vkTextureDeviceSize = m_iTextureWidth * m_iTextureHeight * 4 * sizeof(float);
+
+	//VkDeviceSize oldImgSize = m_iTextureWidth * m_iTextureHeight * 3;
+	//
+	//
+	//float* rgbaImageData = new float[m_vkTextureDeviceSize];
+	//
+	//for (uint32_t i = 0, j = 0 ; i < m_vkTextureDeviceSize, j < oldImgSize; i++, j++)
+	//{
+	//	rgbaImageData[i] = imageData[j];
+	//	rgbaImageData[++i] = imageData[++j];
+	//	rgbaImageData[++i] = imageData[++j];
+	//	rgbaImageData[++i] = 0.0f;
+	//}
 
 	return imageData;
 }
@@ -155,14 +197,11 @@ void VulkanTexture2D::CreateTextureImage(VulkanDevice* pDevice, std::string file
 		}
 	}
 
-
-	
-
 	// Transition image to be DST for copy operation
-	Helper::Vulkan::TransitionImageLayout(pDevice,
-		m_vkTextureImage,
-		VK_IMAGE_LAYOUT_UNDEFINED,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	Helper::Vulkan::TransitionImageLayout(	pDevice,
+											m_vkTextureImage,
+											VK_IMAGE_LAYOUT_UNDEFINED,
+											VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// COPY DATA TO IMAGE
 	Helper::Vulkan::CopyImageBuffer(pDevice, imageStagingBuffer, m_vkTextureImage, m_iTextureWidth, m_iTextureHeight);
@@ -173,6 +212,73 @@ void VulkanTexture2D::CreateTextureImage(VulkanDevice* pDevice, std::string file
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+	// Destroy staging buffers
+	vkDestroyBuffer(pDevice->m_vkLogicalDevice, imageStagingBuffer, nullptr);
+	vkFreeMemory(pDevice->m_vkLogicalDevice, imageStagingBufferMemory, nullptr);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void VulkanTexture2D::CreateTextureHDRI(VulkanDevice* pDevice, std::string fileName)
+{
+	float* imageData = LoadHDRI(pDevice, fileName);
+	
+	// Create staging buffer to hold loaded data, ready to copy to device
+	VkBuffer		imageStagingBuffer;
+	VkDeviceMemory	imageStagingBufferMemory;
+	
+	// create staging buffer to hold the loaded data, ready to copy to device!
+	pDevice->CreateBuffer(	m_vkTextureDeviceSize,
+							VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+							&imageStagingBuffer,
+							&imageStagingBufferMemory);
+	
+	// copy image data to staging buffer
+	void* data;
+	vkMapMemory(pDevice->m_vkLogicalDevice, imageStagingBufferMemory, 0, m_vkTextureDeviceSize, 0, &data);
+	memcpy(data, imageData, static_cast<uint32_t>(m_vkTextureDeviceSize));
+	vkUnmapMemory(pDevice->m_vkLogicalDevice, imageStagingBufferMemory);
+	
+	// Free original image data
+	stbi_image_free(imageData);
+
+	VkImageFormatProperties imgProps = {};
+	VkImageCreateFlags imgFlags = {};
+	
+
+	//for (int i = 0; i < VK_FORMAT_MAX_ENUM; i++)
+	//{
+	//	VkFormat format = (VkFormat)i;
+	//
+	//	VkResult result = vkGetPhysicalDeviceImageFormatProperties(pDevice->m_vkPhysicalDevice, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
+	//		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, imgFlags, &imgProps);
+	//
+	//	if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
+	//	{
+	//		LOG_ERROR("***** {0} Not Supported!", format);
+	//	}
+	//}
+
+	m_vkTextureImage = Helper::Vulkan::CreateImage(	pDevice, m_iTextureWidth, m_iTextureHeight,
+													VK_FORMAT_R32G32B32A32_SFLOAT,
+													VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+													VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
+		
+	// Transition image to be DST for copy operation
+	Helper::Vulkan::TransitionImageLayout(	pDevice,
+											m_vkTextureImage,
+											VK_IMAGE_LAYOUT_UNDEFINED,
+											VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	
+	// COPY DATA TO IMAGE
+	Helper::Vulkan::CopyImageBuffer(pDevice, imageStagingBuffer, m_vkTextureImage, m_iTextureWidth, m_iTextureHeight);
+	
+	// Transition image to be shader readable for shader usage
+	Helper::Vulkan::TransitionImageLayout(pDevice,
+		m_vkTextureImage,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	
 	// Destroy staging buffers
 	vkDestroyBuffer(pDevice->m_vkLogicalDevice, imageStagingBuffer, nullptr);
 	vkFreeMemory(pDevice->m_vkLogicalDevice, imageStagingBufferMemory, nullptr);

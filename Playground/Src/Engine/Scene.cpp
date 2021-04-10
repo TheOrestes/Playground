@@ -48,13 +48,13 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	//m_vecModels.push_back(pModelGun);
 
 	// Load AntMan Model
-	Model* pModelAnt = new Model(ModelType::STATIC_OPAQUE);
-	pModelAnt->LoadModel(pDevice, "Models/AntMan.fbx");
-	pModelAnt->SetPosition(glm::vec3(0, 0, 0));
-	pModelAnt->SetScale(glm::vec3(1.0f));
-	pModelAnt->SetupDescriptors(pDevice, pSwapchain);
-	
-	m_vecModels.push_back(pModelAnt);
+	//Model* pModelAnt = new Model(ModelType::STATIC_OPAQUE);
+	//pModelAnt->LoadModel(pDevice, "Models/AntMan.fbx");
+	//pModelAnt->SetPosition(glm::vec3(0, 0, 0));
+	//pModelAnt->SetScale(glm::vec3(1.0f));
+	//pModelAnt->SetupDescriptors(pDevice, pSwapchain);
+	//
+	//m_vecModels.push_back(pModelAnt);
 
 	// Load Leather Sphere
 	//Model* pModelSphereLeather = new Model(ModelType::STATIC_OPAQUE);
@@ -66,22 +66,22 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	//m_vecModels.push_back(pModelSphereLeather);
 
 	// Load Color Sphere
-	//Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
-	//pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
-	//pModelSphereColor->SetPosition(glm::vec3(5, 2.5, 0));
-	//pModelSphereColor->SetScale(glm::vec3(0.75f));
-	//pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
-	//
-	//m_vecModels.push_back(pModelSphereColor);
+	Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
+	pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
+	pModelSphereColor->SetPosition(glm::vec3(5, 2.5, 0));
+	pModelSphereColor->SetScale(glm::vec3(0.75f));
+	pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
+	
+	m_vecModels.push_back(pModelSphereColor);
 
 	// Load Rust Sphere
-	//Model* pModelSphereRust = new Model(ModelType::STATIC_OPAQUE);
-	//pModelSphereRust->LoadModel(pDevice, "Models/Sphere_Rust.fbx");
-	//pModelSphereRust->SetPosition(glm::vec3(-5, 2.5, 0));
-	//pModelSphereRust->SetScale(glm::vec3(1.0f));
-	//pModelSphereRust->SetupDescriptors(pDevice, pSwapchain);
-	//
-	//m_vecModels.push_back(pModelSphereRust);
+	Model* pModelSphereRust = new Model(ModelType::STATIC_OPAQUE);
+	pModelSphereRust->LoadModel(pDevice, "Models/Sphere_Rust.fbx");
+	pModelSphereRust->SetPosition(glm::vec3(-5, 2.5, 0));
+	pModelSphereRust->SetScale(glm::vec3(1.0f));
+	pModelSphereRust->SetupDescriptors(pDevice, pSwapchain);
+	
+	m_vecModels.push_back(pModelSphereRust);
 
 	// Load WoodenFloor Model
 	Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);

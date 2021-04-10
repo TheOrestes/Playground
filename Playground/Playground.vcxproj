@@ -77,6 +77,8 @@
     <ClInclude Include="Src\Engine\RenderObjects\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Shaders\HDRI2Cube.frag" />
+    <None Include="Shaders\HDRI2Cube.vert" />
     <None Include="Shaders\PreFilterCube.frag" />
     <None Include="Shaders\PreFilterCube.vert" />
   </ItemGroup>

@@ -9,6 +9,7 @@ enum class PipelineType
 {
 	GBUFFER_OPAQUE,
 	SKYBOX,
+	HDRI_CUBE,
 	IRRADIANCE_CUBE,
 	DEFERRED
 };
