@@ -4,7 +4,7 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
-enum class CameraMovement
+enum class FreeCameraMovement
 {
 	FORWARD,
 	BACK,
@@ -24,7 +24,7 @@ public:
 	~FreeCamera();
 
 	void			Update(float dt);
-	void			ProcessKeyDown(CameraMovement mov);
+	void			ProcessKeyDown(FreeCameraMovement mov);
 	void			ProcessMouseMove(float xOffset, float yOffset, bool bConstraintPitch = true);
 	void			ProcessMouseScroll(double yOffset);
 public:

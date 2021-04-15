@@ -165,7 +165,7 @@ void VulkanRenderer::Update(float dt)
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::RunShaderCompiler(const std::string& directoryPath)
 {
-	std::string shaderCompiler = "C:/VulkanSDK/1.2.162.1/Bin/glslc.exe";
+	std::string shaderCompiler = "C:/VulkanSDK/1.2.170.0/Bin/glslc.exe";
 	for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
 	{
 		if (entry.is_regular_file() && (entry.path().extension().string() == ".vert" || entry.path().extension().string() == ".frag"))

@@ -136,22 +136,22 @@ void Application::EventKeyHandlerCallback(GLFWwindow* pWindow, int key, int scan
     // Camera controls..
     if (key == GLFW_KEY_W && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::FORWARD);
+        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::FORWARD);
     }
 
     if (key == GLFW_KEY_S && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::BACK);
+        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::BACK);
     }
 
     if (key == GLFW_KEY_A && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::LEFT);
+        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::LEFT);
     }
 
     if (key == GLFW_KEY_D && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(CameraMovement::RIGHT);
+        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::RIGHT);
     }
 }
 
@@ -163,14 +163,13 @@ void Application::EventMousePositionCallback(GLFWwindow* pWindow, double xPos, d
     float xOffset = xPos - lastX;
     float yOffset = lastY - yPos;
 
-    lastX = xPos;
-    lastY = yPos;
-
     // Rotate only when RIGHT CLICK is down!
     if (glfwGetMouseButton(pWindow, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
     {
         FreeCamera::getInstance().ProcessMouseMove(xOffset, yOffset);
     }
+
+    glfwSetCursorPos(pWindow, Helper::App::WINDOW_WIDTH / 2.0f, Helper::App::WINDOW_HEIGHT / 2.0f);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

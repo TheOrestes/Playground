@@ -75,13 +75,13 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	m_vecModels.push_back(pModelSphereColor);
 
 	// Load Rust Sphere
-	Model* pModelSphereRust = new Model(ModelType::STATIC_OPAQUE);
-	pModelSphereRust->LoadModel(pDevice, "Models/Sphere_Rust.fbx");
-	pModelSphereRust->SetPosition(glm::vec3(-5, 2.5, 0));
-	pModelSphereRust->SetScale(glm::vec3(1.0f));
-	pModelSphereRust->SetupDescriptors(pDevice, pSwapchain);
-	
-	m_vecModels.push_back(pModelSphereRust);
+	//Model* pModelSphereRust = new Model(ModelType::STATIC_OPAQUE);
+	//pModelSphereRust->LoadModel(pDevice, "Models/Sphere_Rust.fbx");
+	//pModelSphereRust->SetPosition(glm::vec3(-5, 2.5, 0));
+	//pModelSphereRust->SetScale(glm::vec3(1.0f));
+	//pModelSphereRust->SetupDescriptors(pDevice, pSwapchain);
+	//
+	//m_vecModels.push_back(pModelSphereRust);
 
 	// Load WoodenFloor Model
 	Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);

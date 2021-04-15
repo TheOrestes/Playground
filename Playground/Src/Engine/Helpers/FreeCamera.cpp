@@ -43,29 +43,29 @@ void FreeCamera::Update(float dt)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void FreeCamera::ProcessKeyDown(CameraMovement mov)
+void FreeCamera::ProcessKeyDown(FreeCameraMovement mov)
 {
 	switch (mov)
 	{
-		case CameraMovement::FORWARD:
+		case FreeCameraMovement::FORWARD:
 		{
 			m_vecPosition += m_vecForward * m_fSpeed;
 			break;
 		}
 			
-		case CameraMovement::BACK:
+		case FreeCameraMovement::BACK:
 		{
 			m_vecPosition -= m_vecForward * m_fSpeed;
 			break;
 		}
 			
-		case CameraMovement::LEFT:
+		case FreeCameraMovement::LEFT:
 		{
 			m_vecPosition -= m_vecRight * m_fSpeed;
 			break;
 		}
 			
-		case CameraMovement::RIGHT:
+		case FreeCameraMovement::RIGHT:
 		{
 			m_vecPosition += m_vecRight * m_fSpeed;
 			break;
