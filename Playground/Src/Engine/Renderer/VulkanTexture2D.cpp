@@ -102,6 +102,7 @@ unsigned char* VulkanTexture2D::LoadTextureFile(VulkanDevice* pDevice, std::stri
 	{
 		LOG_ERROR(("Failed to load a Texture file! (" + fileName + ")").c_str());
 	}
+	
 
 	// Calculate image size using given data
 	m_vkTextureDeviceSize = m_iTextureWidth * m_iTextureHeight * 4;
@@ -119,7 +120,7 @@ float* VulkanTexture2D::LoadHDRI(VulkanDevice* pDevice, std::string fileName)
 
 	// Load pixel data for an image
 	stbi_set_flip_vertically_on_load(1);
-	float* imageData = stbi_loadf(fileLoc.c_str(), &m_iTextureWidth, &m_iTextureHeight, &m_iTextureChannels, 0);
+	float* imageData = stbi_loadf(fileLoc.c_str(), &m_iTextureWidth, &m_iTextureHeight, &m_iTextureChannels, 4);
 	if (!imageData)
 	{
 		LOG_ERROR(("Failed to load a Texture file! (" + fileName + ")").c_str());
@@ -128,19 +129,6 @@ float* VulkanTexture2D::LoadHDRI(VulkanDevice* pDevice, std::string fileName)
 
 	// Calculate image size using given data
 	m_vkTextureDeviceSize = m_iTextureWidth * m_iTextureHeight * 4 * sizeof(float);
-
-	//VkDeviceSize oldImgSize = m_iTextureWidth * m_iTextureHeight * 3;
-	//
-	//
-	//float* rgbaImageData = new float[m_vkTextureDeviceSize];
-	//
-	//for (uint32_t i = 0, j = 0 ; i < m_vkTextureDeviceSize, j < oldImgSize; i++, j++)
-	//{
-	//	rgbaImageData[i] = imageData[j];
-	//	rgbaImageData[++i] = imageData[++j];
-	//	rgbaImageData[++i] = imageData[++j];
-	//	rgbaImageData[++i] = 0.0f;
-	//}
 
 	return imageData;
 }
@@ -242,10 +230,9 @@ void VulkanTexture2D::CreateTextureHDRI(VulkanDevice* pDevice, std::string fileN
 	// Free original image data
 	stbi_image_free(imageData);
 
-	VkImageFormatProperties imgProps = {};
-	VkImageCreateFlags imgFlags = {};
+	//VkImageFormatProperties imgProps = {};
+	//VkImageCreateFlags imgFlags = {};
 	
-
 	//for (int i = 0; i < VK_FORMAT_MAX_ENUM; i++)
 	//{
 	//	VkFormat format = (VkFormat)i;
@@ -265,10 +252,10 @@ void VulkanTexture2D::CreateTextureHDRI(VulkanDevice* pDevice, std::string fileN
 													VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
 		
 	// Transition image to be DST for copy operation
-	Helper::Vulkan::TransitionImageLayout(	pDevice,
-											m_vkTextureImage,
-											VK_IMAGE_LAYOUT_UNDEFINED,
-											VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	Helper::Vulkan::TransitionImageLayout(pDevice,
+		m_vkTextureImage,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	
 	// COPY DATA TO IMAGE
 	Helper::Vulkan::CopyImageBuffer(pDevice, imageStagingBuffer, m_vkTextureImage, m_iTextureWidth, m_iTextureHeight);

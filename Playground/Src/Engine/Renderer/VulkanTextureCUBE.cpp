@@ -62,8 +62,8 @@ void VulkanTextureCUBE::CreateTextureCubeFromHDRI(VulkanDevice* pDevice, VulkanS
 
 	//*** Create VkImage with 6 array Layers!
 	m_vkImageCUBE = Helper::Vulkan::CreateImageCUBE(pDevice,
-													1024,
-													1024,
+													512,
+													512,
 													format,
 													VK_IMAGE_TILING_OPTIMAL,
 													VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkImageMemoryCUBE);
@@ -85,7 +85,7 @@ void VulkanTextureCUBE::CreateTextureCubeFromHDRI(VulkanDevice* pDevice, VulkanS
 	VkRenderPass hdr2CubeRenderPass = CreateOffscreenRenderPass(pDevice, format);
 
 	// Create Off-screen framebuffer! 
-	std::tuple<VkImage, VkImageView, VkDeviceMemory, VkFramebuffer> tupleOffscreen = CreateOffscreenFramebuffer(pDevice, hdr2CubeRenderPass, format, 1024);
+	std::tuple<VkImage, VkImageView, VkDeviceMemory, VkFramebuffer> tupleOffscreen = CreateOffscreenFramebuffer(pDevice, hdr2CubeRenderPass, format, 512);
 
 	// Create Descriptor Set layout & Descriptor Set!
 	std::tuple<VkDescriptorPool, VkDescriptorSetLayout, VkDescriptorSet> tupleDescriptor = CreateHDRI2CubeDescriptorSet(pDevice);
@@ -94,7 +94,7 @@ void VulkanTextureCUBE::CreateTextureCubeFromHDRI(VulkanDevice* pDevice, VulkanS
 	CreateHDRI2CubePipeline(pDevice, pSwapchain, std::get<1>(tupleDescriptor), hdr2CubeRenderPass);
 
 	// Render
-	RenderHDRI2CUBE(pDevice, hdr2CubeRenderPass, std::get<3>(tupleOffscreen), m_vkImageCUBE, std::get<0>(tupleOffscreen), std::get<2>(tupleDescriptor), 1024);
+	RenderHDRI2CUBE(pDevice, hdr2CubeRenderPass, std::get<3>(tupleOffscreen), m_vkImageCUBE, std::get<0>(tupleOffscreen), std::get<2>(tupleDescriptor), 512);
 
 	// Cleanup!
 	vkDestroyRenderPass(pDevice->m_vkLogicalDevice, hdr2CubeRenderPass, nullptr);
@@ -115,7 +115,7 @@ void VulkanTextureCUBE::CreateTextureCubeFromHDRI(VulkanDevice* pDevice, VulkanS
 //---------------------------------------------------------------------------------------------------------------------
 VkRenderPass VulkanTextureCUBE::CreateOffscreenRenderPass(VulkanDevice* pDevice, VkFormat format)
 {
-	VkRenderPass irradRenderPass;
+	VkRenderPass renderPass;
 
 	VkAttachmentDescription attachDesc = {};
 
@@ -165,14 +165,14 @@ VkRenderPass VulkanTextureCUBE::CreateOffscreenRenderPass(VulkanDevice* pDevice,
 	renderPassCreateInfo.dependencyCount	= 2;
 	renderPassCreateInfo.pDependencies		= dependencies.data();
 
-	VkResult result = vkCreateRenderPass(pDevice->m_vkLogicalDevice, &renderPassCreateInfo, nullptr, &irradRenderPass);
+	VkResult result = vkCreateRenderPass(pDevice->m_vkLogicalDevice, &renderPassCreateInfo, nullptr, &renderPass);
 	if (result != VK_SUCCESS)
 	{
 		LOG_ERROR("Failed to create Renderpass for Irradiance Cubemap creation!");
 		return VK_NULL_HANDLE;
 	}
 
-	return irradRenderPass;
+	return renderPass;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -380,7 +380,7 @@ void VulkanTextureCUBE::CreateHDRI2CubePipeline(VulkanDevice* pDevice, VulkanSwa
 	VkPushConstantRange pushConstantRange = {};
 	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	pushConstantRange.offset = 0;
-	pushConstantRange.size = sizeof(IrradShaderPushData);
+	pushConstantRange.size = sizeof(HDRIShaderPushData);
 
 	std::vector<VkPushConstantRange> pushConstantRanges = { pushConstantRange };
 
@@ -412,7 +412,7 @@ void VulkanTextureCUBE::CreateIrradiancePipeline(VulkanDevice* pDevice, VulkanSw
 void VulkanTextureCUBE::RenderIrrandianceCUBE(VulkanDevice* pDevice, VkRenderPass renderPass, VkFramebuffer framebuffer, VkImage irradImage, VkImage offscreenImage, VkDescriptorSet irradDescSet, uint32_t dimension)
 {
 	std::array<VkClearValue, 1> arrClearValues;
-	arrClearValues[0].color = { {0.0f, 0.0f, 0.2f, 0.0f} };
+	arrClearValues[0].color = { {0.8f, 0.8f, 0.8f, 0.0f} };
 
 	VkRenderPassBeginInfo renderPassBeginInfo = {};
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -423,20 +423,14 @@ void VulkanTextureCUBE::RenderIrrandianceCUBE(VulkanDevice* pDevice, VkRenderPas
 	renderPassBeginInfo.clearValueCount = arrClearValues.size();
 	renderPassBeginInfo.pClearValues = arrClearValues.data();
 
-	std::vector<glm::mat4> matrices = 
+	glm::mat4 captureViews[] =
 	{
-		// POSITIVE_X
-		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// NEGATIVE_X
-		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// POSITIVE_Y
-		glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// NEGATIVE_Y
-		glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// POSITIVE_Z
-		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// NEGATIVE_Z
-		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 	};
 
 	VkViewport vp = {};
@@ -474,7 +468,7 @@ void VulkanTextureCUBE::RenderIrrandianceCUBE(VulkanDevice* pDevice, VkRenderPas
 		// Render scene from cube face's point of view
 		vkCmdBeginRenderPass(cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		irradPushData.mvp = glm::perspective((float)(M_PI_OVER_TWO), 1.0f, 0.1f, 512.0f) * matrices[f];
+		irradPushData.mvp = glm::perspective((float)(M_PI_OVER_TWO), 1.0f, 0.1f, 512.0f) * captureViews[f];
 		vkCmdPushConstants(	cmdBuffer,
 							m_pGraphicsPipelineIrradiance->m_vkPipelineLayout,
 							VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -525,7 +519,7 @@ void VulkanTextureCUBE::RenderIrrandianceCUBE(VulkanDevice* pDevice, VkRenderPas
 void VulkanTextureCUBE::RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass renderPass, VkFramebuffer framebuffer, VkImage cubeImage, VkImage offscreenImage, VkDescriptorSet cubeDescSet, uint32_t dimension)
 {
 	std::array<VkClearValue, 1> arrClearValues;
-	arrClearValues[0].color = { {0.0f, 0.0f, 0.2f, 0.0f} };
+	arrClearValues[0].color = { {0.8f, 0.8f, 0.8f, 0.0f} };
 
 	VkRenderPassBeginInfo renderPassBeginInfo = {};
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -536,20 +530,14 @@ void VulkanTextureCUBE::RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass rend
 	renderPassBeginInfo.clearValueCount = arrClearValues.size();
 	renderPassBeginInfo.pClearValues = arrClearValues.data();
 
-	std::vector<glm::mat4> matrices =
+	glm::mat4 captureViews[] =
 	{
-		// POSITIVE_X
-		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// NEGATIVE_X
-		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// POSITIVE_Y
-		glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// NEGATIVE_Y
-		glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// POSITIVE_Z
-		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-		// NEGATIVE_Z
-		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, 1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, 1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  -1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, 1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, 1.0f,  0.0f))
 	};
 
 	VkViewport vp = {};
@@ -564,7 +552,7 @@ void VulkanTextureCUBE::RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass rend
 	scissorRect.offset.x = 0.0f;
 	scissorRect.offset.y = 0.0f;
 
-	IrradShaderPushData irradPushData;
+	HDRIShaderPushData hdriShaderData;
 
 	// Start recording commands to command buffer!
 	VkCommandBuffer cmdBuffer = pDevice->BeginCommandBuffer();
@@ -579,7 +567,7 @@ void VulkanTextureCUBE::RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass rend
 	subresourceRange.layerCount = 6;
 
 	// Change image layout for all cubemap faces to transfer destination
-	Helper::Vulkan::TransitionImageLayout(pDevice, cmdBuffer, cubeImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+	Helper::Vulkan::TransitionImageLayoutCUBE(pDevice, cmdBuffer, cubeImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
 	// 6 faces of irradiance map!
 	for (uint32_t f = 0; f < 6; f++)
@@ -587,13 +575,13 @@ void VulkanTextureCUBE::RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass rend
 		// Render scene from cube face's point of view
 		vkCmdBeginRenderPass(cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		irradPushData.mvp = glm::perspective((float)(M_PI_OVER_TWO), 1.0f, 0.1f, 512.0f) * matrices[f];
+		hdriShaderData.mvp = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f) * captureViews[f];
 
 		vkCmdPushConstants(cmdBuffer,
 			m_pGraphicsPipelineHDRI2Cube->m_vkPipelineLayout,
 			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-			0, sizeof(IrradShaderPushData),
-			&irradPushData);
+			0, sizeof(HDRIShaderPushData),
+			&hdriShaderData);
 
 		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineHDRI2Cube->m_vkGraphicsPipeline);
 		vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineHDRI2Cube->m_vkPipelineLayout, 0, 1, &cubeDescSet, 0, NULL);
@@ -619,7 +607,7 @@ void VulkanTextureCUBE::RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass rend
 		copyRegion.dstSubresource.layerCount = 1;
 		copyRegion.dstOffset = { 0, 0, 0 };
 
-		copyRegion.extent.width = static_cast<uint32_t>(vp.width);
+		copyRegion.extent.width =  static_cast<uint32_t>(vp.width);
 		copyRegion.extent.height = static_cast<uint32_t>(vp.height);
 		copyRegion.extent.depth = 1;
 
@@ -630,7 +618,7 @@ void VulkanTextureCUBE::RenderHDRI2CUBE(VulkanDevice* pDevice, VkRenderPass rend
 	}
 
 	// Transform Irradiance map to Shader readable optimal format!
-	Helper::Vulkan::TransitionImageLayout(pDevice, cmdBuffer, cubeImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
+	Helper::Vulkan::TransitionImageLayoutCUBE(pDevice, cmdBuffer, cubeImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
 
 	pDevice->EndAndSubmitCommandBuffer(cmdBuffer);
 }
@@ -641,7 +629,7 @@ void VulkanTextureCUBE::CreateIrradianceCUBE(VulkanDevice* pDevice, VulkanSwapCh
 	m_pDummySkybox = new DummySkybox();
 	m_pDummySkybox->Init(pDevice);
 
-	const VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	const VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
 
 	//*** Create VkImage with 6 array Layers!
 	m_vkImageIRRAD = Helper::Vulkan::CreateImageCUBE(pDevice,

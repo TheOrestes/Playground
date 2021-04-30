@@ -194,6 +194,7 @@ void VulkanDevice::CreateLogicalDevice()
 	// Specify used device features...
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.samplerAnisotropy = VK_TRUE;		// Enabling anisotropy!
+	deviceFeatures.fillModeNonSolid = VK_TRUE;
 
 	// Create logical device...
 	VkDeviceCreateInfo createInfo{};

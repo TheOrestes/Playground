@@ -1,6 +1,6 @@
 #version 450
 
-layout (location = 0) in vec3 vs_outPosition;
+layout (location = 0) in vec3 vs_outUVW;
 layout (location = 0) out vec4 outColor;
 layout (binding = 0) uniform sampler2D samplerHDRI;
 
@@ -21,7 +21,7 @@ vec2 SampleSphericalMap(vec3 v)
 //---------------------------------------------------------------------------------------------------------------------
 void main()
 {
-	vec3 N = normalize(vs_outPosition);
+	vec3 N = normalize(vs_outUVW);
 	vec2 uv = SampleSphericalMap(N);
 
 	vec4 hdriColor = texture(samplerHDRI, uv);

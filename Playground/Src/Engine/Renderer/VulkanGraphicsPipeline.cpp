@@ -10,6 +10,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
+//#define WIREFRAME_MODE
+
 //---------------------------------------------------------------------------------------------------------------------
 VulkanGraphicsPipeline::VulkanGraphicsPipeline(PipelineType type, VulkanSwapChain* pSwapChain)
 {
@@ -224,6 +226,11 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 				m_vkDepthStencilCreateInfo.depthWriteEnable = VK_TRUE;						// Enable writing to depth buffer to replace old values
 				m_vkDepthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;				// Comparison opearation that allows an overwrite (is in front)c vb
 
+#ifdef WIREFRAME_MODE
+				m_vkRasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_LINE;
+				m_vkRasterizerCreateInfo.lineWidth = 1.0f;
+#endif
+
 				//--- Color blending
 				// We need to explicitly mention the blending setting between all output attachments else default colormask will be 0x0
 				// and nothing will be rendered to the attachment!bv  
@@ -286,6 +293,11 @@ void VulkanGraphicsPipeline::CreateGraphicsPipeline(VulkanDevice* pDevice, Vulka
 			m_vkVertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;						
 			m_vkVertexInputStateCreateInfo.flags = 0;
 			m_vkVertexInputStateCreateInfo.pNext = nullptr;
+
+#ifdef WIREFRAME_MODE
+			m_vkRasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_LINE;
+			m_vkRasterizerCreateInfo.lineWidth = 1.0f;
+#endif
 
 			//--- Color blending
 			// We need to explicitly mention the blending setting between all output attachments else default colormask will be 0x0

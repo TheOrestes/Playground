@@ -19,3 +19,6 @@
 [submodule "Playground/ThirdParty/DearImGui"]
 	path = Playground/ThirdParty/DearImGui
 	url = https://github.com/ocornut/imgui.git
+[submodule "Playground/ThirdParty/KTX-Software"]
+	path = Playground/ThirdParty/KTX-Software
+	url = https://github.com/KhronosGroup/KTX-Software.git

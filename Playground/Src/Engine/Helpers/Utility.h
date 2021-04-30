@@ -9,6 +9,10 @@
 #include "Engine/Helpers/Log.h"
 #include "Engine/Renderer/VulkanDevice.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_STATIC
+#include "stb_image_write.h"
+
 namespace Helper
 {
 	namespace App
@@ -1043,6 +1047,49 @@ namespace Helper
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Function to transition Cubemap image layout from old to new image layout using command pool for VkImage!
+		inline void TransitionImageLayoutCUBE(VulkanDevice* pDevice, VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange subResRange)
+		{
+			VkImageMemoryBarrier imageMemoryBarrier = {};
+			imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			imageMemoryBarrier.oldLayout = oldImageLayout;								// Layout to transition from
+			imageMemoryBarrier.newLayout = newImageLayout;								// Layout to transition to
+			imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;			// Queue family to transition from
+			imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;			// Queue family to transition to
+			imageMemoryBarrier.image = image;											// Image being accessed & modified as a part of barrier
+			imageMemoryBarrier.subresourceRange = subResRange;
+
+			VkPipelineStageFlags srcStage;
+			VkPipelineStageFlags dstStage;
+
+			// If transitioning from new image to image ready to receive data...
+			if (oldImageLayout == VK_IMAGE_LAYOUT_UNDEFINED && newImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+			{
+				imageMemoryBarrier.srcAccessMask = 0;									// memory access stage transition must happen after this stage
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;		// memory access stage transition must happen before this stage
+
+				srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+				dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			}
+			// If transitioning from transfer destination to shader readable...
+			else if (oldImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+			{
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+				srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			}
+
+			vkCmdPipelineBarrier(cmdBuffer,
+				srcStage, dstStage,			// Pipeline stages (match to src & dest AcccessMask)
+				0,							// Dependency flags
+				0, nullptr,					// Memory barrier count + data
+				0, nullptr,					// Buffer memory barrier count + data
+				1, &imageMemoryBarrier);	// image memmory barrier count + data
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Generic Copy Image buffer from srcBuffer to VkImage using transferQueue & transferCommandPool of specific width-height!
 		inline void CopyImageBufferCUBE(VulkanDevice* pDevice, VkBuffer srcBuffer, VkImage image, uint32_t width, uint32_t height)
 		{
@@ -1064,6 +1111,137 @@ namespace Helper
 			vkCmdCopyBufferToImage(transferCommandBuffer, srcBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageRegion);
 
 			pDevice->EndAndSubmitCommandBuffer(transferCommandBuffer);
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Generic Copy Image buffer from srcBuffer to VkImage using transferQueue & transferCommandPool of specific width-height!
+		inline void SaveVkImageToDisc(VulkanDevice* pDevice, VkImage image, VkImageLayout layout, VkFormat format, uint32_t width, uint32_t height, uint32_t channels)
+		{
+			bool supportsBlit = true;
+
+			// Check blit support for source & destination
+			VkFormatProperties formatProps;
+			vkGetPhysicalDeviceFormatProperties(pDevice->m_vkPhysicalDevice, format, &formatProps);
+			if (!(formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT))
+			{
+				LOG_ERROR("Device does not support blitting from optimal tiled images, using copy instead of blit!");
+				supportsBlit = false;
+			}
+
+			// Check if the device supports blitting to linear images
+			vkGetPhysicalDeviceFormatProperties(pDevice->m_vkPhysicalDevice, format, &formatProps);
+			if (!(formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)) 
+			{
+				LOG_ERROR("Device does not support blitting to linear tiled images, using copy instead of blit!");
+				supportsBlit = false;
+			}
+
+			// Create the linear tiled destination image to copy to and to read the memory from
+			VkImage dstImage;
+			VkDeviceMemory dstImageMemory;
+
+			dstImage = CreateImage(pDevice, width, height,
+				format,
+				VK_IMAGE_TILING_LINEAR,
+				VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				&dstImageMemory);
+
+			VkCommandBuffer copyCmd = pDevice->BeginCommandBuffer();
+
+			// Transition destination image to transfer destination layout
+			TransitionImageLayout(pDevice, copyCmd, dstImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+			// Transition source image from current layout to transfer source layout
+			TransitionImageLayout(pDevice, copyCmd, image, layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+			// If source and destination support blit we'll blit as this also does automatic format conversion (e.g. from BGR to RGB)
+
+			if (supportsBlit)
+			{
+				// Define the region to blit (we will blit the whole swapchain image)
+				VkOffset3D blitSize;
+				blitSize.x = width;
+				blitSize.y = height;
+				blitSize.z = 1;
+				VkImageBlit imageBlitRegion{};
+				imageBlitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				imageBlitRegion.srcSubresource.layerCount = 1;
+				imageBlitRegion.srcOffsets[1] = blitSize;
+				imageBlitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				imageBlitRegion.dstSubresource.layerCount = 1;
+				imageBlitRegion.dstOffsets[1] = blitSize;
+
+				// Issue the blit command
+				vkCmdBlitImage(
+					copyCmd,
+					image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					1,
+					&imageBlitRegion,
+					VK_FILTER_NEAREST);
+			}
+			else
+			{
+				// Otherwise use image copy (requires us to manually flip components)
+				VkImageCopy imageCopyRegion{};
+				imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				imageCopyRegion.srcSubresource.layerCount = 1;
+				imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				imageCopyRegion.dstSubresource.layerCount = 1;
+				imageCopyRegion.extent.width = width;
+				imageCopyRegion.extent.height = height;
+				imageCopyRegion.extent.depth = 1;
+
+				// Issue the copy command
+				vkCmdCopyImage(
+					copyCmd,
+					image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					1,
+					&imageCopyRegion);
+			}
+
+			// Transition destination image to general layout, which is the required layout for mapping the image memory later on
+			TransitionImageLayout(pDevice, copyCmd, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+			
+			// Transition back the original image after the blit is done
+			TransitionImageLayout(pDevice, copyCmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layout);
+
+			pDevice->EndAndSubmitCommandBuffer(copyCmd);
+
+			// Get layout of the image (including row pitch)
+			VkImageSubresource subResource{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
+			VkSubresourceLayout subResourceLayout;
+			vkGetImageSubresourceLayout(pDevice->m_vkLogicalDevice, dstImage, &subResource, &subResourceLayout);
+
+			if (format == VK_FORMAT_R32G32B32A32_SFLOAT)
+			{
+				// Map image memory so we can start copying from it
+				float* data;
+				vkMapMemory(pDevice->m_vkLogicalDevice, dstImageMemory, 0, VK_WHOLE_SIZE, 0, (void**)&data);
+				data += subResourceLayout.offset;
+			
+				std::string fileName = "Screenshot" + std::to_string(std::rand()) + ".hdr";
+				stbi_write_hdr(fileName.c_str(), width, height, channels, data);
+			}
+			else
+			{
+				// Map image memory so we can start copying from it
+				const char* data;
+				vkMapMemory(pDevice->m_vkLogicalDevice, dstImageMemory, 0, VK_WHOLE_SIZE, 0, (void**)&data);
+				data += subResourceLayout.offset;
+			
+				std::string fileName = "Screenshot" + std::to_string(std::rand()) + ".jpg";
+				stbi_write_jpg(fileName.c_str(), width, height, channels, (void*)data, 100);
+			}
+			
+			
+			
+			// Clean up resources
+			vkUnmapMemory(pDevice->m_vkLogicalDevice, dstImageMemory);
+			vkFreeMemory(pDevice->m_vkLogicalDevice, dstImageMemory, nullptr);
+			vkDestroyImage(pDevice->m_vkLogicalDevice, dstImage, nullptr);
 		}
 	}
 }

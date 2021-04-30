@@ -135,11 +135,11 @@ void DummySkybox::CreateIndexBuffer(VulkanDevice* pDevice)
 	vkUnmapMemory(pDevice->m_vkLogicalDevice, stagingBufferMemory);
 
 	// Create buffer for index data on GPU access only area
-	pDevice->CreateBuffer(bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		&m_vkIndexBuffer,
-		&m_vkIndexBufferMemory);
+	pDevice->CreateBuffer(	bufferSize,
+							VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+							&m_vkIndexBuffer,
+							&m_vkIndexBufferMemory);
 
 	// Copy from staging buffer to GPU access buffer
 	pDevice->CopyBuffer(stagingBuffer, m_vkIndexBuffer, bufferSize);

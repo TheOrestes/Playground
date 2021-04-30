@@ -69,7 +69,7 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
 	pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
 	pModelSphereColor->SetPosition(glm::vec3(5, 2.5, 0));
-	pModelSphereColor->SetScale(glm::vec3(0.75f));
+	pModelSphereColor->SetScale(glm::vec3(1.5f));
 	pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
 	
 	m_vecModels.push_back(pModelSphereColor);
@@ -84,13 +84,13 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	//m_vecModels.push_back(pModelSphereRust);
 
 	// Load WoodenFloor Model
-	Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);
-	pWoodenFloor->LoadModel(pDevice, "Models/Plane_Oak.fbx");
-	pWoodenFloor->SetPosition(glm::vec3(0, -2, 0));
-	pWoodenFloor->SetScale(glm::vec3(4));
-	pWoodenFloor->SetupDescriptors(pDevice, pSwapchain);
-
-	m_vecModels.push_back(pWoodenFloor);
+	//Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);
+	//pWoodenFloor->LoadModel(pDevice, "Models/Plane_Oak.fbx");
+	//pWoodenFloor->SetPosition(glm::vec3(0, -2, 0));
+	//pWoodenFloor->SetScale(glm::vec3(4));
+	//pWoodenFloor->SetupDescriptors(pDevice, pSwapchain);
+	//
+	//m_vecModels.push_back(pWoodenFloor);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

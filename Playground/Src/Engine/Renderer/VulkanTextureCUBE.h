@@ -25,6 +25,18 @@ struct IrradShaderPushData
 };
 
 //---------------------------------------------------------------------------------------------------------------------
+struct HDRIShaderPushData
+{
+	HDRIShaderPushData()
+	{
+		mvp = glm::mat4(1);
+	}
+
+	// Data Specific
+	alignas(64) glm::mat4				mvp;
+};
+
+//---------------------------------------------------------------------------------------------------------------------
 class VulkanTextureCUBE
 {
 public:
@@ -56,8 +68,8 @@ private:
 	void																 CreateIrradiancePipeline(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, VkDescriptorSetLayout descSetLayout, VkRenderPass renderPass);
 	void																 RenderIrrandianceCUBE(VulkanDevice* pDevice, VkRenderPass renderPass, VkFramebuffer framebuffer,
 																							   VkImage irradImage, VkImage offscreenImage, VkDescriptorSet irradDescSet, uint32_t dimension);
-																		 
-public:					
+
+public:	
 	// HDRI Image
 	VulkanTexture2D*													 m_pTextureHDRI;
 	VulkanGraphicsPipeline*												 m_pGraphicsPipelineHDRI2Cube;
