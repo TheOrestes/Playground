@@ -20,6 +20,7 @@ public:
 	void						UpdateUniforms(VulkanDevice* pDevice, uint32_t imageIndex);
 	void						RenderOpaque(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex);
 	void						RenderSkybox(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex);
+	void						RenderSkydome(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex);
 
 	void						SetLightDirection(const glm::vec3& eulerAngles);
 	

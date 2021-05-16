@@ -74,6 +74,21 @@ namespace Helper
 		};
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//--- Vertex data with Position, Normal, UV
+		struct VertexPNT
+		{
+			VertexPNT() { Position = glm::vec3(0);  Normal = glm::vec3(1);  UV = glm::vec2(0); }
+			VertexPNT(const glm::vec3& _pos, const glm::vec3& _normal, const glm::vec2& _uv) :
+				Position(_pos),
+				Normal(_normal),
+				UV(_uv) {}
+
+			glm::vec3 Position;			// Vertex position X, Y, Z
+			glm::vec3 Normal;			// Vertex Normal X, Y, Z
+			glm::vec2 UV;				// Texture coordinates U,V
+		};
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Vertex data with Position, Normal, Tangent, BiNormal, Texcoords
 		struct VertexPNTBT
 		{
@@ -695,25 +710,6 @@ namespace Helper
 			VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 			VkPipelineStageFlags dstStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
-			// If transitioning from new image to image ready to receive data...
-			//if (oldImageLayout == VK_IMAGE_LAYOUT_UNDEFINED && newImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-			//{
-			//	imageMemoryBarrier.srcAccessMask = 0;									// memory access stage transition must happen after this stage
-			//	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;		// memory access stage transition must happen before this stage
-			//
-			//	srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			//	dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			//}
-			//// If transitioning from transfer destination to shader readable...
-			//else if (oldImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-			//{
-			//	imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			//	imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-			//
-			//	srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			//	dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			//}
-
 			// Credit = Sascha Willems : VulkanTools.cpp!
 			// Source layouts (old)
 			// Source access mask controls actions that have to be finished on the old layout
@@ -923,7 +919,7 @@ namespace Helper
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Create Cubemap VkImage & VkDeviceMemory based on width-height-format-tiling-usageFlags-propertyFlags!
-		inline VkImage CreateImageCUBE(VulkanDevice* pDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+		inline VkImage CreateImageCUBE(VulkanDevice* pDevice, uint32_t width, uint32_t height, VkFormat format, uint32_t nMipmaps, VkImageTiling tiling,
 			VkImageUsageFlags usageFlags, VkMemoryPropertyFlags propFlags, VkDeviceMemory* imageMemory)
 		{
 			// Image creation info
@@ -934,7 +930,7 @@ namespace Helper
 			imageCreateInfo.extent.width = width;									// width of image extent
 			imageCreateInfo.extent.height = height;									// height of image extent
 			imageCreateInfo.extent.depth = 1;										// depth of image ( just 1, no 3D aspect) 
-			imageCreateInfo.mipLevels = 1;									// number of mipmap levels
+			imageCreateInfo.mipLevels = nMipmaps;									// number of mipmap levels
 			imageCreateInfo.arrayLayers = 6;										// 6 levels in image array for cubemap!
 			imageCreateInfo.format = format;										// format type of image	
 			imageCreateInfo.tiling = tiling;										// how image data should be tiled
@@ -969,7 +965,7 @@ namespace Helper
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//--- Create Cubemap VkImageView for a VkImage
-		inline VkImageView CreateImageViewCUBE(const VulkanDevice* pDevice, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+		inline VkImageView CreateImageViewCUBE(const VulkanDevice* pDevice, VkImage image, VkFormat format, uint32_t nMipmaps, VkImageAspectFlags aspectFlags)
 		{
 			VkImageViewCreateInfo imageViewCreateInfo = {};
 			imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -983,7 +979,7 @@ namespace Helper
 
 			imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
 			imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-			imageViewCreateInfo.subresourceRange.levelCount = 1;
+			imageViewCreateInfo.subresourceRange.levelCount = nMipmaps;
 			imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 			imageViewCreateInfo.subresourceRange.layerCount = 6;
 
@@ -1014,26 +1010,131 @@ namespace Helper
 			imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;						// First layer of start alterations on
 			imageMemoryBarrier.subresourceRange.layerCount = 6;							// Number of layers to alter starting from base array layer
 
-			VkPipelineStageFlags srcStage;
-			VkPipelineStageFlags dstStage;
+			VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+			VkPipelineStageFlags dstStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
-			// If transitioning from new image to image ready to receive data...
-			if (oldImageLayout == VK_IMAGE_LAYOUT_UNDEFINED && newImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+			// Credit = Sascha Willems : VulkanTools.cpp!
+			// Source layouts (old)
+			// Source access mask controls actions that have to be finished on the old layout
+			// before it will be transitioned to the new layout
+			// ? Added srcStage logic too, only where it's required! 
+			switch (oldImageLayout)
 			{
-				imageMemoryBarrier.srcAccessMask = 0;									// memory access stage transition must happen after this stage
-				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;		// memory access stage transition must happen before this stage
-
-				srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-				dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			case VK_IMAGE_LAYOUT_UNDEFINED:
+			{
+				// Image layout is undefined (or does not matter)
+				// Only valid as initial layout
+				// No flags required, listed only for completeness
+				imageMemoryBarrier.srcAccessMask = 0;
+				break;
 			}
-			// If transitioning from transfer destination to shader readable...
-			else if (oldImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+
+			case VK_IMAGE_LAYOUT_PREINITIALIZED:
 			{
+				// Image is preinitialized
+				// Only valid as initial layout for linear images, preserves memory contents
+				// Make sure host writes have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			{
+				// Image is a color attachment
+				// Make sure any writes to the color buffer have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			{
+				// Image is a depth/stencil attachment
+				// Make sure any writes to the depth/stencil buffer have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			{
+				// Image is a transfer source
+				// Make sure any reads from the image have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			{
+				// Image is a transfer destination
+				// Make sure any writes to the image have been finished
 				imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			{
+				// Image is read by a shader
+				// Make sure any shader reads from the image have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+				break;
+			}
+
+			default:
+				// Other source layouts aren't handled (yet)
+				break;
+			}
+
+			// Target layouts (new)
+			// Destination access mask controls the dependency for the new image layout
+			switch (newImageLayout)
+			{
+			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			{
+				// Image will be used as a transfer destination
+				// Make sure any writes to the image have been finished
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			{
+				// Image will be used as a transfer source
+				// Make sure any reads from the image have been finished
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			{
+				// Image will be used as a color attachment
+				// Make sure any writes to the color buffer have been finished
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			{
+				// Image layout will be used as a depth/stencil attachment
+				// Make sure any writes to depth/stencil buffer have been finished
+				imageMemoryBarrier.dstAccessMask = imageMemoryBarrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			{
+				// Image will be read in a shader (sampler, input attachment)
+				// Make sure any writes to the image have been finished
+				if (imageMemoryBarrier.srcAccessMask == 0)
+				{
+					imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+				}
 				imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-				srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				break;
+			}
+
+			default:
+				// Other source layouts aren't handled (yet)
+				break;
 			}
 
 			vkCmdPipelineBarrier(commandBuffer,
@@ -1059,26 +1160,131 @@ namespace Helper
 			imageMemoryBarrier.image = image;											// Image being accessed & modified as a part of barrier
 			imageMemoryBarrier.subresourceRange = subResRange;
 
-			VkPipelineStageFlags srcStage;
-			VkPipelineStageFlags dstStage;
+			VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+			VkPipelineStageFlags dstStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
-			// If transitioning from new image to image ready to receive data...
-			if (oldImageLayout == VK_IMAGE_LAYOUT_UNDEFINED && newImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+			// Credit = Sascha Willems : VulkanTools.cpp!
+			// Source layouts (old)
+			// Source access mask controls actions that have to be finished on the old layout
+			// before it will be transitioned to the new layout
+			// ? Added srcStage logic too, only where it's required! 
+			switch (oldImageLayout)
 			{
-				imageMemoryBarrier.srcAccessMask = 0;									// memory access stage transition must happen after this stage
-				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;		// memory access stage transition must happen before this stage
-
-				srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-				dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			case VK_IMAGE_LAYOUT_UNDEFINED:
+			{
+				// Image layout is undefined (or does not matter)
+				// Only valid as initial layout
+				// No flags required, listed only for completeness
+				imageMemoryBarrier.srcAccessMask = 0;
+				break;
 			}
-			// If transitioning from transfer destination to shader readable...
-			else if (oldImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+
+			case VK_IMAGE_LAYOUT_PREINITIALIZED:
 			{
+				// Image is preinitialized
+				// Only valid as initial layout for linear images, preserves memory contents
+				// Make sure host writes have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			{
+				// Image is a color attachment
+				// Make sure any writes to the color buffer have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			{
+				// Image is a depth/stencil attachment
+				// Make sure any writes to the depth/stencil buffer have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			{
+				// Image is a transfer source
+				// Make sure any reads from the image have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			{
+				// Image is a transfer destination
+				// Make sure any writes to the image have been finished
 				imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			{
+				// Image is read by a shader
+				// Make sure any shader reads from the image have been finished
+				imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+				break;
+			}
+
+			default:
+				// Other source layouts aren't handled (yet)
+				break;
+			}
+
+			// Target layouts (new)
+			// Destination access mask controls the dependency for the new image layout
+			switch (newImageLayout)
+			{
+			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			{
+				// Image will be used as a transfer destination
+				// Make sure any writes to the image have been finished
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			{
+				// Image will be used as a transfer source
+				// Make sure any reads from the image have been finished
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			{
+				// Image will be used as a color attachment
+				// Make sure any writes to the color buffer have been finished
+				imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			{
+				// Image layout will be used as a depth/stencil attachment
+				// Make sure any writes to depth/stencil buffer have been finished
+				imageMemoryBarrier.dstAccessMask = imageMemoryBarrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+				break;
+			}
+
+			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			{
+				// Image will be read in a shader (sampler, input attachment)
+				// Make sure any writes to the image have been finished
+				if (imageMemoryBarrier.srcAccessMask == 0)
+				{
+					imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+				}
 				imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-				srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				break;
+			}
+
+			default:
+				// Other source layouts aren't handled (yet)
+				break;
 			}
 
 			vkCmdPipelineBarrier(cmdBuffer,

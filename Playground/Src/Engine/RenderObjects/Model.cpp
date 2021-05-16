@@ -377,7 +377,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	m_pShaderUniforms->CreateBuffers(pDevice, pSwapchain);
 
 	// *** Create Descriptor pool
-	std::array<VkDescriptorPoolSize, 4> arrDescriptorPoolSize = {};
+	std::array<VkDescriptorPoolSize, 2> arrDescriptorPoolSize = {};
 
 	//-- Uniform Buffer
 	arrDescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -387,14 +387,6 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	arrDescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	arrDescriptorPoolSize[1].descriptorCount = static_cast<uint32_t>(m_mapTextures.size());
 
-	// Cubemap sampler
-	arrDescriptorPoolSize[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	arrDescriptorPoolSize[2].descriptorCount = 1;
-
-	// Irradiance Map sampler
-	arrDescriptorPoolSize[3].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	arrDescriptorPoolSize[3].descriptorCount = 1;
-	
 	VkDescriptorPoolCreateInfo poolCreateInfo = {};
 	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolCreateInfo.maxSets = static_cast<uint32_t>(m_mapTextures.size()) + static_cast<uint32_t>(pSwapchain->m_vecSwapchainImages.size());
@@ -409,7 +401,7 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		LOG_DEBUG("Successfully created Descriptor Pool");
 
 	// *** Create Descriptor Set Layout
-	std::array<VkDescriptorSetLayoutBinding, 9> arrDescriptorSetLayoutBindings = {};
+	std::array<VkDescriptorSetLayoutBinding, 7> arrDescriptorSetLayoutBindings = {};
 
 	//-- Uniform Buffer
 	arrDescriptorSetLayoutBindings[0].binding = 0;																// binding point in shader, binding = ?
@@ -459,20 +451,6 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	arrDescriptorSetLayoutBindings[6].descriptorCount = 1;
 	arrDescriptorSetLayoutBindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	arrDescriptorSetLayoutBindings[6].pImmutableSamplers = nullptr;
-
-	//-- Cubemap Texture
-	arrDescriptorSetLayoutBindings[7].binding = 7;
-	arrDescriptorSetLayoutBindings[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	arrDescriptorSetLayoutBindings[7].descriptorCount = 1;
-	arrDescriptorSetLayoutBindings[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	arrDescriptorSetLayoutBindings[7].pImmutableSamplers = nullptr;
-
-	//-- Irradiance Texture
-	arrDescriptorSetLayoutBindings[8].binding = 8;
-	arrDescriptorSetLayoutBindings[8].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	arrDescriptorSetLayoutBindings[8].descriptorCount = 1;
-	arrDescriptorSetLayoutBindings[8].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	arrDescriptorSetLayoutBindings[8].pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo descSetlayoutCreateInfo = {};
 	descSetlayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -623,41 +601,9 @@ void Model::SetupDescriptors(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 		emissionSetWrite.descriptorCount = 1;
 		emissionSetWrite.pImageInfo = &emissionImageInfo;
 
-		//-- Cubemap Texture
-		VkDescriptorImageInfo cubemapImageInfo = {};
-		cubemapImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;											// Image layout when in use
-		cubemapImageInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewCUBE;
-		cubemapImageInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerCUBE;
-
-		// Descriptor write info
-		VkWriteDescriptorSet cubemapSetWrite = {};
-		cubemapSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		cubemapSetWrite.dstSet = m_vecDescriptorSet[i];
-		cubemapSetWrite.dstBinding = 7;
-		cubemapSetWrite.dstArrayElement = 0;
-		cubemapSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		cubemapSetWrite.descriptorCount = 1;
-		cubemapSetWrite.pImageInfo = &cubemapImageInfo;
-
-		//-- Irradiance Texture
-		VkDescriptorImageInfo IrradImageInfo = {};
-		IrradImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;												// Image layout when in use
-		IrradImageInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewIRRAD;
-		IrradImageInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerIRRAD;
-
-		// Descriptor write info
-		VkWriteDescriptorSet irradSetWrite = {};
-		irradSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		irradSetWrite.dstSet = m_vecDescriptorSet[i];
-		irradSetWrite.dstBinding = 8;
-		irradSetWrite.dstArrayElement = 0;
-		irradSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		irradSetWrite.descriptorCount = 1;
-		irradSetWrite.pImageInfo = &IrradImageInfo;
-
 		// List of Descriptor set writes
 		std::vector<VkWriteDescriptorSet> setWrites = { ubSetWrite, albedoSetWrite, metalnessSetWrite, normalSetWrite,
-														roughnessSetWrite, AOSetWrite, emissionSetWrite, cubemapSetWrite, irradSetWrite };
+														roughnessSetWrite, AOSetWrite, emissionSetWrite };
 		
 		// Update the descriptor sets with new buffer/binding info
 		vkUpdateDescriptorSets(pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);

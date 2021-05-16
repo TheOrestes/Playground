@@ -248,23 +248,23 @@ void VulkanTexture2D::CreateTextureHDRI(VulkanDevice* pDevice, std::string fileN
 
 	m_vkTextureImage = Helper::Vulkan::CreateImage(	pDevice, m_iTextureWidth, m_iTextureHeight,
 													VK_FORMAT_R32G32B32A32_SFLOAT,
-													VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+													VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT |									 VK_IMAGE_USAGE_SAMPLED_BIT,
 													VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vkTextureImageMemory);
 		
 	// Transition image to be DST for copy operation
-	Helper::Vulkan::TransitionImageLayout(pDevice,
-		m_vkTextureImage,
-		VK_IMAGE_LAYOUT_UNDEFINED,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	Helper::Vulkan::TransitionImageLayout(	pDevice,
+											m_vkTextureImage,
+											VK_IMAGE_LAYOUT_UNDEFINED,
+											VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	
 	// COPY DATA TO IMAGE
 	Helper::Vulkan::CopyImageBuffer(pDevice, imageStagingBuffer, m_vkTextureImage, m_iTextureWidth, m_iTextureHeight);
 	
 	// Transition image to be shader readable for shader usage
 	Helper::Vulkan::TransitionImageLayout(pDevice,
-		m_vkTextureImage,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+										  m_vkTextureImage,
+										  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+										  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	
 	// Destroy staging buffers
 	vkDestroyBuffer(pDevice->m_vkLogicalDevice, imageStagingBuffer, nullptr);

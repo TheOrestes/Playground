@@ -111,9 +111,11 @@ void Skybox::CreateSkybox(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 
 	// Load Cubemap!
 	m_pCubemap = new VulkanTextureCUBE();
-	//m_pCubemap->CreateTextureCUBE(pDevice, "Yokohama2");
-	m_pCubemap->CreateTextureCubeFromHDRI(pDevice, pSwapchain, "Ridgecrest_Road_Ref.hdr");
-	m_pCubemap->CreateIrradianceCUBE(pDevice, pSwapchain, 64);
+	m_pCubemap->CreateTextureCUBE(pDevice, "Yokohama2");
+	//m_pCubemap->CreateTextureCubeFromHDRI(pDevice, pSwapchain, "old_hall_2k.hdr");
+	m_pCubemap->CreateIrradianceCUBE(pDevice, pSwapchain, 256);
+	m_pCubemap->CreatePrefilteredSpecMap(pDevice, pSwapchain, 512);
+	m_pCubemap->CreateBrdfLUTMap(pDevice, pSwapchain, 512);
 
 	// Setup descriptors!
 	SetupDescriptors(pDevice, pSwapchain);

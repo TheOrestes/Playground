@@ -21,6 +21,10 @@ layout(set = 0, binding = 8) uniform DeferredShaderData
     int  passID;
 } shaderData;
 
+layout(set = 0, binding = 9)  uniform samplerCube samplerIrradianceTexture;
+layout(set = 0, binding = 10) uniform samplerCube samplerPrefilterSpecTexture;
+layout(set = 0, binding = 11) uniform sampler2D   samplerBrdfLUTTexture;
+
 // Final color output!
 layout(location = 0) out vec4 outColor;
 
@@ -100,32 +104,39 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, vec3 F, float roughness)
 void main()
 {
     // extract subpass-1 G-Buffer information
-    vec4 AlbedoColor    = subpassLoad(inputColor).rgba;
-    float Depth         = subpassLoad(inputDepth).r;
-    vec4 NormalColor    = subpassLoad(inputNormal).rgba;
-    vec4 PositionColor  = subpassLoad(inputPosition).rgba; 
-    vec4 PBRColor       = subpassLoad(inputPBR).rgba; 
-    vec4 EmissionColor  = subpassLoad(inputEmission).rgba;
-    vec4 BackgroundColor= subpassLoad(inputBackground).rgba;
-    vec4 ObjectIDColor  = subpassLoad(inputObjectID).rgba;
+    vec4 AlbedoColor        = subpassLoad(inputColor).rgba;
+    float Depth             = subpassLoad(inputDepth).r;
+    vec4 NormalColor        = subpassLoad(inputNormal).rgba;
+    vec4 PositionColor      = subpassLoad(inputPosition).rgba; 
+    vec4 PBRColor           = subpassLoad(inputPBR).rgba; 
+    vec4 EmissionColor      = subpassLoad(inputEmission).rgba;
+    vec4 BackgroundColor    = subpassLoad(inputBackground).rgba;
+    vec4 ObjectIDColor      = subpassLoad(inputObjectID).rgba;
+    vec4 IndirectSpecular   = vec4(vec3(0), 1);
 
-    float Metalness     = PBRColor.r;
-    float Roughness     = PBRColor.g;
-    float Occlusion     = PBRColor.b;
+    //---- Extract Irradiance Color
+    vec4 IrradianceColor    = vec4(vec3(0), 1);
+
+    //---- Extract Prefiltered Spec Color
+    vec4 PrefilterSpecColor = vec4(vec3(0), 1);;
+
+    float Metalness         = PBRColor.r;
+    float Roughness         = PBRColor.g;
+    float Occlusion         = PBRColor.b;
 
     // Remap Depth!
-    float lowerBound    = 0.98f;
-    float upperBound    = 1.0f;
-    float ScaledDepth   = 1.0f - ((Depth-lowerBound)/(upperBound-lowerBound));
+    float lowerBound        = 0.98f;
+    float upperBound        = 1.0f;
+    float ScaledDepth       = 1.0f - ((Depth-lowerBound)/(upperBound-lowerBound));
 
     //-- Shading calculations!
-    vec3 Lo     = vec3(0);
+    vec3 Lo                 = vec3(0);
 
-    vec3 N      = normalize(NormalColor.xyz);
-    vec3 Eye    = normalize(shaderData.cameraPosition - PositionColor.rgb);
+    vec3 N                  = normalize(NormalColor.xyz);
+    vec3 Eye                = normalize(shaderData.cameraPosition - PositionColor.rgb);
 
-    vec3 LightDir        = -normalize(shaderData.lightProperties.rgb);
-    float LightIntensity = shaderData.lightProperties.a;
+    vec3 LightDir           = -normalize(shaderData.lightProperties.rgb);
+    float LightIntensity    = shaderData.lightProperties.a;
 
     // Fresnel factor!
     vec3 F0     = vec3(0.04f);
@@ -143,9 +154,23 @@ void main()
     vec3 Kd = vec3(1) - Ks;
     Kd *= 1.0f - Metalness;
 
-    vec3 Ambient = AlbedoColor.rgb * Occlusion;
-    vec3 Color = Ambient + (Kd * AlbedoColor.rgb * PI_INVERSE + Ks * Lo) * LightIntensity;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+    //---- Extract Irradiance Color
+    IrradianceColor.rgb     = texture(samplerIrradianceTexture, N).rgb;
 
+    // Calculate Image based reflection
+    vec3 viewReflection = normalize(reflect(Eye, N));
+
+    //---- Extract Prefiltered Spec Color
+    const float MAX_REFLECTION_LOD = 4.0f;
+    PrefilterSpecColor.rgb  = texture(samplerPrefilterSpecTexture, viewReflection).rgb;
+
+    //--- Extract BRDF LUT information
+    vec2 envBRDF = texture(samplerBrdfLUTTexture, vec2(max(dot(N, Eye), 0), Roughness)).rg;
+
+    IndirectSpecular.rgb = PrefilterSpecColor.rgb; //* ((Ks * envBRDF.x) + envBRDF.y);
+
+    vec3 Ambient = AlbedoColor.rgb * Occlusion * IrradianceColor.rgb; 
+    vec3 Color = Ambient + (Kd * AlbedoColor.rgb * PI_INVERSE + Ks * Lo) * LightIntensity;                                                                                                                                                                                                                                                                                                               
     // Gamma Correction!
     Color = Color / (Color + vec3(1));
     Color = pow(Color, vec3(0.4545f));
@@ -170,7 +195,7 @@ void main()
 
         case 1:
         {
-            outColor = AlbedoColor;                                 
+            outColor = IndirectSpecular;                                 
         }   break;
 
         case 2:

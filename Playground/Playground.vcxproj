@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Engine\RenderObjects\HDRISkydome.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\DummySkybox.cpp" />
     <ClCompile Include="Src\Engine\Scene.cpp" />
     <ClCompile Include="Src\Engine\Helpers\FreeCamera.cpp" />
@@ -45,6 +46,7 @@
     <ClCompile Include="Src\Engine\RenderObjects\Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Engine\RenderObjects\HDRISkydome.h" />
     <ClInclude Include="Src\Engine\RenderObjects\DummySkybox.h" />
     <ClInclude Include="Src\Engine\Scene.h" />
     <ClInclude Include="Src\Engine\Helpers\FreeCamera.h" />
@@ -77,8 +79,12 @@
     <ClInclude Include="Src\Engine\RenderObjects\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Shaders\BrdfLUT.frag" />
+    <None Include="Shaders\BrdfLUT.vert" />
     <None Include="Shaders\HDRI2Cube.frag" />
     <None Include="Shaders\HDRI2Cube.vert" />
+    <None Include="Shaders\HDRISkydome.frag" />
+    <None Include="Shaders\HDRISkydome.vert" />
     <None Include="Shaders\PreFilterCube.frag" />
     <None Include="Shaders\PreFilterCube.vert" />
   </ItemGroup>

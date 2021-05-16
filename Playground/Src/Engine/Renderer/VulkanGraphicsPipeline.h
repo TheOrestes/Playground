@@ -8,9 +8,12 @@ class VulkanSwapChain;
 enum class PipelineType
 {
 	GBUFFER_OPAQUE,
+	HDRI_SKYDOME,
 	SKYBOX,
 	HDRI_CUBE,
 	IRRADIANCE_CUBE,
+	PREFILTER_SPEC,
+	BRDF_LUT,
 	DEFERRED
 };
 

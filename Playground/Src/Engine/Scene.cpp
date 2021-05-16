@@ -8,6 +8,7 @@
 #include "Renderer/VulkanGraphicsPipeline.h"
 
 #include "Engine/RenderObjects/Skybox.h"
+#include "Engine/RenderObjects/HDRISkydome.h"
 #include "Engine/RenderObjects/Model.h"
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -29,7 +30,7 @@ void Scene::LoadScene(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	LoadModels(pDevice, pSwapchain);
 
 	// Set light properties
-	m_LightAngleEuler = glm::vec3(-90,0,0);
+	m_LightAngleEuler = glm::vec3(-90,80,40);
 	SetLightDirection(m_LightAngleEuler);
 	
 	m_LightIntensity = 1.0f;
@@ -66,13 +67,13 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	//m_vecModels.push_back(pModelSphereLeather);
 
 	// Load Color Sphere
-	Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
-	pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
-	pModelSphereColor->SetPosition(glm::vec3(5, 2.5, 0));
-	pModelSphereColor->SetScale(glm::vec3(1.5f));
-	pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
-	
-	m_vecModels.push_back(pModelSphereColor);
+	//Model* pModelSphereColor = new Model(ModelType::STATIC_OPAQUE);
+	//pModelSphereColor->LoadModel(pDevice, "Models/Sphere_Color.fbx");
+	//pModelSphereColor->SetPosition(glm::vec3(5, 2.5, 0));
+	//pModelSphereColor->SetScale(glm::vec3(1.5f));
+	//pModelSphereColor->SetupDescriptors(pDevice, pSwapchain);
+	//
+	//m_vecModels.push_back(pModelSphereColor);
 
 	// Load Rust Sphere
 	//Model* pModelSphereRust = new Model(ModelType::STATIC_OPAQUE);
@@ -84,13 +85,13 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	//m_vecModels.push_back(pModelSphereRust);
 
 	// Load WoodenFloor Model
-	//Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);
-	//pWoodenFloor->LoadModel(pDevice, "Models/Plane_Oak.fbx");
-	//pWoodenFloor->SetPosition(glm::vec3(0, -2, 0));
-	//pWoodenFloor->SetScale(glm::vec3(4));
-	//pWoodenFloor->SetupDescriptors(pDevice, pSwapchain);
-	//
-	//m_vecModels.push_back(pWoodenFloor);
+	Model* pWoodenFloor = new Model(ModelType::STATIC_OPAQUE);
+	pWoodenFloor->LoadModel(pDevice, "Models/Plane_Oak.fbx");
+	pWoodenFloor->SetPosition(glm::vec3(0, -2, 0));
+	pWoodenFloor->SetScale(glm::vec3(4));
+	pWoodenFloor->SetupDescriptors(pDevice, pSwapchain);
+	
+	m_vecModels.push_back(pWoodenFloor);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -106,7 +107,10 @@ void Scene::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 	}
 
 	// Update Skybox data!
-	Skybox::getInstance().Update(pDevice, pSwapchain, dt);
+	//Skybox::getInstance().Update(pDevice, pSwapchain, dt);
+
+	// Update Skydome data!
+	HDRISkydome::getInstance().Update(pDevice, pSwapchain, dt);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -122,7 +126,10 @@ void Scene::UpdateUniforms(VulkanDevice* pDevice, uint32_t imageIndex)
 	}
 
 	// Update Skybox uniforms!
-	Skybox::getInstance().UpdateUniformBuffers(pDevice, imageIndex);
+	//Skybox::getInstance().UpdateUniformBuffers(pDevice, imageIndex);
+
+	// Update Skydome uniforms!
+	HDRISkydome::getInstance().UpdateUniformBUffers(pDevice, imageIndex);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -142,6 +149,12 @@ void Scene::RenderOpaque(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline
 void Scene::RenderSkybox(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex)
 {
 	Skybox::getInstance().Render(pDevice, pPipline, imageIndex);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Scene::RenderSkydome(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex)
+{
+	HDRISkydome::getInstance().Render(pDevice, pPipline, imageIndex);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

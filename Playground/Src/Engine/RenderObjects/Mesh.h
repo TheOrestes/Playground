@@ -25,6 +25,10 @@ public:
 		const std::vector<uint32_t>& indices);
 
 	Mesh(VulkanDevice* device,
+		const std::vector<Helper::App::VertexPNT>& vertices,
+		const std::vector<uint32_t>& indices);
+
+	Mesh(VulkanDevice* device,
 		const std::vector<Helper::App::VertexP>& vertices,
 		const std::vector<uint32_t>& indices);
 
@@ -55,6 +59,7 @@ private:
 	VkDeviceMemory				m_vkVertexBufferMemory;
 	VkDeviceMemory				m_vkIndexBufferMemory;
 
+	void						CreateVertexBuffer(VulkanDevice* device, const std::vector<Helper::App::VertexPNT>& vertices);
 	void						CreateVertexBuffer(VulkanDevice* device, const std::vector<Helper::App::VertexPNTBT>& vertices);
 	void						CreateIndexBuffer(VulkanDevice* device, const std::vector<uint32_t>& indices);
 };

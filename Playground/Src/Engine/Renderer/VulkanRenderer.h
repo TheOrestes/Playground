@@ -90,6 +90,7 @@ private:
 
 	void							UpdateDeferredUniforms(uint32_t index);
 	void							CreateDeferredPassDescriptorPool();
+	void							CreateDeferredPassDescriptorSetLayout();
 	void							CreateDeferredPassDescriptorSets();
 
 	void							RecordCommands(uint32_t currentImage);
@@ -110,6 +111,7 @@ private:
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineGBuffer;
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineSkybox;
 	VulkanGraphicsPipeline*			m_pGraphicsPipelineDeferred;
+	VulkanGraphicsPipeline*			m_pGraphicsPipelineSkydome;
 	
 	VkDebugUtilsMessengerEXT		m_vkDebugMessenger;
 	VkSurfaceKHR					m_vkSurface;

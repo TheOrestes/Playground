@@ -20,6 +20,20 @@ Mesh::Mesh(VulkanDevice* device,
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+Mesh::Mesh(VulkanDevice* device,
+	const std::vector<Helper::App::VertexPNT>& vertices,
+	const std::vector<uint32_t>& indices)
+{
+	m_uiVertexCount = vertices.size();
+	m_uiIndexCount = indices.size();
+
+	CreateVertexBuffer(device, vertices);
+	CreateIndexBuffer(device, indices);
+
+	//m_pushConstData.matModel = glm::mat4(1.0f);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 void Mesh::SetPushConstantData(glm::mat4 modelMatrix)
 {
 	//m_pushConstData.matModel = modelMatrix;
@@ -61,6 +75,45 @@ void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::A
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		&stagingBuffer,
 		&stagingBufferMemory);
+
+	//-- MAP MEMORY TO VERTEX BUFFER
+	void* data;																					// 1. Create pointer to a point in normal memory
+	vkMapMemory(pDevice->m_vkLogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);		// 2. Map the vertex buffer memory to that point
+	memcpy(data, vertices.data(), (size_t)bufferSize);											// 3. Copy memory from vertices vector to the point
+	vkUnmapMemory(pDevice->m_vkLogicalDevice, stagingBufferMemory);								// 4. Unmap the vertex buffer memory
+
+	// Create buffer with TRANSFER_DST_BIT to mark as recipient of transfer data (also VERTEX_BUFFER_BIT)
+	// Buffer memory is to be DEVICE_LOCAL_BIT meaning memory is on the GPU & accessible by it & not CPU!
+	pDevice->CreateBuffer(	bufferSize,
+							VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+							&m_vkVertexBuffer,
+							&m_vkVertexBufferMemory);
+
+	// Copy staging buffer to vertex buffer on GPU using Command buffer!
+	pDevice->CopyBuffer(stagingBuffer, m_vkVertexBuffer, bufferSize);
+
+	// Clean up staging buffers
+	vkDestroyBuffer(pDevice->m_vkLogicalDevice, stagingBuffer, nullptr);
+	vkFreeMemory(pDevice->m_vkLogicalDevice, stagingBufferMemory, nullptr);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Mesh::CreateVertexBuffer(VulkanDevice* pDevice, const std::vector<Helper::App::VertexPNT>& vertices)
+{
+	// Get the size of buffer needed for vertices
+	VkDeviceSize bufferSize = m_uiVertexCount * sizeof(Helper::App::VertexPNT);
+
+	// Temporary buffer to "stage" vertex data before transferring to GPU
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+
+	// Create buffer & allocate memory to it!
+	pDevice->CreateBuffer(	bufferSize,
+							VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+							&stagingBuffer,
+							&stagingBufferMemory);
 
 	//-- MAP MEMORY TO VERTEX BUFFER
 	void* data;																					// 1. Create pointer to a point in normal memory

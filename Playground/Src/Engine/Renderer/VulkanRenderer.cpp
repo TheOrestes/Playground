@@ -8,13 +8,15 @@
 #include "DeferredFrameBuffer.h"
 #include "VulkanMaterial.h"
 #include "VulkanTexture2D.h"
+#include "VulkanTextureCUBE.h"
 #include "VulkanGraphicsPipeline.h"
-
+#include "Engine/RenderObjects/HDRISkydome.h"
 #include "Engine/Scene.h"
 #include "Engine/RenderObjects/Model.h"
 #include "Engine/RenderObjects/Skybox.h"
 #include "Engine/Helpers/Utility.h"
 #include "Engine/Helpers/FreeCamera.h"
+#include "Engine/RenderObjects/Skybox.h"
 #include "Engine/ImGui/UIManager.h"
 #include "Engine/ImGui/imgui.h"
 #include "Engine/ImGui/imgui_impl_glfw.h"
@@ -33,6 +35,7 @@ VulkanRenderer::VulkanRenderer()
 	m_pGraphicsPipelineGBuffer			= nullptr;
 	m_pGraphicsPipelineSkybox			= nullptr;
 	m_pGraphicsPipelineDeferred			= nullptr;
+	m_pGraphicsPipelineSkydome			= nullptr;
 	
 	m_uiCurrentFrame					= 0;
 	m_bFramebufferResized				= false;
@@ -65,6 +68,7 @@ VulkanRenderer::~VulkanRenderer()
 	SAFE_DELETE(m_pGraphicsPipelineGBuffer);
 	SAFE_DELETE(m_pGraphicsPipelineSkybox);
 	SAFE_DELETE(m_pGraphicsPipelineDeferred);
+	SAFE_DELETE(m_pGraphicsPipelineSkydome);
 	SAFE_DELETE(m_pFrameBuffer);
 	SAFE_DELETE(m_pSwapChain);
 	SAFE_DELETE(m_pDevice);
@@ -123,6 +127,8 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 
 		// Create Skybox!
 		Skybox::getInstance().CreateSkybox(m_pDevice, m_pSwapChain);
+
+		HDRISkydome::getInstance().LoadSkydome(m_pDevice, m_pSwapChain);
 
 		// Load Scene
 		m_pScene = new Scene();
@@ -407,7 +413,6 @@ void VulkanRenderer::CreateGraphicsPipeline()
 
 	std::vector<VkDescriptorSetLayout> setLayouts = { m_pScene->GetModelList().at(0)->m_vkDescriptorSetLayout };
 	std::vector<VkPushConstantRange> pushConstantRanges = {};
-
 	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRanges);
 	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
 
@@ -415,86 +420,22 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	m_pGraphicsPipelineSkybox = new VulkanGraphicsPipeline(PipelineType::SKYBOX, m_pSwapChain);
 	
 	std::vector<VkDescriptorSetLayout> setLayoutsSkybox = { Skybox::getInstance().m_vkDescriptorSetLayout };
-
 	m_pGraphicsPipelineSkybox->CreatePipelineLayout(m_pDevice, setLayoutsSkybox, pushConstantRanges);
 	m_pGraphicsPipelineSkybox->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
+
+	//---- Create Skydome Graphics Pipeline
+	m_pGraphicsPipelineSkydome = new VulkanGraphicsPipeline(PipelineType::HDRI_SKYDOME, m_pSwapChain);
+
+	std::vector<VkDescriptorSetLayout> setLayoutsSkydome = { HDRISkydome::getInstance().m_vkDescriptorSetLayout };
+	m_pGraphicsPipelineSkydome->CreatePipelineLayout(m_pDevice, setLayoutsSkydome, pushConstantRanges);
+	m_pGraphicsPipelineSkydome->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
 	
 	//----- Create GBUFFER_BEAUTY Graphics pipeline!
 	m_pGraphicsPipelineDeferred = new VulkanGraphicsPipeline(PipelineType::DEFERRED, m_pSwapChain);
 
-	//-- Create Descriptor Set Layout! 
-	std::array<VkDescriptorSetLayoutBinding, 9> arrDescriptorSeLayoutBindings;
-
-	// Color input binding 
-	arrDescriptorSeLayoutBindings[0].binding = 0;
-	arrDescriptorSeLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[0].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// Depth input binding
-	arrDescriptorSeLayoutBindings[1].binding = 1;
-	arrDescriptorSeLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[1].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// Normal Input binding
-	arrDescriptorSeLayoutBindings[2].binding = 2;
-	arrDescriptorSeLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[2].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// Position Input binding
-	arrDescriptorSeLayoutBindings[3].binding = 3;
-	arrDescriptorSeLayoutBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[3].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// PBR Input binding
-	arrDescriptorSeLayoutBindings[4].binding = 4;
-	arrDescriptorSeLayoutBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[4].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// Emission Input binding
-	arrDescriptorSeLayoutBindings[5].binding = 5;
-	arrDescriptorSeLayoutBindings[5].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[5].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// Background Input binding
-	arrDescriptorSeLayoutBindings[6].binding = 6;
-	arrDescriptorSeLayoutBindings[6].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[6].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// ObjectID Input binding
-	arrDescriptorSeLayoutBindings[7].binding = 7;
-	arrDescriptorSeLayoutBindings[7].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	arrDescriptorSeLayoutBindings[7].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// Uniform Buffer binding
-	arrDescriptorSeLayoutBindings[8].binding = 8;																// binding point in shader, binding = ?
-	arrDescriptorSeLayoutBindings[8].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
-	arrDescriptorSeLayoutBindings[8].descriptorCount = 1;														// number of descriptors
-	arrDescriptorSeLayoutBindings[8].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
-	arrDescriptorSeLayoutBindings[8].pImmutableSamplers = nullptr;
-	
-	VkDescriptorSetLayoutCreateInfo inputLayoutCreateInfo = {};
-	inputLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	inputLayoutCreateInfo.bindingCount = arrDescriptorSeLayoutBindings.size();
-	inputLayoutCreateInfo.pBindings = arrDescriptorSeLayoutBindings.data();
-
-	// Create descriptor set layout
-	if (vkCreateDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, &inputLayoutCreateInfo, nullptr, &m_vkDeferredPassDescriptorSetLayout) != VK_SUCCESS)
-	{
-		LOG_ERROR("Failed to create a Deferred Descriptor set layout");
-	}
-	else
-		LOG_DEBUG("Successfully created a Deferred Descriptor set layout");
+	CreateDeferredPassDescriptorSetLayout();
 
 	std::vector<VkDescriptorSetLayout> deferredSetLayouts = { m_vkDeferredPassDescriptorSetLayout };
-
 	m_pGraphicsPipelineDeferred->CreatePipelineLayout(m_pDevice, deferredSetLayouts, pushConstantRanges);
 	m_pGraphicsPipelineDeferred->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 1, 1);
 }
@@ -795,8 +736,12 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 		vkCmdBeginRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		// Bind Pipeline to be used Skybox!
-		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineSkybox->m_vkGraphicsPipeline);
-		m_pScene->RenderSkybox(m_pDevice, m_pGraphicsPipelineSkybox, currentImage);
+		//vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineSkybox->m_vkGraphicsPipeline);
+		//m_pScene->RenderSkybox(m_pDevice, m_pGraphicsPipelineSkybox, currentImage);
+
+		// Bind Pipeline to be used Skydome!
+		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineSkydome->m_vkGraphicsPipeline);
+		m_pScene->RenderSkydome(m_pDevice, m_pGraphicsPipelineSkydome, currentImage);
 
 		// Bind Pipeline to be used in render pass
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineGBuffer->m_vkGraphicsPipeline);
@@ -874,8 +819,8 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 	
 	// *** INPUT ATTACHMENT DESCRIPTOR POOL
 	// 8 Attachments : Color + Depth + Normal + Position + PBR + Emissive + Background + ObjectID
-	std::array<VkDescriptorPoolSize, 9> arrDescriptorPoolSize = {};
-	for (int i = 0; i < arrDescriptorPoolSize.size() - 1; ++i)
+	std::array<VkDescriptorPoolSize, 12> arrDescriptorPoolSize = {};
+	for (int i = 0; i < arrDescriptorPoolSize.size() - 3; ++i)
 	{
 		arrDescriptorPoolSize[i].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		arrDescriptorPoolSize[i].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
@@ -884,6 +829,18 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 	// Uniform Buffer data
 	arrDescriptorPoolSize[8].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	arrDescriptorPoolSize[8].descriptorCount = static_cast<uint32_t>(m_pSwapChain->m_vecSwapchainImages.size());
+
+	// Irradiance Map sampler
+	arrDescriptorPoolSize[9].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorPoolSize[9].descriptorCount = 1;
+
+	// Prefiltered SpecMap sampler
+	arrDescriptorPoolSize[10].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorPoolSize[10].descriptorCount = 1;
+
+	// BRDF LUT sampler
+	arrDescriptorPoolSize[11].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorPoolSize[11].descriptorCount = 1;
 
 	// Create input attachment pool
 	VkDescriptorPoolCreateInfo inputPoolCreateInfo = {};
@@ -900,6 +857,101 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 		LOG_DEBUG("Successfully created Input Descriptor Pool");
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+void VulkanRenderer::CreateDeferredPassDescriptorSetLayout()
+{
+	//-- Create Descriptor Set Layout! 
+	std::array<VkDescriptorSetLayoutBinding, 12> arrDescriptorSeLayoutBindings;
+
+	// Color input binding 
+	arrDescriptorSeLayoutBindings[0].binding = 0;
+	arrDescriptorSeLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[0].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Depth input binding
+	arrDescriptorSeLayoutBindings[1].binding = 1;
+	arrDescriptorSeLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[1].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Normal Input binding
+	arrDescriptorSeLayoutBindings[2].binding = 2;
+	arrDescriptorSeLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[2].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Position Input binding
+	arrDescriptorSeLayoutBindings[3].binding = 3;
+	arrDescriptorSeLayoutBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[3].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// PBR Input binding
+	arrDescriptorSeLayoutBindings[4].binding = 4;
+	arrDescriptorSeLayoutBindings[4].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[4].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Emission Input binding
+	arrDescriptorSeLayoutBindings[5].binding = 5;
+	arrDescriptorSeLayoutBindings[5].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[5].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Background Input binding
+	arrDescriptorSeLayoutBindings[6].binding = 6;
+	arrDescriptorSeLayoutBindings[6].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[6].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// ObjectID Input binding
+	arrDescriptorSeLayoutBindings[7].binding = 7;
+	arrDescriptorSeLayoutBindings[7].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	arrDescriptorSeLayoutBindings[7].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// Uniform Buffer binding
+	arrDescriptorSeLayoutBindings[8].binding = 8;																// binding point in shader, binding = ?
+	arrDescriptorSeLayoutBindings[8].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;						// type of descriptor (uniform, dynamic uniform etc.) 
+	arrDescriptorSeLayoutBindings[8].descriptorCount = 1;														// number of descriptors
+	arrDescriptorSeLayoutBindings[8].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
+	arrDescriptorSeLayoutBindings[8].pImmutableSamplers = nullptr;
+
+	//-- Irradiance Texture
+	arrDescriptorSeLayoutBindings[9].binding = 9;
+	arrDescriptorSeLayoutBindings[9].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSeLayoutBindings[9].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[9].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSeLayoutBindings[9].pImmutableSamplers = nullptr;
+
+	//-- Prefiltered SpecMap
+	arrDescriptorSeLayoutBindings[10].binding = 10;
+	arrDescriptorSeLayoutBindings[10].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSeLayoutBindings[10].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[10].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSeLayoutBindings[10].pImmutableSamplers = nullptr;
+
+	//-- BRDF LUT Map
+	arrDescriptorSeLayoutBindings[11].binding = 11;
+	arrDescriptorSeLayoutBindings[11].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	arrDescriptorSeLayoutBindings[11].descriptorCount = 1;
+	arrDescriptorSeLayoutBindings[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	arrDescriptorSeLayoutBindings[11].pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo inputLayoutCreateInfo = {};
+	inputLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	inputLayoutCreateInfo.bindingCount = arrDescriptorSeLayoutBindings.size();
+	inputLayoutCreateInfo.pBindings = arrDescriptorSeLayoutBindings.data();
+
+	// Create descriptor set layout
+	if (vkCreateDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, &inputLayoutCreateInfo, nullptr, &m_vkDeferredPassDescriptorSetLayout) != VK_SUCCESS)
+	{
+		LOG_ERROR("Failed to create a Deferred Descriptor set layout");
+	}
+	else
+		LOG_DEBUG("Successfully created a Deferred Descriptor set layout");
+}
 
 //---------------------------------------------------------------------------------------------------------------------
 void VulkanRenderer::CreateDeferredPassDescriptorSets()
@@ -1074,8 +1126,58 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		ubSetWrite.descriptorCount = 1;										
 		ubSetWrite.pBufferInfo = &ubBufferInfo;
 
+		//-- Irradiance Texture
+		VkDescriptorImageInfo IrradImageInfo = {};
+		IrradImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;												
+		IrradImageInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewIRRAD;
+		IrradImageInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerIRRAD;
+
+		// Descriptor write info
+		VkWriteDescriptorSet irradSetWrite = {};
+		irradSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		irradSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
+		irradSetWrite.dstBinding = 9;
+		irradSetWrite.dstArrayElement = 0;
+		irradSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		irradSetWrite.descriptorCount = 1;
+		irradSetWrite.pImageInfo = &IrradImageInfo;
+
+		//-- Prefiltered SpecMap
+		VkDescriptorImageInfo PrefilteredSpecMapInfo = {};
+		PrefilteredSpecMapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;										
+		PrefilteredSpecMapInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewPrefilterSpec;
+		PrefilteredSpecMapInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerPrefilterSpec;
+
+		// Descriptor write info
+		VkWriteDescriptorSet PrefilterSpecSetWrite = {};
+		PrefilterSpecSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		PrefilterSpecSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
+		PrefilterSpecSetWrite.dstBinding = 10;
+		PrefilterSpecSetWrite.dstArrayElement = 0;
+		PrefilterSpecSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		PrefilterSpecSetWrite.descriptorCount = 1;
+		PrefilterSpecSetWrite.pImageInfo = &PrefilteredSpecMapInfo;
+
+		//-- BRDF LUT Map
+		VkDescriptorImageInfo BrdfLUTMapInfo = {};
+		BrdfLUTMapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		BrdfLUTMapInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewBRDF;
+		BrdfLUTMapInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerBRDF;
+
+		// Descriptor write info
+		VkWriteDescriptorSet BrdfLUTSetWrite = {};
+		BrdfLUTSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		BrdfLUTSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
+		BrdfLUTSetWrite.dstBinding = 11;
+		BrdfLUTSetWrite.dstArrayElement = 0;
+		BrdfLUTSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		BrdfLUTSetWrite.descriptorCount = 1;
+		BrdfLUTSetWrite.pImageInfo = &BrdfLUTMapInfo;
+
 		// List of input descriptor set writes
-		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, pbrWrite, emissionWrite, backgroundWrite, objIDWrite, ubSetWrite };
+		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, pbrWrite, 
+														emissionWrite, backgroundWrite, objIDWrite, ubSetWrite, 
+														irradSetWrite, PrefilterSpecSetWrite, BrdfLUTSetWrite };
 
 		// Update descriptor sets
 		vkUpdateDescriptorSets(m_pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);
@@ -1219,6 +1321,7 @@ void VulkanRenderer::CleanupOnWindowResize()
 	
 	m_pGraphicsPipelineGBuffer->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineSkybox->CleanupOnWindowResize(m_pDevice);
+	m_pGraphicsPipelineSkydome->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineDeferred->CleanupOnWindowResize(m_pDevice);
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
@@ -1246,6 +1349,7 @@ void VulkanRenderer::Cleanup()
 
 	m_pGraphicsPipelineDeferred->Cleanup(m_pDevice);
 	m_pGraphicsPipelineSkybox->Cleanup(m_pDevice);
+	m_pGraphicsPipelineSkydome->Cleanup(m_pDevice);
 	m_pGraphicsPipelineGBuffer->Cleanup(m_pDevice);
 
 	vkDestroyRenderPass(m_pDevice->m_vkLogicalDevice, m_vkRenderPass, nullptr);
