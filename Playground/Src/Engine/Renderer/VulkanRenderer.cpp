@@ -1359,6 +1359,7 @@ void VulkanRenderer::Cleanup()
 	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorSetLayout, nullptr);
 
 	Skybox::getInstance().Cleanup(m_pDevice);
+	HDRISkydome::getInstance().Cleanup(m_pDevice);
 
 	for (Model* element : m_pScene->GetModelList())
 	{

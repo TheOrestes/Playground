@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Engine\Renderer\VulkanRenderer.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\HDRISkydome.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\DummySkybox.cpp" />
     <ClCompile Include="Src\Engine\Scene.cpp" />
@@ -19,7 +20,6 @@
     <ClCompile Include="Src\Engine\Helpers\Log.cpp" />
     <ClCompile Include="Src\Engine\ImGui\imgui_impl_glfw.cpp" />
     <ClCompile Include="Src\Engine\ImGui\imgui_impl_vulkan.cpp" />
-    <ClCompile Include="Src\Engine\Renderer\VulkanRenderer.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\Mesh.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\Model.cpp" />
     <ClCompile Include="Src\Main.cpp" />
