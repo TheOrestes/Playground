@@ -13,10 +13,8 @@
 #include "Engine/RenderObjects/HDRISkydome.h"
 #include "Engine/Scene.h"
 #include "Engine/RenderObjects/Model.h"
-#include "Engine/RenderObjects/Skybox.h"
 #include "Engine/Helpers/Utility.h"
 #include "Engine/Helpers/FreeCamera.h"
-#include "Engine/RenderObjects/Skybox.h"
 #include "Engine/ImGui/UIManager.h"
 #include "Engine/ImGui/imgui.h"
 #include "Engine/ImGui/imgui_impl_glfw.h"
@@ -33,7 +31,6 @@ VulkanRenderer::VulkanRenderer()
 	m_pScene							= nullptr;
 
 	m_pGraphicsPipelineGBuffer			= nullptr;
-	m_pGraphicsPipelineSkybox			= nullptr;
 	m_pGraphicsPipelineDeferred			= nullptr;
 	m_pGraphicsPipelineSkydome			= nullptr;
 	
@@ -66,7 +63,6 @@ VulkanRenderer::~VulkanRenderer()
 	SAFE_DELETE(m_pScene);
 	SAFE_DELETE(m_pDeferredUniforms);
 	SAFE_DELETE(m_pGraphicsPipelineGBuffer);
-	SAFE_DELETE(m_pGraphicsPipelineSkybox);
 	SAFE_DELETE(m_pGraphicsPipelineDeferred);
 	SAFE_DELETE(m_pGraphicsPipelineSkydome);
 	SAFE_DELETE(m_pFrameBuffer);
@@ -124,9 +120,6 @@ int VulkanRenderer::Initialize(GLFWwindow* pWindow)
 		// Command pool & Command buffer for Graphics!
 		m_pDevice->CreateGraphicsCommandPool();
 		m_pDevice->CreateGraphicsCommandBuffers(m_pSwapChain->m_vecSwapchainImages.size());
-
-		// Create Skybox!
-		Skybox::getInstance().CreateSkybox(m_pDevice, m_pSwapChain);
 
 		HDRISkydome::getInstance().LoadSkydome(m_pDevice, m_pSwapChain);
 
@@ -415,13 +408,6 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	std::vector<VkPushConstantRange> pushConstantRanges = {};
 	m_pGraphicsPipelineGBuffer->CreatePipelineLayout(m_pDevice, setLayouts, pushConstantRanges);
 	m_pGraphicsPipelineGBuffer->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
-
-	//----- Create SKYBOX Graphics Pipeline!
-	m_pGraphicsPipelineSkybox = new VulkanGraphicsPipeline(PipelineType::SKYBOX, m_pSwapChain);
-	
-	std::vector<VkDescriptorSetLayout> setLayoutsSkybox = { Skybox::getInstance().m_vkDescriptorSetLayout };
-	m_pGraphicsPipelineSkybox->CreatePipelineLayout(m_pDevice, setLayoutsSkybox, pushConstantRanges);
-	m_pGraphicsPipelineSkybox->CreateGraphicsPipeline(m_pDevice, m_pSwapChain, m_vkRenderPass, 0, 7);
 
 	//---- Create Skydome Graphics Pipeline
 	m_pGraphicsPipelineSkydome = new VulkanGraphicsPipeline(PipelineType::HDRI_SKYDOME, m_pSwapChain);
@@ -735,10 +721,6 @@ void VulkanRenderer::RecordCommands(uint32_t currentImage)
 		// Begin Render Pass
 		vkCmdBeginRenderPass(m_pDevice->m_vecCommandBufferGraphics[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		// Bind Pipeline to be used Skybox!
-		//vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineSkybox->m_vkGraphicsPipeline);
-		//m_pScene->RenderSkybox(m_pDevice, m_pGraphicsPipelineSkybox, currentImage);
-
 		// Bind Pipeline to be used Skydome!
 		vkCmdBindPipeline(m_pDevice->m_vecCommandBufferGraphics[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pGraphicsPipelineSkydome->m_vkGraphicsPipeline);
 		m_pScene->RenderSkydome(m_pDevice, m_pGraphicsPipelineSkydome, currentImage);
@@ -861,7 +843,7 @@ void VulkanRenderer::CreateDeferredPassDescriptorPool()
 void VulkanRenderer::CreateDeferredPassDescriptorSetLayout()
 {
 	//-- Create Descriptor Set Layout! 
-	std::array<VkDescriptorSetLayoutBinding, 12> arrDescriptorSeLayoutBindings;
+	std::array<VkDescriptorSetLayoutBinding, 9> arrDescriptorSeLayoutBindings;
 
 	// Color input binding 
 	arrDescriptorSeLayoutBindings[0].binding = 0;
@@ -917,27 +899,6 @@ void VulkanRenderer::CreateDeferredPassDescriptorSetLayout()
 	arrDescriptorSeLayoutBindings[8].descriptorCount = 1;														// number of descriptors
 	arrDescriptorSeLayoutBindings[8].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;	// Shader stage to bind to
 	arrDescriptorSeLayoutBindings[8].pImmutableSamplers = nullptr;
-
-	//-- Irradiance Texture
-	arrDescriptorSeLayoutBindings[9].binding = 9;
-	arrDescriptorSeLayoutBindings[9].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	arrDescriptorSeLayoutBindings[9].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[9].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	arrDescriptorSeLayoutBindings[9].pImmutableSamplers = nullptr;
-
-	//-- Prefiltered SpecMap
-	arrDescriptorSeLayoutBindings[10].binding = 10;
-	arrDescriptorSeLayoutBindings[10].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	arrDescriptorSeLayoutBindings[10].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[10].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	arrDescriptorSeLayoutBindings[10].pImmutableSamplers = nullptr;
-
-	//-- BRDF LUT Map
-	arrDescriptorSeLayoutBindings[11].binding = 11;
-	arrDescriptorSeLayoutBindings[11].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	arrDescriptorSeLayoutBindings[11].descriptorCount = 1;
-	arrDescriptorSeLayoutBindings[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	arrDescriptorSeLayoutBindings[11].pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo inputLayoutCreateInfo = {};
 	inputLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1126,58 +1087,9 @@ void VulkanRenderer::CreateDeferredPassDescriptorSets()
 		ubSetWrite.descriptorCount = 1;										
 		ubSetWrite.pBufferInfo = &ubBufferInfo;
 
-		//-- Irradiance Texture
-		VkDescriptorImageInfo IrradImageInfo = {};
-		IrradImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;												
-		IrradImageInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewIRRAD;
-		IrradImageInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerIRRAD;
-
-		// Descriptor write info
-		VkWriteDescriptorSet irradSetWrite = {};
-		irradSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		irradSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
-		irradSetWrite.dstBinding = 9;
-		irradSetWrite.dstArrayElement = 0;
-		irradSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		irradSetWrite.descriptorCount = 1;
-		irradSetWrite.pImageInfo = &IrradImageInfo;
-
-		//-- Prefiltered SpecMap
-		VkDescriptorImageInfo PrefilteredSpecMapInfo = {};
-		PrefilteredSpecMapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;										
-		PrefilteredSpecMapInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewPrefilterSpec;
-		PrefilteredSpecMapInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerPrefilterSpec;
-
-		// Descriptor write info
-		VkWriteDescriptorSet PrefilterSpecSetWrite = {};
-		PrefilterSpecSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		PrefilterSpecSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
-		PrefilterSpecSetWrite.dstBinding = 10;
-		PrefilterSpecSetWrite.dstArrayElement = 0;
-		PrefilterSpecSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		PrefilterSpecSetWrite.descriptorCount = 1;
-		PrefilterSpecSetWrite.pImageInfo = &PrefilteredSpecMapInfo;
-
-		//-- BRDF LUT Map
-		VkDescriptorImageInfo BrdfLUTMapInfo = {};
-		BrdfLUTMapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		BrdfLUTMapInfo.imageView = Skybox::getInstance().m_pCubemap->m_vkImageViewBRDF;
-		BrdfLUTMapInfo.sampler = Skybox::getInstance().m_pCubemap->m_vkSamplerBRDF;
-
-		// Descriptor write info
-		VkWriteDescriptorSet BrdfLUTSetWrite = {};
-		BrdfLUTSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		BrdfLUTSetWrite.dstSet = m_vecDeferredPassDescriptorSets[i];
-		BrdfLUTSetWrite.dstBinding = 11;
-		BrdfLUTSetWrite.dstArrayElement = 0;
-		BrdfLUTSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		BrdfLUTSetWrite.descriptorCount = 1;
-		BrdfLUTSetWrite.pImageInfo = &BrdfLUTMapInfo;
-
 		// List of input descriptor set writes
 		std::vector<VkWriteDescriptorSet> setWrites = { colorWrite, depthWrite, normalWrite, positionWrite, pbrWrite, 
-														emissionWrite, backgroundWrite, objIDWrite, ubSetWrite, 
-														irradSetWrite, PrefilterSpecSetWrite, BrdfLUTSetWrite };
+														emissionWrite, backgroundWrite, objIDWrite, ubSetWrite };
 
 		// Update descriptor sets
 		vkUpdateDescriptorSets(m_pDevice->m_vkLogicalDevice, static_cast<uint32_t>(setWrites.size()), setWrites.data(), 0, nullptr);
@@ -1320,7 +1232,6 @@ void VulkanRenderer::CleanupOnWindowResize()
 	UIManager::getInstance().CleanupOnWindowResize(m_pDevice);
 	
 	m_pGraphicsPipelineGBuffer->CleanupOnWindowResize(m_pDevice);
-	m_pGraphicsPipelineSkybox->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineSkydome->CleanupOnWindowResize(m_pDevice);
 	m_pGraphicsPipelineDeferred->CleanupOnWindowResize(m_pDevice);
 
@@ -1348,7 +1259,6 @@ void VulkanRenderer::Cleanup()
 	m_pFrameBuffer->Cleanup(m_pDevice);
 
 	m_pGraphicsPipelineDeferred->Cleanup(m_pDevice);
-	m_pGraphicsPipelineSkybox->Cleanup(m_pDevice);
 	m_pGraphicsPipelineSkydome->Cleanup(m_pDevice);
 	m_pGraphicsPipelineGBuffer->Cleanup(m_pDevice);
 
@@ -1358,7 +1268,6 @@ void VulkanRenderer::Cleanup()
 	vkDestroyDescriptorPool(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_pDevice->m_vkLogicalDevice, m_vkDeferredPassDescriptorSetLayout, nullptr);
 
-	Skybox::getInstance().Cleanup(m_pDevice);
 	HDRISkydome::getInstance().Cleanup(m_pDevice);
 
 	for (Model* element : m_pScene->GetModelList())

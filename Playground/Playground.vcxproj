@@ -42,8 +42,6 @@
     <ClCompile Include="Src\Engine\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Src\Engine\ImGui\UIManager.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanFrameBuffer.cpp" />
-    <ClCompile Include="Src\Engine\Renderer\VulkanTextureCUBE.cpp" />
-    <ClCompile Include="Src\Engine\RenderObjects\Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Src\Engine\RenderObjects\HDRISkydome.h" />
@@ -75,8 +73,6 @@
     <ClInclude Include="Src\Engine\Renderer\VulkanMaterial.h" />
     <ClInclude Include="Src\Engine\ImGui\UIManager.h" />
     <ClInclude Include="Src\Engine\Renderer\VulkanFrameBuffer.h" />
-    <ClInclude Include="Src\Engine\Renderer\VulkanTextureCUBE.h" />
-    <ClInclude Include="Src\Engine\RenderObjects\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\BrdfLUT.frag" />

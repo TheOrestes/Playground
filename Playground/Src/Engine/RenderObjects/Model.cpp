@@ -7,9 +7,6 @@
 #include "Engine/Renderer/VulkanMaterial.h"
 #include "Engine/Renderer/VulkanTexture2D.h"
 #include "Engine/Renderer/VulkanGraphicsPipeline.h"
-#include "Engine/Renderer/VulkanTextureCUBE.h"
-#include "Engine/RenderObjects/Skybox.h"
-
 
 #include "Engine/ImGui/imgui.h"
 #include "Model.h"

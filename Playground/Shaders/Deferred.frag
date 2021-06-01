@@ -21,10 +21,6 @@ layout(set = 0, binding = 8) uniform DeferredShaderData
     int  passID;
 } shaderData;
 
-layout(set = 0, binding = 9)  uniform samplerCube samplerIrradianceTexture;
-layout(set = 0, binding = 10) uniform samplerCube samplerPrefilterSpecTexture;
-layout(set = 0, binding = 11) uniform sampler2D   samplerBrdfLUTTexture;
-
 // Final color output!
 layout(location = 0) out vec4 outColor;
 
@@ -112,13 +108,6 @@ void main()
     vec4 EmissionColor      = subpassLoad(inputEmission).rgba;
     vec4 BackgroundColor    = subpassLoad(inputBackground).rgba;
     vec4 ObjectIDColor      = subpassLoad(inputObjectID).rgba;
-    vec4 IndirectSpecular   = vec4(vec3(0), 1);
-
-    //---- Extract Irradiance Color
-    vec4 IrradianceColor    = vec4(vec3(0), 1);
-
-    //---- Extract Prefiltered Spec Color
-    vec4 PrefilterSpecColor = vec4(vec3(0), 1);;
 
     float Metalness         = PBRColor.r;
     float Roughness         = PBRColor.g;
@@ -154,23 +143,9 @@ void main()
     vec3 Kd = vec3(1) - Ks;
     Kd *= 1.0f - Metalness;
 
-    //---- Extract Irradiance Color
-    IrradianceColor.rgb     = texture(samplerIrradianceTexture, N).rgb;
-
-    // Calculate Image based reflection
-    vec3 viewReflection = normalize(reflect(Eye, N));
-
-    //---- Extract Prefiltered Spec Color
-    const float MAX_REFLECTION_LOD = 4.0f;
-    PrefilterSpecColor.rgb  = texture(samplerPrefilterSpecTexture, viewReflection).rgb;
-
-    //--- Extract BRDF LUT information
-    vec2 envBRDF = texture(samplerBrdfLUTTexture, vec2(max(dot(N, Eye), 0), Roughness)).rg;
-
-    IndirectSpecular.rgb = PrefilterSpecColor.rgb; //* ((Ks * envBRDF.x) + envBRDF.y);
-
-    vec3 Ambient = AlbedoColor.rgb * Occlusion * IrradianceColor.rgb; 
+    vec3 Ambient = AlbedoColor.rgb * Occlusion; 
     vec3 Color = Ambient + (Kd * AlbedoColor.rgb * PI_INVERSE + Ks * Lo) * LightIntensity;                                                                                                                                                                                                                                                                                                               
+    
     // Gamma Correction!
     Color = Color / (Color + vec3(1));
     Color = pow(Color, vec3(0.4545f));
@@ -195,7 +170,7 @@ void main()
 
         case 1:
         {
-            outColor = IndirectSpecular;                                 
+            outColor = AlbedoColor;                                 
         }   break;
 
         case 2:

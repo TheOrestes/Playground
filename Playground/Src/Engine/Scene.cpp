@@ -7,7 +7,6 @@
 #include "Renderer/VulkanSwapChain.h"
 #include "Renderer/VulkanGraphicsPipeline.h"
 
-#include "Engine/RenderObjects/Skybox.h"
 #include "Engine/RenderObjects/HDRISkydome.h"
 #include "Engine/RenderObjects/Model.h"
 
@@ -49,13 +48,13 @@ void Scene::LoadModels(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain)
 	//m_vecModels.push_back(pModelGun);
 
 	// Load AntMan Model
-	//Model* pModelAnt = new Model(ModelType::STATIC_OPAQUE);
-	//pModelAnt->LoadModel(pDevice, "Models/AntMan.fbx");
-	//pModelAnt->SetPosition(glm::vec3(0, 0, 0));
-	//pModelAnt->SetScale(glm::vec3(1.0f));
-	//pModelAnt->SetupDescriptors(pDevice, pSwapchain);
-	//
-	//m_vecModels.push_back(pModelAnt);
+	Model* pModelAnt = new Model(ModelType::STATIC_OPAQUE);
+	pModelAnt->LoadModel(pDevice, "Models/AntMan.fbx");
+	pModelAnt->SetPosition(glm::vec3(0, 0, 0));
+	pModelAnt->SetScale(glm::vec3(1.0f));
+	pModelAnt->SetupDescriptors(pDevice, pSwapchain);
+	
+	m_vecModels.push_back(pModelAnt);
 
 	// Load Leather Sphere
 	//Model* pModelSphereLeather = new Model(ModelType::STATIC_OPAQUE);
@@ -106,9 +105,6 @@ void Scene::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 		}
 	}
 
-	// Update Skybox data!
-	//Skybox::getInstance().Update(pDevice, pSwapchain, dt);
-
 	// Update Skydome data!
 	HDRISkydome::getInstance().Update(pDevice, pSwapchain, dt);
 }
@@ -125,9 +121,6 @@ void Scene::UpdateUniforms(VulkanDevice* pDevice, uint32_t imageIndex)
 		}
 	}
 
-	// Update Skybox uniforms!
-	//Skybox::getInstance().UpdateUniformBuffers(pDevice, imageIndex);
-
 	// Update Skydome uniforms!
 	HDRISkydome::getInstance().UpdateUniformBUffers(pDevice, imageIndex);
 }
@@ -143,12 +136,6 @@ void Scene::RenderOpaque(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline
 			element->Render(pDevice, pPipline, imageIndex);
 		}
 	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-void Scene::RenderSkybox(VulkanDevice* pDevice, VulkanGraphicsPipeline* pPipline, uint32_t imageIndex)
-{
-	Skybox::getInstance().Render(pDevice, pPipline, imageIndex);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

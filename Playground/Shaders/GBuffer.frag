@@ -50,8 +50,6 @@ void main()
     vec4 RoughnessColor     = vec4(0.0f);
     vec4 AOColor            = vec4(0.0f);
     vec4 EmissionColor      = vec4(0.0f);
-    vec4 IrradianceColor    = vec4(0.0f);
-    vec4 PrefilterSpecColor = vec4(0.0f);
 
     //---- Extract Base Color
     if(shaderData.hasTextureAEN.r == 1)
