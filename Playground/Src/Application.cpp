@@ -6,7 +6,7 @@
 #include "Engine/Helpers/Utility.h"
 #include "Engine/Renderer/IRenderer.h"
 #include "Engine/Renderer/VulkanRenderer.h"
-#include "Engine/Helpers/FreeCamera.h"
+#include "Engine/Helpers/Camera.h"
 
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -97,7 +97,7 @@ void Application::MainLoop()
         lastTime = currTime;
 
         m_pRenderer->Update(m_fDelta);
-        FreeCamera::getInstance().Update(m_fDelta);
+        Camera::getInstance().Update(m_fDelta);
 
         m_pRenderer->Render();
     }
@@ -136,40 +136,40 @@ void Application::EventKeyHandlerCallback(GLFWwindow* pWindow, int key, int scan
     // Camera controls..
     if (key == GLFW_KEY_W && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::FORWARD);
+        Camera::getInstance().Move(CameraDirection::FORWARD);
     }
 
     if (key == GLFW_KEY_S && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::BACK);
+        Camera::getInstance().Move(CameraDirection::BACK);
     }
 
     if (key == GLFW_KEY_A && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::LEFT);
+        Camera::getInstance().Move(CameraDirection::LEFT);
     }
 
     if (key == GLFW_KEY_D && (action == GLFW_REPEAT || GLFW_PRESS))
     {
-        FreeCamera::getInstance().ProcessKeyDown(FreeCameraMovement::RIGHT);
+        Camera::getInstance().Move(CameraDirection::RIGHT);
     }
 }
 
-float lastX = Helper::App::WINDOW_WIDTH / 2.0f;
-float lastY = Helper::App::WINDOW_HEIGHT / 2.0f;
+//float lastX = Helper::App::WINDOW_WIDTH / 2.0f;
+//float lastY = Helper::App::WINDOW_HEIGHT / 2.0f;
 //---------------------------------------------------------------------------------------------------------------------
 void Application::EventMousePositionCallback(GLFWwindow* pWindow, double xPos, double yPos)
 {
-    float xOffset = xPos - lastX;
-    float yOffset = lastY - yPos;
-
-    lastX = xPos;
-    lastY = yPos;
+    //float xOffset = xPos - lastX;
+    //float yOffset = lastY - yPos;
+    //
+    //lastX = xPos;
+    //lastY = yPos;
 
     // Rotate only when RIGHT CLICK is down!
     if (glfwGetMouseButton(pWindow, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
     {
-        FreeCamera::getInstance().ProcessMouseMove(xOffset, yOffset);
+        Camera::getInstance().Move2D(xPos, yPos);
     }
 }
 
@@ -181,5 +181,5 @@ void Application::EventMouseButtonCallback(GLFWwindow* pWindow, int button, int 
 //---------------------------------------------------------------------------------------------------------------------
 void Application::EventMouseScrollCallback(GLFWwindow* pWindow, double xOffset, double yOffset)
 {
-    FreeCamera::getInstance().ProcessMouseScroll(yOffset);
+    //FreeCamera::getInstance().ProcessMouseScroll(yOffset);
 }

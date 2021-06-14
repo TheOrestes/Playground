@@ -2,7 +2,7 @@
 #include "HDRISkydome.h"
 
 #include "Engine/Helpers/Utility.h"
-#include "Engine/Helpers/FreeCamera.h"
+#include "Engine/Helpers/Camera.h"
 #include "Engine/Renderer/VulkanDevice.h"
 #include "Engine/Renderer/VulkanSwapChain.h"
 #include "Engine/Renderer/VulkanMaterial.h"
@@ -134,9 +134,9 @@ void HDRISkydome::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, flo
 	m_pSkydomeUniforms->shaderData.model = glm::mat4(1);
 
 	// Fetch View & Projection matrices from the Camera!	
-	m_pSkydomeUniforms->shaderData.projection = FreeCamera::getInstance().m_matProjection;
+	m_pSkydomeUniforms->shaderData.projection = Camera::getInstance().m_matProjection;
 
-	m_pSkydomeUniforms->shaderData.view = FreeCamera::getInstance().m_matView;
+	m_pSkydomeUniforms->shaderData.view = Camera::getInstance().m_matView;
 	m_pSkydomeUniforms->shaderData.projection[1][1] *= -1.0f;
 }
 

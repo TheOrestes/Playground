@@ -1,7 +1,7 @@
 
 #include "PlaygroundPCH.h"
 #include "Engine/Helpers/Utility.h"
-#include "Engine/Helpers/FreeCamera.h"
+#include "Engine/Helpers/Camera.h"
 #include "Engine/Renderer/VulkanDevice.h"
 #include "Engine/Renderer/VulkanSwapChain.h"
 #include "Engine/Renderer/VulkanMaterial.h"
@@ -330,9 +330,9 @@ void Model::Update(VulkanDevice* pDevice, VulkanSwapChain* pSwapchain, float dt)
 	m_pShaderUniforms->shaderData.model = glm::scale(m_pShaderUniforms->shaderData.model, m_vecScale);
 
 	// Fetch View & Projection matrices from the Camera!	
-	m_pShaderUniforms->shaderData.projection = FreeCamera::getInstance().m_matProjection;
+	m_pShaderUniforms->shaderData.projection = Camera::getInstance().m_matProjection;
 
-	m_pShaderUniforms->shaderData.view = FreeCamera::getInstance().m_matView;
+	m_pShaderUniforms->shaderData.view = Camera::getInstance().m_matView;
 	m_pShaderUniforms->shaderData.projection[1][1] *= -1.0f;
 
 	// Update object ID

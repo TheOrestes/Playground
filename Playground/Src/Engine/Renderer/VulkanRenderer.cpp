@@ -14,7 +14,7 @@
 #include "Engine/Scene.h"
 #include "Engine/RenderObjects/Model.h"
 #include "Engine/Helpers/Utility.h"
-#include "Engine/Helpers/FreeCamera.h"
+#include "Engine/Helpers/Camera.h"
 #include "Engine/ImGui/UIManager.h"
 #include "Engine/ImGui/imgui.h"
 #include "Engine/ImGui/imgui_impl_glfw.h"
@@ -156,7 +156,7 @@ void VulkanRenderer::Update(float dt)
 
 	// Update deferred pass uniform data
 	// Contains : PassID | CameraPosition
-	m_pDeferredUniforms->shaderData.cameraPosition = FreeCamera::getInstance().m_vecPosition;
+	m_pDeferredUniforms->shaderData.cameraPosition = Camera::getInstance().m_vecCameraPosition;
 	m_pDeferredUniforms->shaderData.lightProperties = glm::vec4(m_pScene->m_LightDirection, m_pScene->m_LightIntensity);
 	m_pDeferredUniforms->shaderData.passID = UIManager::getInstance().m_iPassID;	
 }

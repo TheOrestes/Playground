@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Engine\Helpers\Camera.cpp" />
     <ClCompile Include="Src\Engine\Renderer\VulkanRenderer.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\HDRISkydome.cpp" />
     <ClCompile Include="Src\Engine\RenderObjects\DummySkybox.cpp" />
@@ -44,6 +45,7 @@
     <ClCompile Include="Src\Engine\Renderer\VulkanFrameBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Engine\Helpers\Camera.h" />
     <ClInclude Include="Src\Engine\RenderObjects\HDRISkydome.h" />
     <ClInclude Include="Src\Engine\RenderObjects\DummySkybox.h" />
     <ClInclude Include="Src\Engine\Scene.h" />
